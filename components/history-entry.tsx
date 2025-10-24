@@ -26,7 +26,10 @@ export function HistoryEntry({ entry }: HistoryEntryProps) {
 
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push(`/recipes/detail/${entry.recipeId}` as any);
+    router.push({
+      pathname: `/recipes/detail/${entry.recipeId}`,
+      params: { scale: entry.scaleFactor.toString() },
+    } as any);
   };
 
   const formatDate = (timestamp: number) => {

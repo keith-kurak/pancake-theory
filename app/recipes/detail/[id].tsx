@@ -1,31 +1,36 @@
-import { useState, useMemo } from 'react';
-import { ScrollView, StyleSheet, Pressable } from 'react-native';
-import { Stack, useLocalSearchParams, router } from 'expo-router';
-import * as Haptics from 'expo-haptics';
+import { DirectionItem } from '@/components/direction-item';
+import { IngredientItem } from '@/components/ingredient-item';
+import { ScaleSlider } from '@/components/scale-slider';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { useThemeColor } from '@/hooks/use-theme-color';
-import { IngredientItem } from '@/components/ingredient-item';
-import { DirectionItem } from '@/components/direction-item';
-import { ScaleSlider } from '@/components/scale-slider';
 import { getRecipeById } from '@/data/recipes';
-import { scaleIngredient, formatAmount } from '@/utils/recipe-scaler';
+import { useThemeColor } from '@/hooks/use-theme-color';
 import { breakfastActions } from '@/store/breakfast-store';
+import { formatAmount, scaleIngredient } from '@/utils/recipe-scaler';
+import * as Haptics from 'expo-haptics';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
+import { Pressable, ScrollView, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type TabType = 'ingredients' | 'directions';
 
 export default function RecipeDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, scale } = useLocalSearchParams<{ id: string; scale?: string }>();
   const recipe = getRecipeById(id);
 
+  const initialScale = scale ? parseFloat(scale) : 1;
+
   const [activeTab, setActiveTab] = useState<TabType>('ingredients');
-  const [scaleFactor, setScaleFactor] = useState(1);
+  const [scaleFactor, setScaleFactor] = useState(initialScale);
   const [checkedIngredients, setCheckedIngredients] = useState<Set<number>>(
     new Set()
   );
 
   const tintColor = useThemeColor({}, 'tint');
   const backgroundColor = useThemeColor({}, 'background');
+
+  const insets = useSafeAreaInsets();
 
   if (!recipe) {
     return (
@@ -69,7 +74,7 @@ export default function RecipeDetailScreen() {
     });
 
     // Navigate to History tab
-    router.push('/(tabs)/explore');
+    router.push('/(tabs)/history');
   };
 
   const handleTabChange = (tab: TabType) => {
@@ -180,7 +185,7 @@ export default function RecipeDetailScreen() {
 
         {/* I Made It Button */}
         {activeTab === 'ingredients' && allIngredientsChecked && (
-          <ThemedView style={styles.buttonContainer}>
+          <ThemedView style={[styles.buttonContainer, { marginBottom: insets.bottom }]}>
             <Pressable
               onPress={handleMadeIt}
               style={[styles.madeItButton, { backgroundColor: tintColor }]}
