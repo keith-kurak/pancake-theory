@@ -3,6 +3,7 @@ import { IngredientItem } from '@/components/ingredient-item';
 import { ScaleSlider } from '@/components/scale-slider';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { getRecipeById } from '@/data/recipes';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { breakfastActions } from '@/store/breakfast-store';
@@ -19,7 +20,6 @@ import {
   TextInput,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { IconSymbol } from '@/components/ui/icon-symbol';
 
 type TabType = 'ingredients' | 'directions' | 'notes';
 
@@ -97,9 +97,11 @@ export default function RecipeDetailScreen() {
     setActiveTab(tab);
   };
 
-  const handleNotesBlur = () => {
+  const handleDoneEditing = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     breakfastActions.saveRecipeNotes(id, notes);
     setIsEditingNotes(false);
+    notesInputRef.current?.blur();
   };
 
   const handleEditNotes = () => {
@@ -256,13 +258,20 @@ export default function RecipeDetailScreen() {
                   ]}
                   value={notes}
                   onChangeText={setNotes}
-                  onBlur={handleNotesBlur}
                   placeholder="Add notes about this recipe..."
                   placeholderTextColor={textColor + '80'}
                   multiline
                   textAlignVertical="top"
                   editable={isEditingNotes}
                 />
+                {isEditingNotes && (
+                  <Pressable
+                    onPress={handleDoneEditing}
+                    style={[styles.doneCheckmark, { backgroundColor: tintColor }]}
+                  >
+                    <IconSymbol name="checkmark" size={20} color="white" />
+                  </Pressable>
+                )}
               </ThemedView>
             </KeyboardAvoidingView>
 
@@ -323,11 +332,11 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   notesContainer: {
-    padding: 16,
+    //padding: 16,
     flex: 1,
   },
   notesInput: {
-    padding: 12,
+    padding: 16,
     fontSize: 16,
     flex: 1,
   },
@@ -337,6 +346,21 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  doneCheckmark: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
