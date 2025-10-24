@@ -60,15 +60,10 @@ export function BreakfastCard({ type }: BreakfastCardProps) {
           contentFit="contain"
         />
 
-        <ThemedView
-          style={[styles.ratioContainer, { backgroundColor: 'transparent' }]}
-        >
-          <ThemedText style={styles.ratioLabel}>Ratio:</ThemedText>
-          <ThemedText style={styles.ratioText}>
-            {breakfastInfo.ratios.flour} : {breakfastInfo.ratios.liquid} :{' '}
-            {breakfastInfo.ratios.eggs}
-          </ThemedText>
-        </ThemedView>
+        <ThemedText style={styles.description}>
+          {breakfastInfo.description}
+        </ThemedText>
+
         <ThemedText style={[styles.subtitle, { color: tintColor }]}>
           Make it →
         </ThemedText>
@@ -109,6 +104,12 @@ const styles = StyleSheet.create({
   image: {
     flex: 1,
     width: '100%',
+  },
+  description: {
+    fontSize: 16,
+    fontStyle: 'italic',
+    opacity: 0.8,
+    textAlign: 'center',
   },
   ratioContainer: {
     flexDirection: 'row',

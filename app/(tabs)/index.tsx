@@ -2,6 +2,7 @@ import { BreakfastCard } from "@/components/breakfast-card";
 import { RatioSlider } from "@/components/ratio-slider";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { BREAKFAST_TYPES } from "@/constants/breakfast-ratios";
 import type { Ratios } from "@/types/breakfast";
 import { findClosestBreakfast } from "@/utils/ratio-matcher";
 import { useMemo, useState } from "react";
@@ -22,6 +23,9 @@ export default function ChooserScreen() {
   const matchedBreakfast = useMemo(() => {
     return findClosestBreakfast(ratios);
   }, [ratios]);
+
+  // Get the target ratios for the matched breakfast
+  const targetRatios = BREAKFAST_TYPES[matchedBreakfast].ratios;
 
   const updateFlour = (value: number) => {
     setRatios((prev) => ({ ...prev, flour: value }));
@@ -50,25 +54,28 @@ export default function ChooserScreen() {
       {/* Sliders at the bottom */}
       <ThemedView style={styles.slidersContainer}>
         <ThemedText type="subtitle" style={styles.slidersTitle}>
-          Ingredients
+          Ratios
         </ThemedText>
 
         <RatioSlider
           label="Flour"
           value={ratios.flour}
           onValueChange={updateFlour}
+          targetRatio={targetRatios.flour}
         />
 
         <RatioSlider
           label="Milk / Water"
           value={ratios.liquid}
           onValueChange={updateLiquid}
+          targetRatio={targetRatios.liquid}
         />
 
         <RatioSlider
           label="Eggs"
           value={ratios.eggs}
           onValueChange={updateEggs}
+          targetRatio={targetRatios.eggs}
         />
       </ThemedView>
       <ThemedView style={{ height: insets.bottom + 0 }} />

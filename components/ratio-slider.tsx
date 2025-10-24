@@ -9,6 +9,7 @@ interface RatioSliderProps {
   label: string;
   value: number;
   onValueChange: (value: number) => void;
+  targetRatio?: number;
   minimumValue?: number;
   maximumValue?: number;
   step?: number;
@@ -18,6 +19,7 @@ export function RatioSlider({
   label,
   value,
   onValueChange,
+  targetRatio,
   minimumValue = 1,
   maximumValue = 10,
   step = 0.5,
@@ -38,7 +40,14 @@ export function RatioSlider({
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedText style={styles.label}>{label}</ThemedText>
+      <ThemedView style={styles.labelRow}>
+        <ThemedText style={styles.label}>{label}</ThemedText>
+        {targetRatio !== undefined && (
+          <ThemedText style={[styles.targetRatio, { opacity: 0.5 }]}>
+            {targetRatio}
+          </ThemedText>
+        )}
+      </ThemedView>
       <Slider
         style={styles.slider}
         minimumValue={minimumValue}
@@ -58,10 +67,19 @@ const styles = StyleSheet.create({
   container: {
     //paddingVertical: 8,
   },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
   label: {
     fontSize: 16,
     fontWeight: '600',
-    marginBottom: 4,
+  },
+  targetRatio: {
+    fontSize: 16,
+    fontWeight: '400',
   },
   slider: {
     width: '100%',
