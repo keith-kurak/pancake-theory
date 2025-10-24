@@ -4,9 +4,9 @@ import { BREAKFAST_TYPES } from '@/constants/breakfast-ratios';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import type { BreakfastType } from '@/types/breakfast';
 import * as Haptics from 'expo-haptics';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { Pressable, StyleSheet } from 'react-native';
-import { Image } from 'expo-image';
 
 interface BreakfastCardProps {
   type: BreakfastType;
