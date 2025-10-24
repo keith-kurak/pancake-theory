@@ -8,7 +8,7 @@ export default function TabLayout() {
         <Icon sf="slider.horizontal.3" />
         <Label hidden>Chooser</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="explore">
+      <NativeTabs.Trigger name="history">
         <Icon sf="clock.fill" />
         <Label hidden>History</Label>
       </NativeTabs.Trigger>

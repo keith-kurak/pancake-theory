@@ -78,7 +78,7 @@ export default function ChooserScreen() {
           targetRatio={targetRatios.eggs}
         />
       </ThemedView>
-      <ThemedView style={{ height: insets.bottom + 0 }} />
+      <ThemedView style={{ height:  30 }} />
     </ThemedView>
   );
 }
