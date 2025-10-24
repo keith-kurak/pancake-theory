@@ -43,6 +43,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "1de013cf-b8b2-4ac3-9e4d-dd70bfd4892e"
+      }
+    },
+    "owner": "expo-production"
   }
 }
