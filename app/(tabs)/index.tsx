@@ -35,7 +35,7 @@ export default function ChooserScreen() {
   };
 
   return (
-    <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
+    <ThemedView style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <ThemedView style={styles.header}>
         <ThemedText type="title" style={styles.title}>
           What should I make?
@@ -109,6 +109,7 @@ const styles = StyleSheet.create({
   slidersContainer: {
     marginTop: 24,
     paddingTop: 16,
+    paddingBottom: 62,
     gap: 8,
   },
   slidersTitle: {
