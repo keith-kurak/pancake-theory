@@ -10,9 +10,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function ChooserScreen() {
   const [ratios, setRatios] = useState<Ratios>({
-    flour: 50,
-    liquid: 50,
-    eggs: 50,
+    flour: 5,
+    liquid: 5,
+    eggs: 5,
   });
 
   const insets = useSafeAreaInsets();
@@ -36,44 +36,44 @@ export default function ChooserScreen() {
 
   return (
     <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
-        <ThemedView style={styles.header}>
-          <ThemedText type="title" style={styles.title}>
-            What should I make?
-          </ThemedText>
-          <ThemedText style={styles.subtitle}>
-            Adjust the ingredient ratios below
-          </ThemedText>
-        </ThemedView>
+      <ThemedView style={styles.header}>
+        <ThemedText type="title" style={styles.title}>
+          What should I make?
+        </ThemedText>
+        <ThemedText style={styles.subtitle}>
+          Adjust the ingredient ratios below
+        </ThemedText>
+      </ThemedView>
 
-        {/* Matched breakfast card */}
-        <ThemedView style={styles.cardContainer}>
-          <BreakfastCard type={matchedBreakfast} />
-        </ThemedView>
+      {/* Matched breakfast card */}
+      <ThemedView style={styles.cardContainer}>
+        <BreakfastCard type={matchedBreakfast} />
+      </ThemedView>
 
-        {/* Sliders at the bottom */}
-        <ThemedView style={styles.slidersContainer}>
-          <ThemedText type="subtitle" style={styles.slidersTitle}>
-            Ingredient Ratios
-          </ThemedText>
+      {/* Sliders at the bottom */}
+      <ThemedView style={styles.slidersContainer}>
+        <ThemedText type="subtitle" style={styles.slidersTitle}>
+          Ingredient Ratios
+        </ThemedText>
 
-          <RatioSlider
-            label="Flour"
-            value={ratios.flour}
-            onValueChange={updateFlour}
-          />
+        <RatioSlider
+          label="Flour"
+          value={ratios.flour}
+          onValueChange={updateFlour}
+        />
 
-          <RatioSlider
-            label="Liquid"
-            value={ratios.liquid}
-            onValueChange={updateLiquid}
-          />
+        <RatioSlider
+          label="Liquid"
+          value={ratios.liquid}
+          onValueChange={updateLiquid}
+        />
 
-          <RatioSlider
-            label="Eggs"
-            value={ratios.eggs}
-            onValueChange={updateEggs}
-          />
-        </ThemedView>
+        <RatioSlider
+          label="Eggs"
+          value={ratios.eggs}
+          onValueChange={updateEggs}
+        />
+      </ThemedView>
     </ThemedView>
   );
 }

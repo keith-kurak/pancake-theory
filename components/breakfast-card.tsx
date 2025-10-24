@@ -26,7 +26,7 @@ export function BreakfastCard({ type }: BreakfastCardProps) {
 
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push(`/recipes/${type}`);
+    router.push(`/recipes/${type}` as any);
   };
 
   return (

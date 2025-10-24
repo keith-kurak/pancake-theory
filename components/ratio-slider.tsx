@@ -18,9 +18,9 @@ export function RatioSlider({
   label,
   value,
   onValueChange,
-  minimumValue = 0,
-  maximumValue = 100,
-  step = 1,
+  minimumValue = 1,
+  maximumValue = 10,
+  step = 0.5,
 }: RatioSliderProps) {
   const tintColor = useThemeColor({}, 'tint');
   const textColor = useThemeColor({}, 'text');
@@ -32,15 +32,13 @@ export function RatioSlider({
   const handleValueChange = (newValue: number) => {
     // Trigger light haptic feedback on value change
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onValueChange(newValue);
+    // Ensure value doesn't go below 1
+    onValueChange(Math.max(1, newValue));
   };
 
   return (
     <ThemedView style={styles.container}>
-      <View style={styles.labelRow}>
-        <ThemedText style={styles.label}>{label}</ThemedText>
-        <ThemedText style={styles.value}>{Math.round(value)}</ThemedText>
-      </View>
+      <ThemedText style={styles.label}>{label}</ThemedText>
       <Slider
         style={styles.slider}
         minimumValue={minimumValue}
@@ -60,21 +58,10 @@ const styles = StyleSheet.create({
   container: {
     paddingVertical: 8,
   },
-  labelRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
   label: {
     fontSize: 16,
     fontWeight: '600',
-  },
-  value: {
-    fontSize: 16,
-    fontWeight: '700',
-    minWidth: 40,
-    textAlign: 'right',
+    marginBottom: 4,
   },
   slider: {
     width: '100%',
