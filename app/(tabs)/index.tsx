@@ -10,9 +10,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function ChooserScreen() {
   const [ratios, setRatios] = useState<Ratios>({
-    flour: 5,
-    liquid: 5,
-    eggs: 5,
+    // default to pancake ratios
+    flour: 6,
+    liquid: 6,
+    eggs: 3,
   });
 
   const insets = useSafeAreaInsets();
@@ -35,16 +36,12 @@ export default function ChooserScreen() {
   };
 
   return (
-    <ThemedView style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-      <ThemedView style={styles.header}>
-        <ThemedText type="title" style={styles.title}>
-          What should I make?
-        </ThemedText>
-        <ThemedText style={styles.subtitle}>
-          Adjust the ingredient ratios below
-        </ThemedText>
-      </ThemedView>
-
+    <ThemedView
+      style={[
+        styles.container,
+        { paddingTop: insets.top, paddingBottom: insets.bottom },
+      ]}
+    >
       {/* Matched breakfast card */}
       <ThemedView style={styles.cardContainer}>
         <BreakfastCard type={matchedBreakfast} />
@@ -53,7 +50,7 @@ export default function ChooserScreen() {
       {/* Sliders at the bottom */}
       <ThemedView style={styles.slidersContainer}>
         <ThemedText type="subtitle" style={styles.slidersTitle}>
-          Ingredient Ratios
+          Ingredients
         </ThemedText>
 
         <RatioSlider
@@ -63,7 +60,7 @@ export default function ChooserScreen() {
         />
 
         <RatioSlider
-          label="Liquid"
+          label="Milk / Water"
           value={ratios.liquid}
           onValueChange={updateLiquid}
         />
@@ -74,6 +71,7 @@ export default function ChooserScreen() {
           onValueChange={updateEggs}
         />
       </ThemedView>
+      <ThemedView style={{ height: insets.bottom + 0 }} />
     </ThemedView>
   );
 }
@@ -107,12 +105,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   slidersContainer: {
-    marginTop: 24,
-    paddingTop: 16,
-    paddingBottom: 62,
+    //marginTop: 24,
+    padding: 16,
     gap: 8,
+    marginBottom: 16,
   },
   slidersTitle: {
-    marginBottom: 8,
+    alignSelf: "center",
+    //marginBottom: 8,
   },
 });

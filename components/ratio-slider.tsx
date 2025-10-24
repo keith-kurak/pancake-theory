@@ -1,9 +1,9 @@
-import { StyleSheet, View } from 'react-native';
-import Slider from '@react-native-community/slider';
-import * as Haptics from 'expo-haptics';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import Slider from '@react-native-community/slider';
+import * as Haptics from 'expo-haptics';
+import { StyleSheet } from 'react-native';
 
 interface RatioSliderProps {
   label: string;
@@ -56,7 +56,7 @@ export function RatioSlider({
 
 const styles = StyleSheet.create({
   container: {
-    paddingVertical: 8,
+    //paddingVertical: 8,
   },
   label: {
     fontSize: 16,

@@ -70,7 +70,7 @@ export function BreakfastCard({ type }: BreakfastCardProps) {
           </ThemedText>
         </ThemedView>
         <ThemedText style={[styles.subtitle, { color: tintColor }]}>
-          Tap to view recipes →
+          Make it →
         </ThemedText>
       </ThemedView>
     </Pressable>
@@ -107,8 +107,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   image: {
-    width: 180,
-    height: 180,
+    flex: 1,
+    width: '100%',
   },
   ratioContainer: {
     flexDirection: 'row',
