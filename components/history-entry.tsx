@@ -28,7 +28,9 @@ export function HistoryEntry({ entry }: HistoryEntryProps) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push({
       pathname: `/recipes/detail/${entry.recipeId}`,
-      params: { scale: entry.scaleFactor.toString() },
+      params: {
+        scale: entry.scaleFactor.toString(),
+      },
     } as any);
   };
 

@@ -9,14 +9,25 @@ import { breakfastActions } from '@/store/breakfast-store';
 import { formatAmount, scaleIngredient } from '@/utils/recipe-scaler';
 import * as Haptics from 'expo-haptics';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet } from 'react-native';
+import { useRef, useState } from 'react';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 
-type TabType = 'ingredients' | 'directions';
+type TabType = 'ingredients' | 'directions' | 'notes';
 
 export default function RecipeDetailScreen() {
-  const { id, scale } = useLocalSearchParams<{ id: string; scale?: string }>();
+  const { id, scale } = useLocalSearchParams<{
+    id: string;
+    scale?: string;
+  }>();
   const recipe = getRecipeById(id);
 
   const initialScale = scale ? parseFloat(scale) : 1;
@@ -26,9 +37,13 @@ export default function RecipeDetailScreen() {
   const [checkedIngredients, setCheckedIngredients] = useState<Set<number>>(
     new Set()
   );
+  const [notes, setNotes] = useState(() => breakfastActions.getRecipeNotes(id));
+  const [isEditingNotes, setIsEditingNotes] = useState(false);
+  const notesInputRef = useRef<TextInput>(null);
 
   const tintColor = useThemeColor({}, 'tint');
   const backgroundColor = useThemeColor({}, 'background');
+  const textColor = useThemeColor({}, 'text');
 
   const insets = useSafeAreaInsets();
 
@@ -80,6 +95,20 @@ export default function RecipeDetailScreen() {
   const handleTabChange = (tab: TabType) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setActiveTab(tab);
+  };
+
+  const handleNotesBlur = () => {
+    breakfastActions.saveRecipeNotes(id, notes);
+    setIsEditingNotes(false);
+  };
+
+  const handleEditNotes = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setIsEditingNotes(true);
+    // Focus the input after state updates
+    setTimeout(() => {
+      notesInputRef.current?.focus();
+    }, 100);
   };
 
   return (
@@ -139,11 +168,34 @@ export default function RecipeDetailScreen() {
               Directions
             </ThemedText>
           </Pressable>
+
+          <Pressable
+            onPress={() => handleTabChange('notes')}
+            style={[
+              styles.tab,
+              activeTab === 'notes' && {
+                borderBottomColor: tintColor,
+                borderBottomWidth: 2,
+              },
+            ]}
+          >
+            <ThemedText
+              style={[
+                styles.tabText,
+                activeTab === 'notes' && {
+                  color: tintColor,
+                  fontWeight: '600',
+                },
+              ]}
+            >
+              Notes
+            </ThemedText>
+          </Pressable>
         </ThemedView>
 
         {/* Content */}
-        <ScrollView style={styles.content}>
-          {activeTab === 'ingredients' && (
+        {activeTab === 'ingredients' && (
+          <ScrollView style={styles.content}>
             <ThemedView style={{ backgroundColor }}>
               <ScaleSlider value={scaleFactor} onValueChange={setScaleFactor} />
 
@@ -168,9 +220,11 @@ export default function RecipeDetailScreen() {
                 })}
               </ThemedView>
             </ThemedView>
-          )}
+          </ScrollView>
+        )}
 
-          {activeTab === 'directions' && (
+        {activeTab === 'directions' && (
+          <ScrollView style={styles.content}>
             <ThemedView style={styles.directionsList}>
               {recipe.directions.map((direction, index) => (
                 <DirectionItem
@@ -180,8 +234,51 @@ export default function RecipeDetailScreen() {
                 />
               ))}
             </ThemedView>
-          )}
-        </ScrollView>
+          </ScrollView>
+        )}
+
+        {activeTab === 'notes' && (
+          <>
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              style={styles.content}
+              keyboardVerticalOffset={100}
+            >
+              <ThemedView style={[styles.notesContainer, { backgroundColor }]}>
+                <TextInput
+                  ref={notesInputRef}
+                  style={[
+                    styles.notesInput,
+                    {
+                      color: textColor,
+                      opacity: isEditingNotes ? 1 : 0.7,
+                    },
+                  ]}
+                  value={notes}
+                  onChangeText={setNotes}
+                  onBlur={handleNotesBlur}
+                  placeholder="Add notes about this recipe..."
+                  placeholderTextColor={textColor + '80'}
+                  multiline
+                  textAlignVertical="top"
+                  editable={isEditingNotes}
+                />
+              </ThemedView>
+            </KeyboardAvoidingView>
+
+            {!isEditingNotes && (
+              <Pressable
+                onPress={handleEditNotes}
+                style={[
+                  styles.editFab,
+                  { backgroundColor: tintColor, bottom: insets.bottom + 16 },
+                ]}
+              >
+                <IconSymbol name="pencil" size={24} color="white" />
+              </Pressable>
+            )}
+          </>
+        )}
 
         {/* I Made It Button */}
         {activeTab === 'ingredients' && allIngredientsChecked && (
@@ -224,6 +321,29 @@ const styles = StyleSheet.create({
   },
   directionsList: {
     paddingVertical: 8,
+  },
+  notesContainer: {
+    padding: 16,
+    flex: 1,
+  },
+  notesInput: {
+    padding: 12,
+    fontSize: 16,
+    flex: 1,
+  },
+  editFab: {
+    position: 'absolute',
+    right: 16,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
   },
   buttonContainer: {
     padding: 16,

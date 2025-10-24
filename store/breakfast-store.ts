@@ -10,14 +10,16 @@ const persistOptions = configureSynced({
     },
 });
 
-// Store only persistent data (history)
+// Store only persistent data (history, recipe notes)
 // Ratios are local state, recipes/breakfast types are static data
 interface BreakfastStore {
   history: HistoryEntry[];
+  recipeNotes: Record<string, string>; // recipeId -> notes
 }
 
 const initialState: BreakfastStore = {
   history: [],
+  recipeNotes: {},
 };
 
 // Create the observable store
@@ -32,7 +34,7 @@ syncObservable(
     }),
 );
 
-// Actions for managing history
+// Actions for managing history and recipe notes
 export const breakfastActions = {
   addToHistory: (entry: Omit<HistoryEntry, 'id' | 'timestamp'>) => {
     const newEntry: HistoryEntry = {
@@ -51,5 +53,20 @@ export const breakfastActions = {
     const currentHistory = breakfastStore$.history.peek();
     const filtered = currentHistory.filter((entry) => entry.id !== id);
     breakfastStore$.history.set(filtered);
+  },
+
+  saveRecipeNotes: (recipeId: string, notes: string) => {
+    if (notes.trim()) {
+      breakfastStore$.recipeNotes[recipeId].set(notes.trim());
+    } else {
+      // Remove notes if empty
+      const currentNotes = breakfastStore$.recipeNotes.peek();
+      const { [recipeId]: _, ...rest } = currentNotes;
+      breakfastStore$.recipeNotes.set(rest);
+    }
+  },
+
+  getRecipeNotes: (recipeId: string): string => {
+    return breakfastStore$.recipeNotes[recipeId].peek() || '';
   },
 };
