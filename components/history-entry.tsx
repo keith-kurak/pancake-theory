@@ -1,11 +1,11 @@
-import { Pressable, StyleSheet } from 'react-native';
-import { router } from 'expo-router';
-import * as Haptics from 'expo-haptics';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { BREAKFAST_TYPES } from '@/constants/breakfast-ratios';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import type { HistoryEntry as HistoryEntryType } from '@/types/breakfast';
-import { BREAKFAST_TYPES } from '@/constants/breakfast-ratios';
+import * as Haptics from 'expo-haptics';
+import { router } from 'expo-router';
+import { Pressable, StyleSheet } from 'react-native';
 
 interface HistoryEntryProps {
   entry: HistoryEntryType;
@@ -78,7 +78,7 @@ export function HistoryEntry({ entry }: HistoryEntryProps) {
           </ThemedText>
           {entry.scaleFactor !== 1 && (
             <ThemedText style={styles.scale}>
-              {entry.scaleFactor}x recipe
+              {entry.scaleFactor}x
             </ThemedText>
           )}
         </ThemedView>

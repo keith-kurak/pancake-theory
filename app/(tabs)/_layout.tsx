@@ -1,6 +1,8 @@
 import { Icon, Label, NativeTabs } from 'expo-router/unstable-native-tabs';
 import React from 'react';
 
+// TODO: fall back to JS tabs because native tabs don't look right on web
+
 export default function TabLayout() {
   return (
     <NativeTabs>
