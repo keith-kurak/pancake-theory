@@ -64,6 +64,10 @@ export function BreakfastCard({ type }: BreakfastCardProps) {
           {breakfastInfo.description}
         </ThemedText>
 
+        <ThemedText style={styles.serveWith}>
+          {breakfastInfo.serveWith}
+        </ThemedText>
+
         <ThemedText style={[styles.subtitle, { color: tintColor }]}>
           Make it →
         </ThemedText>
@@ -93,7 +97,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1,
-    gap: 16,
+    gap: 8,
   },
   title: {
     fontSize: 32,
@@ -109,6 +113,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontStyle: 'italic',
     opacity: 0.8,
+    textAlign: 'center',
+  },
+  serveWith: {
+    fontSize: 14,
+    opacity: 0.6,
     textAlign: 'center',
   },
   ratioContainer: {
