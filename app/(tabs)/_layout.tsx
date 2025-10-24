@@ -1,4 +1,4 @@
-import { NativeTabs, Icon, Label } from 'expo-router/unstable-native-tabs';
+import { Icon, Label, NativeTabs } from 'expo-router/unstable-native-tabs';
 import React from 'react';
 
 export default function TabLayout() {
@@ -6,11 +6,11 @@ export default function TabLayout() {
     <NativeTabs>
       <NativeTabs.Trigger name="index">
         <Icon sf="slider.horizontal.3" />
-        <Label>Chooser</Label>
+        <Label hidden>Chooser</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="explore">
         <Icon sf="clock.fill" />
-        <Label>History</Label>
+        <Label hidden>History</Label>
       </NativeTabs.Trigger>
     </NativeTabs>
   );
