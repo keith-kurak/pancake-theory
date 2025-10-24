@@ -6,10 +6,22 @@ import type { BreakfastType } from '@/types/breakfast';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { Pressable, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 
 interface BreakfastCardProps {
   type: BreakfastType;
 }
+
+// Map breakfast types to image files
+const BREAKFAST_IMAGES: Record<BreakfastType, any> = {
+  pancakes: require('@/assets/breakfasts/pancakes.png'),
+  waffles: require('@/assets/breakfasts/waffles.png'),
+  crepes: require('@/assets/breakfasts/crepes.png'),
+  'dutch baby': require('@/assets/breakfasts/dutchbaby.png'),
+  popover: require('@/assets/breakfasts/popovers.png'),
+  donut: require('@/assets/breakfasts/donuts.png'),
+  clafoutis: require('@/assets/breakfasts/clafoutis.png'),
+};
 
 export function BreakfastCard({ type }: BreakfastCardProps) {
   const backgroundColor = useThemeColor(
@@ -23,6 +35,7 @@ export function BreakfastCard({ type }: BreakfastCardProps) {
   const tintColor = useThemeColor({}, 'tint');
 
   const breakfastInfo = BREAKFAST_TYPES[type];
+  const imageSource = BREAKFAST_IMAGES[type];
 
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -40,6 +53,13 @@ export function BreakfastCard({ type }: BreakfastCardProps) {
     >
       <ThemedView style={[styles.content, { backgroundColor: 'transparent' }]}>
         <ThemedText style={styles.title}>{breakfastInfo.name}</ThemedText>
+
+        <Image
+          source={imageSource}
+          style={styles.image}
+          contentFit="contain"
+        />
+
         <ThemedView
           style={[styles.ratioContainer, { backgroundColor: 'transparent' }]}
         >
@@ -77,19 +97,22 @@ const styles = StyleSheet.create({
   content: {
     alignItems: 'center',
     justifyContent: 'center',
-    flex: 1, 
+    flex: 1,
+    gap: 16,
   },
   title: {
     fontSize: 32,
     lineHeight: 38,
     fontWeight: 'bold',
-    marginBottom: 12,
     textAlign: 'center',
+  },
+  image: {
+    width: 180,
+    height: 180,
   },
   ratioContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
   },
   ratioLabel: {
     fontSize: 14,
@@ -104,6 +127,5 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     fontWeight: '500',
-    marginTop: 8,
   },
 });
