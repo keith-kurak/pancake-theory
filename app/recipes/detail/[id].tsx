@@ -6,11 +6,13 @@ import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { getRecipeById } from '@/data/recipes';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { breakfastActions } from '@/store/breakfast-store';
+import { breakfastActions, breakfastStore$ } from '@/store/breakfast-store';
+import { showConfirmDialog } from '@/utils/confirm-dialog';
 import { formatAmount, scaleIngredient } from '@/utils/recipe-scaler';
+import { useValue } from '@legendapp/state/react';
 import * as Haptics from 'expo-haptics';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -22,6 +24,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type TabType = 'ingredients' | 'directions' | 'notes';
+type RecipeMode = 'viewing' | 'active' | 'pending-other';
 
 export default function RecipeDetailScreen() {
   const { id, scale } = useLocalSearchParams<{
@@ -30,15 +33,38 @@ export default function RecipeDetailScreen() {
   }>();
   const recipe = getRecipeById(id);
 
-  const initialScale = scale ? parseFloat(scale) : 1;
+  // Observe pending recipe from store
+  const pendingRecipeValue = useValue(breakfastStore$.pendingRecipe);
+
+  // Determine recipe mode
+  const mode: RecipeMode = useMemo(() => {
+    if (!pendingRecipeValue) return 'viewing';
+    if (pendingRecipeValue.recipeId === id) return 'active';
+    return 'pending-other';
+  }, [pendingRecipeValue, id]);
+
+  const isActive = mode === 'active';
+
+  // Initialize state from pending recipe if active, otherwise use defaults
+  const initialScale = useMemo(() => {
+    if (isActive && pendingRecipeValue) return pendingRecipeValue.scaleFactor;
+    if (scale) return parseFloat(scale);
+    return 1;
+  }, [isActive, pendingRecipeValue, scale]);
+
+  const initialChecked = useMemo(() => {
+    if (isActive && pendingRecipeValue) {
+      return new Set(pendingRecipeValue.checkedIngredients);
+    }
+    return new Set<number>();
+  }, [isActive, pendingRecipeValue]);
 
   const [activeTab, setActiveTab] = useState<TabType>('ingredients');
   const [scaleFactor, setScaleFactor] = useState(initialScale);
-  const [checkedIngredients, setCheckedIngredients] = useState<Set<number>>(
-    new Set()
-  );
+  const [checkedIngredients, setCheckedIngredients] = useState(initialChecked);
   const [notes, setNotes] = useState(() => breakfastActions.getRecipeNotes(id));
   const [isEditingNotes, setIsEditingNotes] = useState(false);
+  const [elapsedTime, setElapsedTime] = useState(0);
   const notesInputRef = useRef<TextInput>(null);
 
   const tintColor = useThemeColor({}, 'tint');
@@ -46,6 +72,37 @@ export default function RecipeDetailScreen() {
   const textColor = useThemeColor({}, 'text');
 
   const insets = useSafeAreaInsets();
+
+  // Timer effect for active recipes
+  useEffect(() => {
+    if (!isActive || !pendingRecipeValue) return;
+
+    const updateTimer = () => {
+      const elapsed = Date.now() - pendingRecipeValue.startTime;
+      setElapsedTime(elapsed);
+    };
+
+    updateTimer(); // Initial update
+    const interval = setInterval(updateTimer, 60000); // Update every minute
+
+    return () => clearInterval(interval);
+  }, [isActive, pendingRecipeValue]);
+
+  // Sync checked ingredients to store when active
+  useEffect(() => {
+    if (isActive) {
+      breakfastActions.updatePendingRecipeProgress(
+        Array.from(checkedIngredients)
+      );
+    }
+  }, [checkedIngredients, isActive]);
+
+  // Sync scale factor to store when active
+  useEffect(() => {
+    if (isActive) {
+      breakfastActions.updatePendingRecipeScale(scaleFactor);
+    }
+  }, [scaleFactor, isActive]);
 
   if (!recipe) {
     return (
@@ -68,6 +125,7 @@ export default function RecipeDetailScreen() {
     checkedIngredients.size === recipe.ingredients.length;
 
   const toggleIngredient = (index: number) => {
+    if (!isActive) return; // Only allow toggling in active mode
     const newChecked = new Set(checkedIngredients);
     if (newChecked.has(index)) {
       newChecked.delete(index);
@@ -77,18 +135,55 @@ export default function RecipeDetailScreen() {
     setCheckedIngredients(newChecked);
   };
 
-  const handleMadeIt = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  const handleMakeItNow = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    // Add to history
-    breakfastActions.addToHistory({
-      recipeId: recipe.id,
-      recipeName: recipe.name,
-      recipeType: recipe.type,
-      scaleFactor,
+    // If there's a pending recipe, ask for confirmation
+    if (pendingRecipeValue) {
+      const confirmed = await showConfirmDialog({
+        title: 'Start New Recipe?',
+        message: `You're already making ${pendingRecipeValue.recipeName}. Cancel that recipe and start this one?`,
+        confirmText: 'Start This Recipe',
+        cancelText: 'Keep Making It',
+      });
+
+      if (!confirmed) return;
+      breakfastActions.cancelPendingRecipe();
+    }
+
+    // Start the recipe
+    breakfastActions.startRecipe(
+      recipe.id,
+      recipe.name,
+      recipe.type,
+      scaleFactor
+    );
+  };
+
+  const handleContinue = () => {
+    // Already in active mode, just a visual confirmation
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  const handleCancelRecipe = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    const confirmed = await showConfirmDialog({
+      title: 'Cancel Recipe?',
+      message: 'Are you sure you want to cancel making this recipe? Your progress will be lost.',
+      confirmText: 'Cancel Recipe',
+      cancelText: 'Keep Making It',
     });
 
-    // Navigate to History tab
+    if (confirmed) {
+      breakfastActions.cancelPendingRecipe();
+      router.back();
+    }
+  };
+
+  const handleMadeIt = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    breakfastActions.completePendingRecipe();
     router.push('/(tabs)/history');
   };
 
@@ -105,12 +200,21 @@ export default function RecipeDetailScreen() {
   };
 
   const handleEditNotes = () => {
+    if (!isActive) return; // Only allow editing in active mode
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setIsEditingNotes(true);
     // Focus the input after state updates
     setTimeout(() => {
       notesInputRef.current?.focus();
     }, 100);
+  };
+
+  const formatElapsedTime = (milliseconds: number): string => {
+    const minutes = Math.floor(milliseconds / 60000);
+    if (minutes < 60) return `${minutes} min`;
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hours}h ${mins}m`;
   };
 
   return (
@@ -199,7 +303,20 @@ export default function RecipeDetailScreen() {
         {activeTab === 'ingredients' && (
           <ScrollView style={styles.content}>
             <ThemedView style={{ backgroundColor }}>
-              <ScaleSlider value={scaleFactor} onValueChange={setScaleFactor} />
+              {isActive && (
+                <ThemedView style={styles.timerContainer}>
+                  <ThemedText style={styles.timerLabel}>Cooking for:</ThemedText>
+                  <ThemedText style={[styles.timerText, { color: tintColor }]}>
+                    {formatElapsedTime(elapsedTime)}
+                  </ThemedText>
+                </ThemedView>
+              )}
+
+              <ScaleSlider
+                value={scaleFactor}
+                onValueChange={setScaleFactor}
+                disabled={!isActive}
+              />
 
               <ThemedView style={styles.ingredientsList}>
                 {recipe.ingredients.map((ingredient, index) => {
@@ -275,7 +392,7 @@ export default function RecipeDetailScreen() {
               </ThemedView>
             </KeyboardAvoidingView>
 
-            {!isEditingNotes && (
+            {!isEditingNotes && isActive && (
               <Pressable
                 onPress={handleEditNotes}
                 style={[
@@ -289,14 +406,54 @@ export default function RecipeDetailScreen() {
           </>
         )}
 
-        {/* I Made It Button */}
-        {activeTab === 'ingredients' && allIngredientsChecked && (
+        {/* Action Buttons */}
+        {mode === 'viewing' && (
           <ThemedView style={[styles.buttonContainer, { marginBottom: insets.bottom }]}>
             <Pressable
-              onPress={handleMadeIt}
-              style={[styles.madeItButton, { backgroundColor: tintColor }]}
+              onPress={handleMakeItNow}
+              style={[styles.actionButton, { backgroundColor: tintColor }]}
             >
-              <ThemedText style={styles.madeItText}>I made it!</ThemedText>
+              <ThemedText style={styles.actionButtonText}>
+                Make it now?
+              </ThemedText>
+            </Pressable>
+          </ThemedView>
+        )}
+
+        {mode === 'active' && activeTab === 'ingredients' && (
+          <ThemedView style={[styles.buttonContainer, { marginBottom: insets.bottom }]}>
+            {allIngredientsChecked ? (
+              <Pressable
+                onPress={handleMadeIt}
+                style={[styles.actionButton, { backgroundColor: tintColor }]}
+              >
+                <ThemedText style={styles.actionButtonText}>I made it!</ThemedText>
+              </Pressable>
+            ) : (
+              <Pressable
+                onPress={handleCancelRecipe}
+                style={[
+                  styles.actionButton,
+                  { backgroundColor: 'transparent', borderWidth: 1, borderColor: tintColor },
+                ]}
+              >
+                <ThemedText style={[styles.actionButtonText, { color: tintColor }]}>
+                  Cancel Recipe
+                </ThemedText>
+              </Pressable>
+            )}
+          </ThemedView>
+        )}
+
+        {mode === 'pending-other' && (
+          <ThemedView style={[styles.buttonContainer, { marginBottom: insets.bottom }]}>
+            <Pressable
+              onPress={handleMakeItNow}
+              style={[styles.actionButton, { backgroundColor: tintColor }]}
+            >
+              <ThemedText style={styles.actionButtonText}>
+                Make it now?
+              </ThemedText>
             </Pressable>
           </ThemedView>
         )}
@@ -324,6 +481,21 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  timerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+    gap: 8,
+  },
+  timerLabel: {
+    fontSize: 16,
+    opacity: 0.7,
+  },
+  timerText: {
+    fontSize: 20,
+    fontWeight: '600',
   },
   ingredientsList: {
     paddingVertical: 8,
@@ -373,6 +545,16 @@ const styles = StyleSheet.create({
     padding: 16,
     borderTopWidth: 1,
     borderTopColor: 'rgba(128, 128, 128, 0.2)',
+  },
+  actionButton: {
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  actionButtonText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'white',
   },
   madeItButton: {
     paddingVertical: 16,

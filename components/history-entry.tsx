@@ -58,6 +58,14 @@ export function HistoryEntry({ entry }: HistoryEntryProps) {
     }
   };
 
+  const formatDuration = (milliseconds: number) => {
+    const minutes = Math.floor(milliseconds / 60000);
+    if (minutes < 60) return `${minutes} min`;
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hours}h ${mins}m`;
+  };
+
   return (
     <Pressable
       onPress={handlePress}
@@ -81,11 +89,18 @@ export function HistoryEntry({ entry }: HistoryEntryProps) {
           <ThemedText style={styles.timestamp}>
             {formatDate(entry.timestamp)}
           </ThemedText>
-          {entry.scaleFactor !== 1 && (
-            <ThemedText style={styles.scale}>
-              {entry.scaleFactor}x
-            </ThemedText>
-          )}
+          <ThemedView style={[styles.metadata, { backgroundColor: 'transparent' }]}>
+            {entry.cookingDuration && (
+              <ThemedText style={styles.duration}>
+                {formatDuration(entry.cookingDuration)}
+              </ThemedText>
+            )}
+            {entry.scaleFactor !== 1 && (
+              <ThemedText style={styles.scale}>
+                {entry.scaleFactor}x
+              </ThemedText>
+            )}
+          </ThemedView>
         </ThemedView>
       </ThemedView>
     </Pressable>
@@ -124,6 +139,16 @@ const styles = StyleSheet.create({
   timestamp: {
     fontSize: 12,
     opacity: 0.6,
+  },
+  metadata: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+  duration: {
+    fontSize: 12,
+    opacity: 0.7,
+    fontWeight: '500',
   },
   scale: {
     fontSize: 12,

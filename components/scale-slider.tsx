@@ -8,9 +8,10 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 interface ScaleSliderProps {
   value: number;
   onValueChange: (value: number) => void;
+  disabled?: boolean;
 }
 
-export function ScaleSlider({ value, onValueChange }: ScaleSliderProps) {
+export function ScaleSlider({ value, onValueChange, disabled = false }: ScaleSliderProps) {
   const tintColor = useThemeColor({}, 'tint');
   const backgroundColor = useThemeColor(
     { light: '#f0f0f0', dark: '#333' },
@@ -18,12 +19,13 @@ export function ScaleSlider({ value, onValueChange }: ScaleSliderProps) {
   );
 
   const handleValueChange = (newValue: number) => {
+    if (disabled) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onValueChange(newValue);
   };
 
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView style={[styles.container, disabled && { opacity: 0.5 }]}>
       <ThemedView style={styles.labelRow}>
         <ThemedText style={styles.label}>Scale Recipe</ThemedText>
         <ThemedText style={styles.value}>{value}x</ThemedText>
@@ -38,6 +40,7 @@ export function ScaleSlider({ value, onValueChange }: ScaleSliderProps) {
         minimumTrackTintColor={tintColor}
         maximumTrackTintColor={backgroundColor}
         thumbTintColor={tintColor}
+        disabled={disabled}
       />
     </ThemedView>
   );

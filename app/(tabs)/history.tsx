@@ -1,18 +1,36 @@
-import { FlatList, StyleSheet, RefreshControl } from 'react-native';
-import { observer } from '@legendapp/state/react';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { HistoryEntry } from '@/components/history-entry';
-import { breakfastStore$ } from '@/store/breakfast-store';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useState } from 'react';
+import { HistoryEntry } from "@/components/history-entry";
+import { PendingRecipeCard } from "@/components/pending-recipe-card";
+import { ThemedText } from "@/components/themed-text";
+import { ThemedView } from "@/components/themed-view";
+import { breakfastStore$ } from "@/store/breakfast-store";
+import type { HistoryEntry as HistoryEntryType } from "@/types/breakfast";
+import { observer, useValue } from "@legendapp/state/react";
+import { useMemo, useState } from "react";
+import { FlatList, RefreshControl, StyleSheet } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 function HistoryScreen() {
   const insets = useSafeAreaInsets();
   const [refreshing, setRefreshing] = useState(false);
 
-  // Get the history from the store
-  const history = breakfastStore$.history.get();
+  // Get the history and pending recipe from the store
+  const history = useValue(breakfastStore$.history);
+  const pendingRecipe = useValue(breakfastStore$.pendingRecipe);
+
+  // Combine pending recipe and history into a single list
+  const displayItems = useMemo(() => {
+    const items: { type: "pending" | "history"; data: any }[] = [];
+
+    if (pendingRecipe) {
+      items.push({ type: "pending", data: pendingRecipe });
+    }
+
+    history.forEach((entry: HistoryEntryType) => {
+      items.push({ type: "history", data: entry });
+    });
+
+    return items;
+  }, [history, pendingRecipe]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -43,15 +61,23 @@ function HistoryScreen() {
         </ThemedText>
         {history.length > 0 && (
           <ThemedText style={styles.subtitle}>
-            {history.length} recipe{history.length !== 1 ? 's' : ''} made
+            {history.length} recipe{history.length !== 1 ? "s" : ""} made
           </ThemedText>
         )}
       </ThemedView>
 
       <FlatList
-        data={history}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <HistoryEntry entry={item} />}
+        data={displayItems}
+        keyExtractor={(item, index) =>
+          item.type === "pending" ? "pending" : item.data.id
+        }
+        renderItem={({ item }) =>
+          item.type === "pending" ? (
+            <PendingRecipeCard recipe={item.data} />
+          ) : (
+            <HistoryEntry entry={item.data} />
+          )
+        }
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={renderEmptyState}
         refreshControl={
@@ -69,7 +95,7 @@ const styles = StyleSheet.create({
   header: {
     padding: 16,
     paddingBottom: 8,
-    alignItems: 'center',
+    alignItems: "center",
   },
   title: {
     marginBottom: 4,
@@ -84,26 +110,26 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: 32,
     paddingVertical: 64,
   },
   emptyTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 12,
-    textAlign: 'center',
+    textAlign: "center",
   },
   emptyText: {
     fontSize: 16,
     marginBottom: 8,
-    textAlign: 'center',
+    textAlign: "center",
     opacity: 0.7,
   },
   emptyHint: {
     fontSize: 14,
-    textAlign: 'center',
+    textAlign: "center",
     opacity: 0.5,
     marginTop: 16,
   },

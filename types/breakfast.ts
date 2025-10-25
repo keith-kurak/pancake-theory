@@ -37,6 +37,15 @@ export interface Recipe {
   directions: string[];
 }
 
+export interface PendingRecipe {
+  recipeId: string;
+  recipeName: string;
+  recipeType: BreakfastType;
+  scaleFactor: number;
+  checkedIngredients: number[];
+  startTime: number;
+}
+
 export interface HistoryEntry {
   id: string;
   recipeId: string;
@@ -44,6 +53,7 @@ export interface HistoryEntry {
   recipeType: BreakfastType;
   timestamp: number;
   scaleFactor: number;
+  cookingDuration?: number;
 }
 
 export interface BreakfastState {
