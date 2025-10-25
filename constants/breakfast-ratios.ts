@@ -22,7 +22,7 @@ export const BREAKFAST_TYPES: Record<BreakfastType, BreakfastTypeDefinition> = {
     serveWith: 'Serve with Nutella and strawberries',
     tips: ['Almost any topping works, sweet or savory', 'Overmixing doesn\'t matter as much, so you can make the batter fast in a blender' ]
   },
-  'dutch baby': {
+  'dutch-baby': {
     name: 'Dutch Baby',
     ratios: { flour: 1, liquid: 2, eggs: 3 },
     description: 'Puffy and eggy',

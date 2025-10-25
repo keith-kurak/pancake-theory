@@ -2,7 +2,7 @@ export type BreakfastType =
   | 'pancakes'
   | 'waffles'
   | 'crepes'
-  | 'dutch baby'
+  | 'dutch-baby'
   | 'popover'
   | 'donut'
   | 'clafoutis';
