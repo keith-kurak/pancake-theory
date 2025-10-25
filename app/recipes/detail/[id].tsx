@@ -1,19 +1,19 @@
-import { DirectionItem } from '@/components/direction-item';
-import { IngredientItem } from '@/components/ingredient-item';
-import { RecipeTimer } from '@/components/recipe-timer';
-import { ScaleSlider } from '@/components/scale-slider';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { getRecipeById } from '@/data/recipes';
-import { useThemeColor } from '@/hooks/use-theme-color';
-import { breakfastActions, breakfastStore$ } from '@/store/breakfast-store';
-import { showConfirmDialog } from '@/utils/confirm-dialog';
-import { formatAmount, scaleIngredient } from '@/utils/recipe-scaler';
-import { useValue } from '@legendapp/state/react';
-import * as Haptics from 'expo-haptics';
-import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { DirectionItem } from "@/components/direction-item";
+import { IngredientItem } from "@/components/ingredient-item";
+import { RecipeTimer } from "@/components/recipe-timer";
+import { ScaleSlider } from "@/components/scale-slider";
+import { ThemedText } from "@/components/themed-text";
+import { ThemedView } from "@/components/themed-view";
+import { IconSymbol } from "@/components/ui/icon-symbol";
+import { getRecipeById } from "@/data/recipes";
+import { useThemeColor } from "@/hooks/use-theme-color";
+import { breakfastActions, breakfastStore$ } from "@/store/breakfast-store";
+import { showConfirmDialog } from "@/utils/confirm-dialog";
+import { formatAmount, scaleIngredient } from "@/utils/recipe-scaler";
+import { useValue } from "@legendapp/state/react";
+import * as Haptics from "expo-haptics";
+import { router, Stack, useLocalSearchParams } from "expo-router";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -21,11 +21,11 @@ import {
   ScrollView,
   StyleSheet,
   TextInput,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-type TabType = 'ingredients' | 'directions' | 'notes';
-type RecipeMode = 'viewing' | 'active' | 'pending-other';
+type TabType = "ingredients" | "directions" | "notes";
+type RecipeMode = "viewing" | "active" | "pending-other";
 
 export default function RecipeDetailScreen() {
   const { id, scale } = useLocalSearchParams<{
@@ -39,12 +39,12 @@ export default function RecipeDetailScreen() {
 
   // Determine recipe mode
   const mode: RecipeMode = useMemo(() => {
-    if (!pendingRecipeValue) return 'viewing';
-    if (pendingRecipeValue.recipeId === id) return 'active';
-    return 'pending-other';
+    if (!pendingRecipeValue) return "viewing";
+    if (pendingRecipeValue.recipeId === id) return "active";
+    return "pending-other";
   }, [pendingRecipeValue, id]);
 
-  const isActive = mode === 'active';
+  const isActive = mode === "active";
 
   // Initialize state from pending recipe if active, otherwise use defaults
   const initialScale = useMemo(() => {
@@ -60,16 +60,16 @@ export default function RecipeDetailScreen() {
     return new Set<number>();
   }, [isActive, pendingRecipeValue]);
 
-  const [activeTab, setActiveTab] = useState<TabType>('ingredients');
+  const [activeTab, setActiveTab] = useState<TabType>("ingredients");
   const [scaleFactor, setScaleFactor] = useState(initialScale);
   const [checkedIngredients, setCheckedIngredients] = useState(initialChecked);
   const [notes, setNotes] = useState(() => breakfastActions.getRecipeNotes(id));
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const notesInputRef = useRef<TextInput>(null);
 
-  const tintColor = useThemeColor({}, 'tint');
-  const backgroundColor = useThemeColor({}, 'background');
-  const textColor = useThemeColor({}, 'text');
+  const tintColor = useThemeColor({}, "tint");
+  const backgroundColor = useThemeColor({}, "background");
+  const textColor = useThemeColor({}, "text");
 
   const insets = useSafeAreaInsets();
 
@@ -94,9 +94,9 @@ export default function RecipeDetailScreen() {
       <>
         <Stack.Screen
           options={{
-            title: 'Recipe Not Found',
+            title: "Recipe Not Found",
             headerShown: true,
-            headerBackButtonDisplayMode: 'minimal',
+            headerBackButtonDisplayMode: "minimal",
           }}
         />
         <ThemedView style={styles.container}>
@@ -126,10 +126,10 @@ export default function RecipeDetailScreen() {
     // If there's a pending recipe, ask for confirmation
     if (pendingRecipeValue) {
       const confirmed = await showConfirmDialog({
-        title: 'Start New Recipe?',
+        title: "Start New Recipe?",
         message: `You're already making ${pendingRecipeValue.recipeName}. Cancel that recipe and start this one?`,
-        confirmText: 'Start This Recipe',
-        cancelText: 'Keep Making It',
+        confirmText: "Start This Recipe",
+        cancelText: "Keep Making It",
       });
 
       if (!confirmed) return;
@@ -154,10 +154,11 @@ export default function RecipeDetailScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     const confirmed = await showConfirmDialog({
-      title: 'Cancel Recipe?',
-      message: 'Are you sure you want to cancel making this recipe? Your progress will be lost.',
-      confirmText: 'Cancel Recipe',
-      cancelText: 'Keep Making It',
+      title: "Cancel Recipe?",
+      message:
+        "Are you sure you want to cancel making this recipe? Your progress will be lost.",
+      confirmText: "Cancel Recipe",
+      cancelText: "Keep Making It",
     });
 
     if (confirmed) {
@@ -169,7 +170,7 @@ export default function RecipeDetailScreen() {
   const handleMadeIt = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     breakfastActions.completePendingRecipe();
-    router.push('/(tabs)/history');
+    router.push("/(tabs)/history");
   };
 
   const handleTabChange = (tab: TabType) => {
@@ -200,17 +201,17 @@ export default function RecipeDetailScreen() {
         options={{
           title: recipe.name,
           headerShown: true,
-          headerBackButtonDisplayMode: 'minimal',
+          headerBackButtonDisplayMode: "minimal",
         }}
       />
       <ThemedView style={styles.container}>
         {/* Tab Bar */}
         <ThemedView style={styles.tabBar}>
           <Pressable
-            onPress={() => handleTabChange('ingredients')}
+            onPress={() => handleTabChange("ingredients")}
             style={[
               styles.tab,
-              activeTab === 'ingredients' && {
+              activeTab === "ingredients" && {
                 borderBottomColor: tintColor,
                 borderBottomWidth: 2,
               },
@@ -219,9 +220,9 @@ export default function RecipeDetailScreen() {
             <ThemedText
               style={[
                 styles.tabText,
-                activeTab === 'ingredients' && {
+                activeTab === "ingredients" && {
                   color: tintColor,
-                  fontWeight: '600',
+                  fontWeight: "600",
                 },
               ]}
             >
@@ -230,10 +231,10 @@ export default function RecipeDetailScreen() {
           </Pressable>
 
           <Pressable
-            onPress={() => handleTabChange('directions')}
+            onPress={() => handleTabChange("directions")}
             style={[
               styles.tab,
-              activeTab === 'directions' && {
+              activeTab === "directions" && {
                 borderBottomColor: tintColor,
                 borderBottomWidth: 2,
               },
@@ -242,9 +243,9 @@ export default function RecipeDetailScreen() {
             <ThemedText
               style={[
                 styles.tabText,
-                activeTab === 'directions' && {
+                activeTab === "directions" && {
                   color: tintColor,
-                  fontWeight: '600',
+                  fontWeight: "600",
                 },
               ]}
             >
@@ -253,10 +254,10 @@ export default function RecipeDetailScreen() {
           </Pressable>
 
           <Pressable
-            onPress={() => handleTabChange('notes')}
+            onPress={() => handleTabChange("notes")}
             style={[
               styles.tab,
-              activeTab === 'notes' && {
+              activeTab === "notes" && {
                 borderBottomColor: tintColor,
                 borderBottomWidth: 2,
               },
@@ -265,9 +266,9 @@ export default function RecipeDetailScreen() {
             <ThemedText
               style={[
                 styles.tabText,
-                activeTab === 'notes' && {
+                activeTab === "notes" && {
                   color: tintColor,
-                  fontWeight: '600',
+                  fontWeight: "600",
                 },
               ]}
             >
@@ -277,7 +278,7 @@ export default function RecipeDetailScreen() {
         </ThemedView>
 
         {/* Content */}
-        {activeTab === 'ingredients' && (
+        {activeTab === "ingredients" && (
           <ScrollView style={styles.content}>
             <ThemedView style={{ backgroundColor }}>
               {isActive && pendingRecipeValue && (
@@ -314,7 +315,7 @@ export default function RecipeDetailScreen() {
           </ScrollView>
         )}
 
-        {activeTab === 'directions' && (
+        {activeTab === "directions" && (
           <ScrollView style={styles.content}>
             <ThemedView style={styles.directionsList}>
               {recipe.directions.map((direction, index) => (
@@ -328,10 +329,10 @@ export default function RecipeDetailScreen() {
           </ScrollView>
         )}
 
-        {activeTab === 'notes' && (
+        {activeTab === "notes" && (
           <>
             <KeyboardAvoidingView
-              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              behavior={Platform.OS === "ios" ? "padding" : "height"}
               style={styles.content}
               keyboardVerticalOffset={100}
             >
@@ -348,7 +349,7 @@ export default function RecipeDetailScreen() {
                   value={notes}
                   onChangeText={setNotes}
                   placeholder="Add notes about this recipe..."
-                  placeholderTextColor={textColor + '80'}
+                  placeholderTextColor={textColor + "80"}
                   multiline
                   textAlignVertical="top"
                   editable={isEditingNotes}
@@ -356,7 +357,10 @@ export default function RecipeDetailScreen() {
                 {isEditingNotes && (
                   <Pressable
                     onPress={handleDoneEditing}
-                    style={[styles.doneCheckmark, { backgroundColor: tintColor }]}
+                    style={[
+                      styles.doneCheckmark,
+                      { backgroundColor: tintColor },
+                    ]}
                   >
                     <IconSymbol name="checkmark" size={20} color="white" />
                   </Pressable>
@@ -379,8 +383,10 @@ export default function RecipeDetailScreen() {
         )}
 
         {/* Action Buttons */}
-        {mode === 'viewing' && (
-          <ThemedView style={[styles.buttonContainer, { marginBottom: insets.bottom }]}>
+        {mode === "viewing" && (
+          <ThemedView
+            style={[styles.buttonContainer, { marginBottom: insets.bottom }]}
+          >
             <Pressable
               onPress={handleMakeItNow}
               style={[styles.actionButton, { backgroundColor: tintColor }]}
@@ -392,24 +398,36 @@ export default function RecipeDetailScreen() {
           </ThemedView>
         )}
 
-        {mode === 'active' && activeTab === 'ingredients' && (
-          <ThemedView style={[styles.buttonContainer, { marginBottom: insets.bottom }]}>
+        {mode === "active" && activeTab === "ingredients" && (
+          <ThemedView
+            style={[styles.buttonContainer, { marginBottom: insets.bottom }]}
+          >
             {allIngredientsChecked ? (
               <Pressable
                 onPress={handleMadeIt}
                 style={[styles.actionButton, { backgroundColor: tintColor }]}
               >
-                <ThemedText style={styles.actionButtonText}>I made it!</ThemedText>
+                <ThemedText
+                  style={[styles.actionButtonText, { color: textColor }]}
+                >
+                  I made it!
+                </ThemedText>
               </Pressable>
             ) : (
               <Pressable
                 onPress={handleCancelRecipe}
                 style={[
                   styles.actionButton,
-                  { backgroundColor: 'transparent', borderWidth: 1, borderColor: tintColor },
+                  {
+                    backgroundColor: "transparent",
+                    borderWidth: 1,
+                    borderColor: tintColor,
+                  },
                 ]}
               >
-                <ThemedText style={[styles.actionButtonText, { color: tintColor }]}>
+                <ThemedText
+                  style={[styles.actionButtonText, { color: tintColor }]}
+                >
                   Cancel Recipe
                 </ThemedText>
               </Pressable>
@@ -417,13 +435,17 @@ export default function RecipeDetailScreen() {
           </ThemedView>
         )}
 
-        {mode === 'pending-other' && (
-          <ThemedView style={[styles.buttonContainer, { marginBottom: insets.bottom }]}>
+        {mode === "pending-other" && (
+          <ThemedView
+            style={[styles.buttonContainer, { marginBottom: insets.bottom }]}
+          >
             <Pressable
               onPress={handleMakeItNow}
               style={[styles.actionButton, { backgroundColor: tintColor }]}
             >
-              <ThemedText style={styles.actionButtonText}>
+              <ThemedText
+                style={[styles.actionButtonText, { color: textColor }]}
+              >
                 Make it now?
               </ThemedText>
             </Pressable>
@@ -439,14 +461,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   tabBar: {
-    flexDirection: 'row',
+    flexDirection: "row",
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(128, 128, 128, 0.2)',
+    borderBottomColor: "rgba(128, 128, 128, 0.2)",
   },
   tab: {
     flex: 1,
     paddingVertical: 16,
-    alignItems: 'center',
+    alignItems: "center",
   },
   tabText: {
     fontSize: 16,
@@ -470,29 +492,29 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   editFab: {
-    position: 'absolute',
+    position: "absolute",
     right: 16,
     width: 56,
     height: 56,
     borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 5,
   },
   doneCheckmark: {
-    position: 'absolute',
+    position: "absolute",
     top: 12,
     right: 12,
     width: 40,
     height: 40,
     borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
@@ -501,26 +523,26 @@ const styles = StyleSheet.create({
   buttonContainer: {
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(128, 128, 128, 0.2)',
+    borderTopColor: "rgba(128, 128, 128, 0.2)",
   },
   actionButton: {
     paddingVertical: 16,
     borderRadius: 12,
-    alignItems: 'center',
+    alignItems: "center",
   },
   actionButtonText: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: 'white',
+    fontWeight: "bold",
+    color: "white",
   },
   madeItButton: {
     paddingVertical: 16,
     borderRadius: 12,
-    alignItems: 'center',
+    alignItems: "center",
   },
   madeItText: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: 'white',
+    fontWeight: "bold",
+    color: "white",
   },
 });
