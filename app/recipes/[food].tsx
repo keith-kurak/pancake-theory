@@ -29,6 +29,19 @@ export default function RecipeListScreen() {
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => <RecipeCard recipe={item} />}
           contentContainerStyle={styles.listContent}
+          ListHeaderComponent={
+            breakfastInfo.tips && breakfastInfo.tips.length > 0 ? (
+              <ThemedView style={styles.tipsContainer}>
+                <ThemedView style={styles.tipsList}>
+                  {breakfastInfo.tips.map((tip, index) => (
+                    <ThemedText key={index} style={styles.tipItem}>
+                      • {tip}
+                    </ThemedText>
+                  ))}
+                </ThemedView>
+              </ThemedView>
+            ) : null
+          }
           ListEmptyComponent={
             <ThemedView style={styles.emptyContainer}>
               <ThemedText style={styles.emptyText}>
@@ -48,6 +61,22 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 16,
+  },
+  tipsContainer: {
+    marginBottom: 24,
+  },
+  tipsHeader: {
+    fontSize: 20,
+    marginBottom: 12,
+    fontWeight: '600',
+  },
+  tipsList: {
+    gap: 8,
+  },
+  tipItem: {
+    fontSize: 15,
+    lineHeight: 22,
+    opacity: 0.7,
   },
   emptyContainer: {
     flex: 1,

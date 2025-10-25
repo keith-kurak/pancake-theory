@@ -18,6 +18,7 @@ export interface BreakfastTypeDefinition {
   ratios: Ratios;
   description: string;
   serveWith: string;
+  tips?: string[];
 }
 
 export type IngredientCategory = 'flour' | 'liquid' | 'eggs' | 'other';
