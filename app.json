@@ -14,6 +14,10 @@
         "light": "./assets/build/ios-light.png",
         "dark": "./assets/build/ios-dark.png",
         "tinted": "./assets/build/ios-tinted.png"
+      },
+      "bundleIdentifier": "com.keithkurak.pancaketheory",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -21,7 +25,8 @@
         "foregroundImage": "./assets/build/adaptive-icon.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.keithkurak.pancaketheory"
     },
     "web": {
       "output": "static",
