@@ -50,9 +50,13 @@ export function IngredientItem({
             { color: textColor },
           ]}
         >
-          <ThemedText style={styles.amount}>
-            {amount} {unit}
-          </ThemedText>{' '}
+          {amount !== '0' && (
+            <>
+              <ThemedText style={styles.amount}>
+                {amount} {unit}
+              </ThemedText>{' '}
+            </>
+          )}
           {name}
         </ThemedText>
       </ThemedView>
