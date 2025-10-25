@@ -83,6 +83,7 @@ function HistoryScreen() {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
+        ListFooterComponent={() => <ThemedView style={{ height: 80 }} />}
       />
     </ThemedView>
   );

@@ -1,5 +1,6 @@
 import { DirectionItem } from '@/components/direction-item';
 import { IngredientItem } from '@/components/ingredient-item';
+import { RecipeTimer } from '@/components/recipe-timer';
 import { ScaleSlider } from '@/components/scale-slider';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -64,7 +65,6 @@ export default function RecipeDetailScreen() {
   const [checkedIngredients, setCheckedIngredients] = useState(initialChecked);
   const [notes, setNotes] = useState(() => breakfastActions.getRecipeNotes(id));
   const [isEditingNotes, setIsEditingNotes] = useState(false);
-  const [elapsedTime, setElapsedTime] = useState(0);
   const notesInputRef = useRef<TextInput>(null);
 
   const tintColor = useThemeColor({}, 'tint');
@@ -72,21 +72,6 @@ export default function RecipeDetailScreen() {
   const textColor = useThemeColor({}, 'text');
 
   const insets = useSafeAreaInsets();
-
-  // Timer effect for active recipes
-  useEffect(() => {
-    if (!isActive || !pendingRecipeValue) return;
-
-    const updateTimer = () => {
-      const elapsed = Date.now() - pendingRecipeValue.startTime;
-      setElapsedTime(elapsed);
-    };
-
-    updateTimer(); // Initial update
-    const interval = setInterval(updateTimer, 60000); // Update every minute
-
-    return () => clearInterval(interval);
-  }, [isActive, pendingRecipeValue]);
 
   // Sync checked ingredients to store when active
   useEffect(() => {
@@ -209,14 +194,6 @@ export default function RecipeDetailScreen() {
     }, 100);
   };
 
-  const formatElapsedTime = (milliseconds: number): string => {
-    const minutes = Math.floor(milliseconds / 60000);
-    if (minutes < 60) return `${minutes} min`;
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return `${hours}h ${mins}m`;
-  };
-
   return (
     <>
       <Stack.Screen
@@ -303,13 +280,8 @@ export default function RecipeDetailScreen() {
         {activeTab === 'ingredients' && (
           <ScrollView style={styles.content}>
             <ThemedView style={{ backgroundColor }}>
-              {isActive && (
-                <ThemedView style={styles.timerContainer}>
-                  <ThemedText style={styles.timerLabel}>Cooking for:</ThemedText>
-                  <ThemedText style={[styles.timerText, { color: tintColor }]}>
-                    {formatElapsedTime(elapsedTime)}
-                  </ThemedText>
-                </ThemedView>
+              {isActive && pendingRecipeValue && (
+                <RecipeTimer startTime={pendingRecipeValue.startTime} />
               )}
 
               <ScaleSlider
@@ -481,21 +453,6 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-  },
-  timerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-    gap: 8,
-  },
-  timerLabel: {
-    fontSize: 16,
-    opacity: 0.7,
-  },
-  timerText: {
-    fontSize: 20,
-    fontWeight: '600',
   },
   ingredientsList: {
     paddingVertical: 8,
