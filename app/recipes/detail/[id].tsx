@@ -408,7 +408,7 @@ export default function RecipeDetailScreen() {
                 style={[styles.actionButton, { backgroundColor: tintColor }]}
               >
                 <ThemedText
-                  style={[styles.actionButtonText, { color: textColor }]}
+                  style={[styles.actionButtonText]}
                 >
                   I made it!
                 </ThemedText>
