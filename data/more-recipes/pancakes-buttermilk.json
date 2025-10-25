@@ -1,0 +1,27 @@
+{
+  "id": "pancakes-buttermilk",
+  "type": "pancakes",
+  "name": "Buttermilk Pancakes",
+  "ingredients": [
+    { "name": "All-purpose flour", "amount": 2, "unit": "cups", "category": "flour" },
+    { "name": "Sugar", "amount": 3, "unit": "tbsp", "category": "other" },
+    { "name": "Baking powder", "amount": 2, "unit": "tsp", "category": "other" },
+    { "name": "Baking soda", "amount": 0.5, "unit": "tsp", "category": "other" },
+    { "name": "Salt", "amount": 0.5, "unit": "tsp", "category": "other" },
+    { "name": "Buttermilk", "amount": 2.25, "unit": "cups", "category": "liquid" },
+    { "name": "Eggs", "amount": 2, "unit": "large", "category": "eggs" },
+    { "name": "Vanilla extract", "amount": 1, "unit": "tsp", "category": "other" },
+    { "name": "Unsalted butter (melted)", "amount": 4, "unit": "tbsp", "category": "other" }
+  ],
+  "directions": [
+    "Whisk flour, sugar, baking powder, baking soda, and salt in a large bowl.",
+    "In another bowl, whisk buttermilk, eggs, and vanilla.",
+    "If you don't have buttermilk, in a measuring cup, combine 1 tablespoon of white vinegar for each cup of milk. Let it sit for 5 minutes before using.",
+    "Slowly drizzle in melted butter while whisking until combined.",
+    "Pour wet ingredients into dry and stir gently until just combined; small flour streaks are fine.",
+    "Preheat a greased nonstick skillet over medium-low heat for about 5 minutes.",
+    "Scoop 1/2–2/3 cup batter per pancake onto the skillet.",
+    "Cook until edges set and bubbles pop, then flip and cook until golden brown.",
+    "Repeat with remaining batter, greasing the pan as needed.",
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "crepes-basic",
+  "type": "crepes",
+  "name": "Basic Crepes",
+  "ingredients": [
+    { "name": "Eggs", "amount": 2, "unit": "large", "metricAmount": 100, "metricUnit": "g", "category": "eggs" },
+    { "name": "Milk", "amount": 0.5, "unit": "cups", "metricAmount": 120, "metricUnit": "ml", "category": "liquid" },
+    { "name": "Water", "amount": 0.5, "unit": "cups", "metricAmount": 120, "metricUnit": "ml", "category": "liquid" },
+    { "name": "Salt", "amount": 0.25, "unit": "tsp", "metricAmount": 1.5, "metricUnit": "g", "category": "other" },
+    { "name": "All-purpose flour", "amount": 1, "unit": "cup", "metricAmount": 125, "metricUnit": "g", "category": "flour" },
+    { "name": "Butter (melted)", "amount": 2, "unit": "tbsp", "metricAmount": 28, "metricUnit": "g", "category": "other" }
+  ],
+  "directions": [
+    "Whisk eggs, milk, water, and salt in a large bowl.",
+    "Add flour and melted butter, whisking until smooth and lump-free.",
+    "Let batter rest for 10–15 minutes to improve texture.",
+    "Heat a lightly oiled nonstick pan over medium-high heat.",
+    "Pour about 1/4 cup (60 ml) of batter into the pan and tilt in a circular motion to coat evenly.",
+    "Cook until the top is set and bottom is lightly browned, 1–2 minutes.",
+    "Loosen edges with a spatula, flip, and cook the other side until lightly browned, about 1 minute more.",
+    "Repeat with remaining batter, stacking crepes and serving warm with desired fillings."
+  ]
+}

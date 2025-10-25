@@ -1,0 +1,28 @@
+{
+  "id": "dutch-baby-blueberry",
+  "type": "dutch-baby",
+  "name": "Blueberry Dutch Baby",
+  "ingredients": [
+    { "name": "Butter", "amount": 4, "unit": "tbsp", "metricAmount": 57, "metricUnit": "g", "category": "other" },
+    { "name": "Whole or 2% milk", "amount": 0.5, "unit": "cups", "metricAmount": 125, "metricUnit": "ml", "category": "liquid" },
+    { "name": "All-purpose flour", "amount": 0.5, "unit": "cups", "metricAmount": 64, "metricUnit": "g", "category": "flour" },
+    { "name": "Eggs", "amount": 4, "unit": "large", "metricAmount": 200, "metricUnit": "g", "category": "eggs" },
+    { "name": "Granulated sugar", "amount": 3, "unit": "tbsp", "metricAmount": 43, "metricUnit": "g", "category": "other" },
+    { "name": "Vanilla extract", "amount": 1, "unit": "tsp", "metricAmount": 5, "metricUnit": "ml", "category": "other" },
+    { "name": "Salt", "amount": 0.25, "unit": "tsp", "metricAmount": 1.5, "metricUnit": "g", "category": "other" },
+    { "name": "Lemon zest", "amount": 1, "unit": "zest of lemon", "metricAmount": null, "metricUnit": null, "category": "other" },
+    { "name": "Blueberries", "amount": 1, "unit": "cups", "metricAmount": 154, "metricUnit": "g", "category": "fruit" },
+    { "name": "Confectioners' sugar (for dusting)", "amount": null, "unit": null, "metricAmount": null, "metricUnit": null, "category": "topping" }
+  ],
+  "directions": [
+    "Preheat oven to 450°F (232°C) and place rack in middle position.",
+    "Set a 9–10 inch cast iron skillet over low heat while preparing the batter.",
+    "Melt 2 tbsp (28 g) butter in a small skillet, then transfer to a blender.",
+    "Add milk, flour, eggs, sugar, vanilla, salt, and lemon zest; blend until smooth.",
+    "Increase skillet heat to medium-high and add remaining 2 tbsp (28 g) butter.",
+    "When melted, add blueberries and shake pan to coat evenly.",
+    "Immediately pour batter over blueberries and transfer skillet to oven.",
+    "Bake 15 minutes, until puffed and golden brown.",
+    "Remove from oven, dust with confectioners’ sugar, and serve warm with maple syrup."
+  ]
+}

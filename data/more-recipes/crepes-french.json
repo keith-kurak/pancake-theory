@@ -1,0 +1,23 @@
+{
+  "id": "crepes-french",
+  "type": "crepes",
+  "name": "French Crepes",
+  "ingredients": [
+    { "name": "Eggs", "amount": 2, "unit": "large", "metricAmount": 100, "metricUnit": "g", "category": "eggs" },
+    { "name": "Butter (melted)", "amount": 0.25, "unit": "cups", "metricAmount": 57, "metricUnit": "g", "category": "other" },
+    { "name": "Sugar", "amount": 2.5, "unit": "tbsp", "metricAmount": 30, "metricUnit": "g", "category": "other" },
+    { "name": "All-purpose flour", "amount": 0.5, "unit": "cups", "metricAmount": 62, "metricUnit": "g", "category": "flour" },
+    { "name": "Milk", "amount": 0.5, "unit": "cups", "metricAmount": 120, "metricUnit": "ml", "category": "liquid" },
+    { "name": "Water", "amount": 0.125, "unit": "cups", "metricAmount": 30, "metricUnit": "ml", "category": "liquid" },
+    { "name": "Vanilla extract", "amount": 0.5, "unit": "tsp", "metricAmount": 2.5, "metricUnit": "ml", "category": "other" },
+    { "name": "Salt", "amount": 0.06, "unit": "tsp", "metricAmount": 0.3, "metricUnit": "g", "category": "other" },
+  ],
+  "directions": [
+    "Whisk eggs, melted butter, sugar, milk, water, vanilla, and salt in a bowl.",
+    "Add flour gradually, whisking until smooth and just combined.",
+    "Let batter rest for 10 minutes, then whisk briefly before using.",
+    "Heat a lightly buttered 6-inch nonstick pan over medium heat.",
+    "Pour 2–3 tbsp (30–45 ml) batter into the pan and swirl to coat evenly.",
+    "Cook 30 seconds per side, flipping once the edges lift easily. Repeat with remaining batter."
+  ]
+}

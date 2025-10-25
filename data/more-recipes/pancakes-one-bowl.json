@@ -1,0 +1,27 @@
+{
+  "id": "pancakes-one-bowl",
+  "type": "pancakes",
+  "name": "One-bowl Fluffy Pancakes",
+  "ingredients": [
+    { "name": "All-purpose flour", "amount": 2, "unit": "cups", "category": "flour" },
+    { "name": "Granulated sugar or sweetener", "amount": 0.25, "unit": "cups", "category": "other" },
+    { "name": "Baking powder", "amount": 4, "unit": "tsp", "category": "other" },
+    { "name": "Baking soda", "amount": 0.25, "unit": "tsp", "category": "other" },
+    { "name": "Salt", "amount": 0.5, "unit": "tsp", "category": "other" },
+    { "name": "Milk", "amount": 1.75, "unit": "cups", "category": "liquid" },
+    { "name": "Butter (melted)", "amount": 0.25, "unit": "cups", "category": "other" },
+    { "name": "Vanilla extract", "amount": 2, "unit": "tsp", "category": "other" },
+    { "name": "Egg", "amount": 1, "unit": "large", "category": "eggs" }
+  ],
+  "directions": [
+    "In a large bowl, whisk together the flour, sugar, baking powder, baking soda, and salt.",
+    "Make a well in the center and add milk, melted butter (slightly cooled), vanilla, and egg.",
+    "Whisk the wet ingredients together first, then slowly fold into the dry ingredients until mostly smooth. A few small lumps are fine.",
+    "You can adjust the liquid amount to make the pancakes more or less thick.",
+    "Set the batter aside to rest while you preheat your pan or griddle.",
+    "Heat a nonstick pan or griddle over low-medium heat and lightly grease with butter or bacon grease.",
+    "Pour about 1/4 cup of batter per pancake and gently spread it into a round shape.",
+    "Cook until bubbles form on the surface and the underside is golden, about 2–3 minutes.",
+    "Flip and cook until golden on the other side, about 1–2 minutes."
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "id": "donuts-fried-no-yeast",
+  "type": "donuts",
+  "name": "No-Yeast Fried Donuts",
+  "ingredients": [
+    { "name": "All-purpose flour", "amount": 3.5, "unit": "cups", "metricAmount": 497, "metricUnit": "g", "category": "flour" },
+    { "name": "Granulated sugar", "amount": 0.75, "unit": "cups", "metricAmount": 170, "metricUnit": "g", "category": "other" },
+    { "name": "Baking powder", "amount": 2, "unit": "tsp", "metricAmount": 8, "metricUnit": "g", "category": "other" },
+    { "name": "Baking soda", "amount": 0.5, "unit": "tsp", "metricAmount": 2, "metricUnit": "g", "category": "other" },
+    { "name": "Salt", "amount": 1, "unit": "tsp", "metricAmount": 6, "metricUnit": "g", "category": "other" },
+    { "name": "Ground cinnamon", "amount": 1, "unit": "tsp", "metricAmount": 2.5, "metricUnit": "g", "category": "other" },
+    { "name": "Ground nutmeg", "amount": 1.5, "unit": "tsp", "metricAmount": 3, "metricUnit": "g", "category": "other" },
+    { "name": "Eggs", "amount": 2, "unit": "large", "metricAmount": 100, "metricUnit": "g", "category": "eggs" },
+    { "name": "Buttermilk", "amount": 0.75, "unit": "cups", "metricAmount": 180, "metricUnit": "ml", "category": "liquid" },
+    { "name": "Butter (melted)", "amount": 0.25, "unit": "cups", "metricAmount": 57, "metricUnit": "g", "category": "other" },
+    { "name": "Vanilla extract", "amount": 1, "unit": "tsp", "metricAmount": 5, "metricUnit": "ml", "category": "other" },
+    { "name": "Vegetable oil (for frying)", "amount": null, "unit": null, "metricAmount": null, "metricUnit": null, "category": "other" },
+    { "name": "Cinnamon sugar (for coating)", "amount": null, "unit": null, "metricAmount": null, "metricUnit": null, "category": "coating" }
+  ],
+  "directions": [
+    "In a bowl, whisk together flour, sugar, baking powder, baking soda, salt, cinnamon, and nutmeg.",
+    "In another bowl, whisk eggs, buttermilk, melted butter, and vanilla until smooth.",
+    "Add dry ingredients to wet and stir until a sticky dough forms.",
+    "Turn dough onto a lightly floured surface and roll to 1/2-inch (1.3 cm) thickness.",
+    "Cut 3-inch (7.5 cm) donuts and 1-inch (2.5 cm) holes, rerolling scraps as needed.",
+    "Heat 2 inches (5 cm) of vegetable oil in a saucepan to 350°F (180°C).",
+    "Fry 3 donuts at a time for about 3 minutes per side (2 minutes for holes), until golden brown.",
+    "Remove with a slotted spatula and drain on a wire rack over paper towels.",
+    "Toss warm donuts in cinnamon sugar and serve."
+  ]
+}

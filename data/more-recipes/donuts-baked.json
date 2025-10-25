@@ -1,0 +1,34 @@
+{
+  "id": "donuts-baked",
+  "type": "donuts",
+  "name": "Baked Donuts with Vanilla Glaze",
+  "ingredients": [
+    { "name": "Unsalted butter (melted, cooled)", "amount": 0.25, "unit": "cups", "metricAmount": 56, "metricUnit": "g", "category": "other" },
+    { "name": "Vegetable oil", "amount": 0.25, "unit": "cups", "metricAmount": 60, "metricUnit": "g", "category": "other" },
+    { "name": "Granulated sugar", "amount": 1, "unit": "cups", "metricAmount": 200, "metricUnit": "g", "category": "other" },
+    { "name": "Eggs", "amount": 2, "unit": "large", "metricAmount": 100, "metricUnit": "g", "category": "eggs" },
+    { "name": "Vanilla extract", "amount": 1, "unit": "tbsp", "metricAmount": 15, "metricUnit": "ml", "category": "other" },
+    { "name": "All-purpose flour", "amount": 2, "unit": "cups", "metricAmount": 260, "metricUnit": "g", "category": "flour" },
+    { "name": "Whole wheat flour", "amount": 0.67, "unit": "cups", "metricAmount": 83, "metricUnit": "g", "category": "flour" },
+    { "name": "Baking powder", "amount": 1.5, "unit": "tsp", "metricAmount": 6, "metricUnit": "g", "category": "other" },
+    { "name": "Baking soda", "amount": 0.25, "unit": "tsp", "metricAmount": 1.2, "metricUnit": "g", "category": "other" },
+    { "name": "Salt", "amount": 0.5, "unit": "tsp", "metricAmount": 3, "metricUnit": "g", "category": "other" },
+    { "name": "Ground nutmeg", "amount": 0.5, "unit": "tsp", "metricAmount": 1, "metricUnit": "g", "category": "other" },
+    { "name": "Buttermilk", "amount": 1, "unit": "cups", "metricAmount": 240, "metricUnit": "ml", "category": "liquid" },
+
+    { "name": "Confectioners' sugar", "amount": 2, "unit": "cups", "metricAmount": 240, "metricUnit": "g", "category": "glaze" },
+    { "name": "Milk (for glaze)", "amount": 2.5, "unit": "tbsp", "metricAmount": 37, "metricUnit": "ml", "category": "glaze" },
+    { "name": "Vanilla extract (for glaze)", "amount": 2, "unit": "tsp", "metricAmount": 10, "metricUnit": "ml", "category": "glaze" }
+  ],
+  "directions": [
+    "Preheat oven to 425°F (220°C) and lightly grease three 6-cavity donut pans.",
+    "In a large bowl, whisk together melted butter, oil, and sugar.",
+    "Add eggs and vanilla; whisk until smooth.",
+    "In a separate bowl, combine both flours, baking powder, baking soda, salt, and nutmeg.",
+    "Stir half the dry ingredients into the wet mixture, then add buttermilk, followed by remaining dry ingredients. Mix just until combined.",
+    "Transfer batter to a piping or zip-top bag and fill donut molds 2/3 to 3/4 full.",
+    "Bake 7–9 minutes, until donuts spring back when lightly pressed. Cool slightly on a wire rack.",
+    "For the glaze, whisk confectioners’ sugar, milk, and vanilla until smooth, adjusting milk for consistency.",
+    "Dip warm donuts into glaze, place on a rack to set, and serve warm or cooled."
+  ]
+}

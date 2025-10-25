@@ -1,0 +1,24 @@
+{
+  "id": "pancakes-scrambled",
+  "type": "pancakes",
+  "name": "Scrambled Pancakes",
+  "ingredients": [
+    { "name": "All-purpose flour", "amount": 1, "unit": "cup", "category": "flour" },
+    { "name": "Baking powder", "amount": 2, "unit": "tsp", "category": "other" },
+    { "name": "Sugar", "amount": 1, "unit": "tbsp", "category": "other" },
+    { "name": "Milk", "amount": 1, "unit": "cup", "category": "liquid" },
+    { "name": "Eggs", "amount": 2, "unit": "large", "category": "eggs" },
+    { "name": "Vanilla extract", "amount": 1, "unit": "tsp", "category": "other" },
+    { "name": "Butter (melted)", "amount": 2, "unit": "tbsp", "category": "other" }
+  ],
+  "directions": [
+    "Whisk eggs in a bowl, then add milk, vanilla, and melted butter.",
+    "In another bowl, mix flour, baking powder, and sugar.",
+    "Pour wet mixture into dry and whisk gently until combined; let rest 5 minutes.",
+    "Heat a greased nonstick pan over medium-high heat (300–350°F).",
+    "Pour about 1/2 cup batter into the pan and cook 30–60 seconds until a light crust forms.",
+    "Fold the pancake with a spatula, then chop and scramble the pieces until cooked through.",
+    "Repeat with remaining batter, keeping cooked pieces warm.",
+    "Serve warm with powdered sugar, maple syrup, or fruit sauce."
+  ]
+}

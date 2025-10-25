@@ -1,0 +1,25 @@
+{
+  "id": "dutch-baby-classic",
+  "type": "dutch-baby",
+  "name": "Classic Dutch Baby Pancake",
+  "ingredients": [
+    { "name": "Eggs", "amount": 3, "unit": "large", "metricAmount": 150, "metricUnit": "g", "category": "eggs" },
+    { "name": "All-purpose flour", "amount": 1, "unit": "cups", "metricAmount": 94, "metricUnit": "g", "category": "flour" },
+    { "name": "Whole milk", "amount": 1, "unit": "cups", "metricAmount": 180, "metricUnit": "ml", "category": "liquid" },
+    { "name": "Nutmeg (pinch)", "amount": null, "unit": null, "metricAmount": 0.25, "metricUnit": "g", "category": "other" },
+    { "name": "Granulated sugar", "amount": 2, "unit": "tbsp", "metricAmount": 25, "metricUnit": "g", "category": "other" },
+    { "name": "Salt (pinch)", "amount": null, "unit": null, "metricAmount": 0.25, "metricUnit": "g", "category": "other" },
+    { "name": "Vanilla extract", "amount": 0.5, "unit": "tsp", "metricAmount": 2.5, "metricUnit": "ml", "category": "other" },
+    { "name": "Unsalted butter", "amount": 3, "unit": "tbsp", "metricAmount": 43, "metricUnit": "g", "category": "other" }
+  ],
+  "directions": [
+    "Preheat oven to 400°F (204°C).",
+    "Blend eggs on medium-high until frothy, about 45 seconds.",
+    "Add flour, milk, nutmeg, sugar, salt, and vanilla; blend until smooth. Batter will be thin.",
+    "Let batter rest 15 minutes at room temperature (or refrigerate up to 24 hours).",
+    "Place butter in a 10-inch oven-safe skillet and heat in oven 5 minutes to melt.",
+    "Remove skillet, swirl butter to coat sides, then pour batter into the hot pan.",
+    "Bake 15 minutes at 400°F (204°C), then reduce to 350°F (177°C) and bake 10 minutes more, until golden and puffed.",
+    "Cool 5 minutes before topping, slicing, and serving."
+  ]
+}
