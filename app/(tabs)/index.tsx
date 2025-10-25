@@ -3,6 +3,7 @@ import { RatioSlider } from "@/components/ratio-slider";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { BREAKFAST_TYPES } from "@/constants/breakfast-ratios";
+import { Sizes } from "@/constants/sizes";
 import type { Ratios } from "@/types/breakfast";
 import { findClosestBreakfast } from "@/utils/ratio-matcher";
 import { useMemo, useState } from "react";
@@ -78,7 +79,7 @@ export default function ChooserScreen() {
           targetRatio={targetRatios.eggs}
         />
       </ThemedView>
-      <ThemedView style={{ height:  30 }} />
+      <ThemedView style={{ height: Sizes.tabBarHeight }} />
     </ThemedView>
   );
 }
