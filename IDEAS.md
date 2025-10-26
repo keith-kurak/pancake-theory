@@ -33,6 +33,10 @@
   - Display achievement progress
   - Visual badges or trophy case
 
+- [ ] AEbelskivers - maybe a separate category?
+
+- [ ] My own pictures of the recipes being made / user submitted pics?
+
 ## Implementation Notes
 - Consider using local storage for all preferences and ratings
 - Achievements could tie into the existing history tracking system

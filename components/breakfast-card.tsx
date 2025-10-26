@@ -1,12 +1,12 @@
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { BREAKFAST_TYPES } from '@/constants/breakfast-ratios';
-import { useThemeColor } from '@/hooks/use-theme-color';
-import type { BreakfastType } from '@/types/breakfast';
-import * as Haptics from 'expo-haptics';
-import { Image } from 'expo-image';
-import { router } from 'expo-router';
-import { Pressable, StyleSheet } from 'react-native';
+import { ThemedText } from "@/components/themed-text";
+import { ThemedView } from "@/components/themed-view";
+import { BREAKFAST_TYPES } from "@/constants/breakfast-ratios";
+import { useThemeColor } from "@/hooks/use-theme-color";
+import type { BreakfastType } from "@/types/breakfast";
+import * as Haptics from "expo-haptics";
+import { Image } from "expo-image";
+import { router } from "expo-router";
+import { Platform, Pressable, StyleSheet } from "react-native";
 
 interface BreakfastCardProps {
   type: BreakfastType;
@@ -14,25 +14,25 @@ interface BreakfastCardProps {
 
 // Map breakfast types to image files
 const BREAKFAST_IMAGES: Record<BreakfastType, any> = {
-  pancakes: require('@/assets/breakfasts/pancakes.png'),
-  waffles: require('@/assets/breakfasts/waffles.png'),
-  crepes: require('@/assets/breakfasts/crepes.png'),
-  'dutch baby': require('@/assets/breakfasts/dutchbaby.png'),
-  popover: require('@/assets/breakfasts/popovers.png'),
-  donut: require('@/assets/breakfasts/donuts.png'),
-  clafoutis: require('@/assets/breakfasts/clafoutis.png'),
+  pancakes: require("@/assets/breakfasts/pancakes.png"),
+  waffles: require("@/assets/breakfasts/waffles.png"),
+  crepes: require("@/assets/breakfasts/crepes.png"),
+  "dutch-baby": require("@/assets/breakfasts/dutchbaby.png"),
+  popover: require("@/assets/breakfasts/popovers.png"),
+  donut: require("@/assets/breakfasts/donuts.png"),
+  clafoutis: require("@/assets/breakfasts/clafoutis.png"),
 };
 
 export function BreakfastCard({ type }: BreakfastCardProps) {
   const backgroundColor = useThemeColor(
-    { light: '#f8f8f8', dark: '#2a2a2a' },
-    'background'
+    { light: "#f8f8f8", dark: "#2a2a2a" },
+    "background"
   );
   const borderColor = useThemeColor(
-    { light: '#e0e0e0', dark: '#404040' },
-    'text'
+    { light: "#e0e0e0", dark: "#404040" },
+    "text"
   );
-  const tintColor = useThemeColor({}, 'tint');
+  const tintColor = useThemeColor({}, "tint");
 
   const breakfastInfo = BREAKFAST_TYPES[type];
   const imageSource = BREAKFAST_IMAGES[type];
@@ -51,17 +51,18 @@ export function BreakfastCard({ type }: BreakfastCardProps) {
         pressed && styles.pressed,
       ]}
     >
-      <ThemedView style={[styles.content, { backgroundColor: 'transparent' }]}>
+      <ThemedView style={[styles.content, { backgroundColor: "transparent" }]}>
         <ThemedText style={styles.title}>{breakfastInfo.name}</ThemedText>
 
-        <Image
-          source={imageSource}
-          style={styles.image}
-          contentFit="contain"
-        />
+        <Image source={imageSource} style={styles.image} contentFit="contain" />
 
         <ThemedText style={styles.description}>
-          {breakfastInfo.description}
+          {
+            breakfastInfo.description +
+              (Platform.OS === "android"
+                ? " "
+                : "") /* italics get cut off on android */
+          }
         </ThemedText>
 
         <ThemedText style={styles.serveWith}>
@@ -82,7 +83,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     padding: 24,
     marginVertical: 16,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -94,35 +95,35 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.98 }],
   },
   content: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     flex: 1,
     gap: 8,
   },
   title: {
     fontSize: 32,
     lineHeight: 38,
-    fontWeight: 'bold',
-    textAlign: 'center',
+    fontWeight: "bold",
+    textAlign: "center",
   },
   image: {
     flex: 1,
-    width: '100%',
+    width: "100%",
   },
   description: {
     fontSize: 16,
-    fontStyle: 'italic',
+    fontStyle: "italic",
     opacity: 0.8,
-    textAlign: 'center',
+    textAlign: "center",
   },
   serveWith: {
     fontSize: 14,
     opacity: 0.6,
-    textAlign: 'center',
+    textAlign: "center",
   },
   ratioContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   ratioLabel: {
     fontSize: 14,
@@ -131,11 +132,11 @@ const styles = StyleSheet.create({
   },
   ratioText: {
     fontSize: 16,
-    fontWeight: '600',
-    fontFamily: 'monospace',
+    fontWeight: "600",
+    fontFamily: "monospace",
   },
   subtitle: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: "500",
   },
 });
