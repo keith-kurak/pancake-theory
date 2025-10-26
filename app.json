@@ -9,7 +9,7 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "icon": {
         "light": "./assets/build/ios-light.png",
         "dark": "./assets/build/ios-dark.png",
