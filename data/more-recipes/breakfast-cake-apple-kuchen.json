@@ -1,6 +1,6 @@
 {
   "id": "breakfast-cake-apple-kuchen",
-  "type": "kuchen",
+  "type": "breakfast-cake",
   "name": "Apple Kuchen",
   "ingredients": [
     { "name": "Milk", "amount": 0.5, "unit": "cups", "metricAmount": 120, "metricUnit": "ml", "category": "liquid" },

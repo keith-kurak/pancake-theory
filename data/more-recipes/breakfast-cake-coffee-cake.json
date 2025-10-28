@@ -1,6 +1,6 @@
 {
   "id": "breakfast-cake-coffee-cake",
-  "type": "coffee-cake",
+  "type": "breakfast-cake",
   "name": "Cinnamon Streusel Coffee Cake",
   "ingredients": [
     { "name": "All-purpose flour", "amount": 1.5, "unit": "cups", "metricAmount": 188, "metricUnit": "g", "category": "flour" },

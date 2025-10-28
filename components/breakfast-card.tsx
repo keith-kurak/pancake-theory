@@ -21,6 +21,7 @@ const BREAKFAST_IMAGES: Record<BreakfastType, any> = {
   popover: require("@/assets/breakfasts/popovers.png"),
   donut: require("@/assets/breakfasts/donuts.png"),
   clafoutis: require("@/assets/breakfasts/clafoutis.png"),
+  "breakfast-cake": require("@/assets/breakfasts/breakfastcake.png"),
 };
 
 export function BreakfastCard({ type }: BreakfastCardProps) {
