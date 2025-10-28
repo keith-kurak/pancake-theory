@@ -34,6 +34,7 @@ export const BREAKFAST_TYPES: Record<BreakfastType, BreakfastTypeDefinition> = {
     ratios: { flour: 1, liquid: 1, eggs: 2 },
     description: 'Hollow and airy',
     serveWith: 'Serve with butter and jam',
+    tips: ['You probably don\'t have a popover pan, but a muffin tin works well too', 'Make sure to preheat the pan so the batter starts cooking immediately']
   },
   donut: {
     name: 'Donut',
@@ -47,5 +48,13 @@ export const BREAKFAST_TYPES: Record<BreakfastType, BreakfastTypeDefinition> = {
     ratios: { flour: 1, liquid: 3, eggs: 4 },
     description: 'Custardy and soft',
     serveWith: 'Serve with fresh cherries or berries',
+    tips: ['Cherries are common, but you can use almost any fruit, though juicy fruits are better']
   },
+  'breakfast-cake': {
+    name: 'Breakfast Cake',
+    ratios: { flour: 3, liquid: 1, eggs: 2 },
+    description: 'Thick but not too rich',
+    serveWith: 'No toppings needed!',
+    tips: ['Highly debatable as a pancake, here for comparison purposes because they\'re great for breakfast']
+  }
 };

@@ -1,0 +1,28 @@
+{
+  "id": "clafoutis-versatile",
+  "type": "clafoutis",
+  "name": "Versatile Clafoutis",
+  "ingredients": [
+    { "name": "Unsalted butter", "amount": 2, "unit": "tbsp", "metricAmount": 28, "metricUnit": "g", "category": "other" },
+    { "name": "Eggs", "amount": 3, "unit": "large", "metricAmount": 150, "metricUnit": "g", "category": "eggs" },
+    { "name": "Whole milk", "amount": 1, "unit": "cup", "metricAmount": 240, "metricUnit": "ml", "category": "liquid" },
+    { "name": "Granulated sugar", "amount": 0.33, "unit": "cups", "metricAmount": 67, "metricUnit": "g", "category": "other" },
+    { "name": "Granulated sugar (for topping)", "amount": 2, "unit": "tbsp", "metricAmount": 25, "metricUnit": "g", "category": "topping" },
+    { "name": "Vanilla extract", "amount": 1, "unit": "tsp", "metricAmount": 5, "metricUnit": "ml", "category": "other" },
+    { "name": "Lemon zest (finely grated)", "amount": 1, "unit": "tsp", "metricAmount": 2, "metricUnit": "g", "category": "other" },
+    { "name": "Kosher salt", "amount": 1, "unit": "tsp", "metricAmount": 5, "metricUnit": "g", "category": "other" },
+    { "name": "All-purpose flour", "amount": 0.5, "unit": "cups", "metricAmount": 63, "metricUnit": "g", "category": "flour" },
+    { "name": "Prepared fruit (cherries, berries, peaches, apples, etc.)", "amount": 2, "unit": "cups", "metricAmount": 300, "metricUnit": "g", "category": "fruit" },
+    { "name": "Powdered sugar (for serving, optional)", "amount": null, "unit": null, "metricAmount": null, "metricUnit": null, "category": "topping" }
+  ],
+  "directions": [
+    "Preheat oven to 350°F (177°C) and place rack in the center.",
+    "Add butter to a 2–3 qt baking dish or 10-inch ovenproof skillet and place in oven 4–6 minutes to melt.",
+    "In a blender, combine eggs, milk, 1/3 cup sugar, vanilla, lemon zest, and salt. Blend on medium speed until frothy, about 2 minutes.",
+    "Add flour and blend briefly on low just until smooth.",
+    "Remove dish from oven, pour in batter, and quickly arrange fruit evenly over top.",
+    "Sprinkle remaining 2 tbsp sugar over the fruit.",
+    "Bake 25–35 minutes, until puffed and golden brown.",
+    "Cool slightly, dust with powdered sugar if desired, and serve warm or at room temperature."
+  ]
+}

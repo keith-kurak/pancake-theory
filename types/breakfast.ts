@@ -5,7 +5,8 @@ export type BreakfastType =
   | 'dutch-baby'
   | 'popover'
   | 'donut'
-  | 'clafoutis';
+  | 'clafoutis'
+  | 'breakfast-cake';
 
 export interface Ratios {
   flour: number;

@@ -1,0 +1,31 @@
+{
+  "id": "breakfast-cake-coffee-cake",
+  "type": "coffee-cake",
+  "name": "Cinnamon Streusel Coffee Cake",
+  "ingredients": [
+    { "name": "All-purpose flour", "amount": 1.5, "unit": "cups", "metricAmount": 188, "metricUnit": "g", "category": "flour" },
+    { "name": "Baking powder", "amount": 1.5, "unit": "tsp", "metricAmount": 6, "metricUnit": "g", "category": "other" },
+    { "name": "Salt", "amount": 0.25, "unit": "tsp", "metricAmount": 1.5, "metricUnit": "g", "category": "other" },
+    { "name": "Butter (softened)", "amount": 0.5, "unit": "cups", "metricAmount": 113, "metricUnit": "g", "category": "other" },
+    { "name": "Sugar", "amount": 0.75, "unit": "cups", "metricAmount": 150, "metricUnit": "g", "category": "other" },
+    { "name": "Eggs", "amount": 2, "unit": "large", "metricAmount": 100, "metricUnit": "g", "category": "eggs" },
+    { "name": "Vanilla extract", "amount": 1, "unit": "tsp", "metricAmount": 5, "metricUnit": "ml", "category": "other" },
+    { "name": "Buttermilk (or milk)", "amount": 0.5, "unit": "cups", "metricAmount": 120, "metricUnit": "ml", "category": "liquid" },
+    { "name": "Sour cream or yogurt", "amount": 0.5, "unit": "cups", "metricAmount": 120, "metricUnit": "g", "category": "other" },
+
+    { "name": "Brown sugar", "amount": 0.25, "unit": "cups", "metricAmount": 50, "metricUnit": "g", "category": "streusel" },
+    { "name": "All-purpose flour (for streusel)", "amount": 0.25, "unit": "cups", "metricAmount": 31, "metricUnit": "g", "category": "streusel" },
+    { "name": "Cinnamon", "amount": 0.75, "unit": "tsp", "metricAmount": 2, "metricUnit": "g", "category": "streusel" }
+  ],
+  "directions": [
+    "Preheat oven to 350°F (177°C) and grease a 9×9-inch (23×23 cm) cake pan or line with parchment.",
+    "Whisk flour, baking powder, and salt in a bowl; set aside.",
+    "In a separate bowl or mixer, beat butter and sugar until light and fluffy.",
+    "Add eggs, vanilla, milk, and sour cream; mix until smooth.",
+    "Blend in dry ingredients until fully combined, scraping bowl as needed.",
+    "Combine brown sugar, flour, and cinnamon for the streusel layer.",
+    "Spread half the batter in the pan, sprinkle with the streusel, then top with remaining batter and smooth the surface.",
+    "Bake 45 minutes, or until a toothpick inserted in the center comes out clean.",
+    "Cool completely before slicing and serving."
+  ]
+}

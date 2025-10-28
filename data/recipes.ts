@@ -1,17 +1,22 @@
 import type { Recipe } from '@/types/breakfast';
 
 // Import recipes from JSON files
-import pancakesOneBowl from './more-recipes/pancakes-one-bowl.json';
-import pancakesButtermilk from './more-recipes/pancakes-buttermilk.json';
-import pancakesScrambled from './more-recipes/pancakes-scrambled.json';
-import wafflesFluffy from './more-recipes/waffles-fluffy.json';
-import wafflesQuick from './more-recipes/waffles-quick.json';
+import breakfastCakeAppleKuchen from './more-recipes/breakfast-cake-apple-kuchen.json';
+import breakfastCakeCoffeeCake from './more-recipes/breakfast-cake-coffee-cake.json';
+import clafloutisVersatile from './more-recipes/clafoutis-versatile.json';
 import crepesBasic from './more-recipes/crepes-basic.json';
 import crepesFrench from './more-recipes/crepes-french.json';
-import dutchBabyClassic from './more-recipes/dutch-baby-classic.json';
-import dutchBabyBlueberry from './more-recipes/dutch-baby-blueberry.json';
 import donutsBaked from './more-recipes/donuts-baked.json';
 import donutsFried from './more-recipes/donuts-fried.json';
+import donutsMiniFried from './more-recipes/donuts-mini-fried.json';
+import dutchBabyBlueberry from './more-recipes/dutch-baby-blueberry.json';
+import dutchBabyClassic from './more-recipes/dutch-baby-classic.json';
+import pancakesButtermilk from './more-recipes/pancakes-buttermilk.json';
+import pancakesOneBowl from './more-recipes/pancakes-one-bowl.json';
+import pancakesScrambled from './more-recipes/pancakes-scrambled.json';
+import popoverQuick from './more-recipes/popover-quick.json';
+import wafflesFluffy from './more-recipes/waffles-fluffy.json';
+import wafflesQuick from './more-recipes/waffles-quick.json';
 
 export const RECIPES: Recipe[] = [
   // Pancakes - imported from JSON
@@ -34,6 +39,7 @@ export const RECIPES: Recipe[] = [
   // Donuts - imported from JSON
   donutsBaked as Recipe,
   donutsFried as Recipe,
+  donutsMiniFried as Recipe,
 
   // Popover - inline recipe
   {
@@ -60,7 +66,7 @@ export const RECIPES: Recipe[] = [
       'Remove from oven, pierce each popover with a knife to release steam, and serve immediately.',
     ],
   },
-
+  popoverQuick as Recipe,
   // Clafoutis - inline recipe
   {
     id: 'clafoutis-cherry',
@@ -90,6 +96,10 @@ export const RECIPES: Recipe[] = [
       'Serve warm or at room temperature.',
     ],
   },
+  clafloutisVersatile as Recipe,
+  // Breakfast Cakes - imported from JSON
+  breakfastCakeCoffeeCake as Recipe,
+  breakfastCakeAppleKuchen as Recipe
 ];
 
 // Helper function to get recipes by type

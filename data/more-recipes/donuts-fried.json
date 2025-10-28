@@ -1,6 +1,6 @@
 {
   "id": "donuts-fried-no-yeast",
-  "type": "donuts",
+  "type": "donut",
   "name": "No-Yeast Fried Donuts",
   "ingredients": [
     { "name": "All-purpose flour", "amount": 3.5, "unit": "cups", "metricAmount": 497, "metricUnit": "g", "category": "flour" },

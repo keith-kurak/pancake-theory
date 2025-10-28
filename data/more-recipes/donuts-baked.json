@@ -1,6 +1,6 @@
 {
   "id": "donuts-baked",
-  "type": "donuts",
+  "type": "donut",
   "name": "Baked Donuts with Vanilla Glaze",
   "ingredients": [
     { "name": "Unsalted butter (melted, cooled)", "amount": 0.25, "unit": "cups", "metricAmount": 56, "metricUnit": "g", "category": "other" },

@@ -1,0 +1,22 @@
+{
+  "id": "popovers-quick",
+  "type": "popover",
+  "name": "Quick Popovers",
+  "ingredients": [
+    { "name": "Eggs", "amount": 2, "unit": "large", "metricAmount": 100, "metricUnit": "g", "category": "eggs" },
+    { "name": "Whole milk", "amount": 1, "unit": "cup", "metricAmount": 240, "metricUnit": "ml", "category": "liquid" },
+    { "name": "Unsalted butter (melted, for batter)", "amount": 1, "unit": "tbsp", "metricAmount": 14, "metricUnit": "g", "category": "other" },
+    { "name": "All-purpose flour", "amount": 1, "unit": "cup", "metricAmount": 125, "metricUnit": "g", "category": "flour" },
+    { "name": "Kosher or sea salt", "amount": 0.25, "unit": "tsp", "metricAmount": 1.5, "metricUnit": "g", "category": "other" },
+    { "name": "Unsalted butter (melted, for pan)", "amount": 2, "unit": "tbsp", "metricAmount": 28, "metricUnit": "g", "category": "other" }
+  ],
+  "directions": [
+    "Whisk eggs, milk, and 1 tbsp melted butter until smooth and frothy.",
+    "Add flour and salt; whisk until bubbly. Let rest while preheating oven to 450°F (232°C).",
+    "Place empty popover pan in oven for 10 minutes to heat.",
+    "Melt remaining 2 tbsp butter. Brush into hot pan cups.",
+    "Fill cups halfway with batter and bake 16 minutes at 450°F (232°C) without opening the door.",
+    "Reduce heat to 350°F (177°C) and bake another 16 minutes until puffed, golden, and crisp.",
+    "Remove popovers from pan and cool briefly on a rack before serving warm."
+  ]
+}

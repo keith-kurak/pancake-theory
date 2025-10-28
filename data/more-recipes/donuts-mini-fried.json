@@ -1,0 +1,26 @@
+{
+  "id": "donuts-mini-fried",
+  "type": "donut",
+  "name": "Mini Fried Donut Holes",
+  "ingredients": [
+    { "name": "All-purpose flour", "amount": 1.25, "unit": "cups", "metricAmount": 176, "metricUnit": "g", "category": "flour" },
+    { "name": "Baking powder", "amount": 2, "unit": "tsp", "metricAmount": 8, "metricUnit": "g", "category": "other" },
+    { "name": "Salt", "amount": 0.25, "unit": "tsp", "metricAmount": 1.5, "metricUnit": "g", "category": "other" },
+    { "name": "Buttermilk", "amount": 0.5, "unit": "cups", "metricAmount": 120, "metricUnit": "ml", "category": "liquid" },
+    { "name": "Granulated sugar", "amount": 0.25, "unit": "cups", "metricAmount": 50, "metricUnit": "g", "category": "other" },
+    { "name": "Butter (melted)", "amount": 3, "unit": "tbsp", "metricAmount": 42, "metricUnit": "g", "category": "other" },
+    { "name": "Vegetable oil (for frying)", "amount": 3.5, "unit": "cups", "metricAmount": 830, "metricUnit": "ml", "category": "other" },
+    { "name": "Granulated sugar (for coating)", "amount": 0.33, "unit": "cups", "metricAmount": 66, "metricUnit": "g", "category": "coating" }
+  ],
+  "directions": [
+    "Pour about 1/2 inch (1.3 cm) of oil into a large pot and heat to 355°F (180°C).",
+    "In a bowl, whisk together flour, 1/4 cup sugar, baking powder, and salt.",
+    "In another bowl, whisk buttermilk and melted butter until combined (make buttermilk by combining 1 cup milk with 1 tablespoon vinegar and letting it sit for 5 minutes).",
+    "Pour wet mixture into dry ingredients and stir gently with a fork until just combined. Do not overmix.",
+    "Roll dough into 1/2-tablespoon (7 g) balls.",
+    "Fry half the dough balls at a time until golden brown on the bottom, then flip and cook the other side.",
+    "Remove with a slotted spoon or spider strainer and drain on paper towels.",
+    "Roll warm donuts in the remaining sugar to coat evenly.",
+    "Repeat with remaining dough and serve warm."
+  ]
+}

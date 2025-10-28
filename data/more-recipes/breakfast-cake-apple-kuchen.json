@@ -1,0 +1,32 @@
+{
+  "id": "breakfast-cake-apple-kuchen",
+  "type": "kuchen",
+  "name": "Apple Kuchen",
+  "ingredients": [
+    { "name": "Milk", "amount": 0.5, "unit": "cups", "metricAmount": 120, "metricUnit": "ml", "category": "liquid" },
+    { "name": "Butter (softened)", "amount": 0.25, "unit": "cups", "metricAmount": 57, "metricUnit": "g", "category": "other" },
+    { "name": "Egg", "amount": 1, "unit": "large", "metricAmount": 50, "metricUnit": "g", "category": "eggs" },
+    { "name": "Vanilla extract", "amount": 1, "unit": "tsp", "metricAmount": 5, "metricUnit": "ml", "category": "other" },
+    { "name": "All-purpose flour", "amount": 1.5, "unit": "cups", "metricAmount": 188, "metricUnit": "g", "category": "flour" },
+    { "name": "Sugar", "amount": 0.5, "unit": "cups", "metricAmount": 100, "metricUnit": "g", "category": "other" },
+    { "name": "Baking powder", "amount": 1, "unit": "tbsp", "metricAmount": 12, "metricUnit": "g", "category": "other" },
+    { "name": "Salt", "amount": 0.5, "unit": "tsp", "metricAmount": 3, "metricUnit": "g", "category": "other" },
+    { "name": "Apples (peeled, cored, sliced)", "amount": 5, "unit": "medium", "metricAmount": 750, "metricUnit": "g", "category": "fruit" },
+
+    { "name": "Sugar (for topping)", "amount": 1, "unit": "cups", "metricAmount": 200, "metricUnit": "g", "category": "topping" },
+    { "name": "Butter (melted, for topping)", "amount": 0.25, "unit": "cups", "metricAmount": 57, "metricUnit": "g", "category": "topping" },
+    { "name": "All-purpose flour (for topping)", "amount": 0.25, "unit": "cups", "metricAmount": 31, "metricUnit": "g", "category": "topping" },
+    { "name": "Ground cinnamon", "amount": 4, "unit": "tsp", "metricAmount": 8, "metricUnit": "g", "category": "topping" }
+  ],
+  "directions": [
+    "Preheat oven to 350°F (175°C).",
+    "In a bowl, beat milk, 1/4 cup butter, egg, and vanilla until smooth.",
+    "Add 1 1/2 cups flour, 1/2 cup sugar, baking powder, and salt; stir until dough forms.",
+    "Spread dough evenly on a greased rimmed baking sheet.",
+    "Arrange apple slices over the dough.",
+    "In another bowl, mix 1 cup sugar, 1/4 cup melted butter, 1/4 cup flour, and cinnamon until crumbly.",
+    "Sprinkle topping over the apples.",
+    "Bake 40 minutes, until apples are tender and topping is golden brown.",
+    "Cool slightly before serving."
+  ]
+}
