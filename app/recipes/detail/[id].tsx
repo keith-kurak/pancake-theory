@@ -186,7 +186,6 @@ export default function RecipeDetailScreen() {
   };
 
   const handleEditNotes = () => {
-    if (!isActive) return; // Only allow editing in active mode
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setIsEditingNotes(true);
     // Focus the input after state updates
@@ -331,44 +330,58 @@ export default function RecipeDetailScreen() {
 
         {activeTab === "notes" && (
           <>
-            <KeyboardAvoidingView
-              behavior={Platform.OS === "ios" ? "padding" : "height"}
-              style={styles.content}
-              keyboardVerticalOffset={100}
-            >
-              <ThemedView style={[styles.notesContainer, { backgroundColor }]}>
-                <TextInput
-                  ref={notesInputRef}
-                  style={[
-                    styles.notesInput,
-                    {
-                      color: textColor,
-                      opacity: isEditingNotes ? 1 : 0.7,
-                    },
-                  ]}
-                  value={notes}
-                  onChangeText={setNotes}
-                  placeholder="Add notes about this recipe..."
-                  placeholderTextColor={textColor + "80"}
-                  multiline
-                  textAlignVertical="top"
-                  editable={isEditingNotes}
-                />
-                {isEditingNotes && (
-                  <Pressable
-                    onPress={handleDoneEditing}
+            {isEditingNotes ? (
+              <KeyboardAvoidingView
+                behavior={Platform.OS === "ios" ? "padding" : "height"}
+                style={styles.content}
+                keyboardVerticalOffset={100}
+              >
+                <ThemedView style={[styles.notesContainer, { backgroundColor }]}>
+                  <TextInput
+                    ref={notesInputRef}
                     style={[
-                      styles.doneCheckmark,
-                      { backgroundColor: tintColor },
+                      styles.notesInput,
+                      {
+                        color: textColor,
+                      },
                     ]}
-                  >
-                    <IconSymbol name="checkmark" size={20} color="white" />
-                  </Pressable>
-                )}
-              </ThemedView>
-            </KeyboardAvoidingView>
+                    value={notes}
+                    onChangeText={setNotes}
+                    placeholder="Add notes about this recipe..."
+                    placeholderTextColor={textColor + "80"}
+                    multiline
+                    textAlignVertical="top"
+                    editable={true}
+                  />
+                </ThemedView>
+              </KeyboardAvoidingView>
+            ) : (
+              <ScrollView style={styles.content}>
+                <ThemedView style={[styles.notesContainer, { backgroundColor }]}>
+                  {notes.trim() ? (
+                    <ThemedText style={[styles.notesText, { color: textColor }]}>
+                      {notes}
+                    </ThemedText>
+                  ) : (
+                    <ThemedText style={[styles.notesPlaceholder, { color: textColor }]}>
+                      No notes yet.
+                    </ThemedText>
+                  )}
+                </ThemedView>
+              </ScrollView>
+            )}
 
-            {!isEditingNotes && isActive && (
+            {isEditingNotes ? (
+              <Pressable
+                onPress={handleDoneEditing}
+                style={[
+                  styles.editFab,
+                  { backgroundColor: tintColor, bottom: insets.bottom + 16 },
+                ]}
+              >
+                <IconSymbol name="checkmark" size={24} color="white" />
+              </Pressable>
+            ) : (
               <Pressable
                 onPress={handleEditNotes}
                 style={[
@@ -382,8 +395,8 @@ export default function RecipeDetailScreen() {
           </>
         )}
 
-        {/* Action Buttons */}
-        {mode === "viewing" && (
+        {/* Action Buttons - Hidden on Notes tab */}
+        {activeTab !== "notes" && mode === "viewing" && (
           <ThemedView
             style={[styles.buttonContainer, { marginBottom: insets.bottom }]}
           >
@@ -398,7 +411,7 @@ export default function RecipeDetailScreen() {
           </ThemedView>
         )}
 
-        {mode === "active" && activeTab === "ingredients" && (
+        {activeTab !== "notes" && mode === "active" && activeTab === "ingredients" && (
           <ThemedView
             style={[styles.buttonContainer, { marginBottom: insets.bottom }]}
           >
@@ -435,7 +448,7 @@ export default function RecipeDetailScreen() {
           </ThemedView>
         )}
 
-        {mode === "pending-other" && (
+        {activeTab !== "notes" && mode === "pending-other" && (
           <ThemedView
             style={[styles.buttonContainer, { marginBottom: insets.bottom }]}
           >
@@ -483,7 +496,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   notesContainer: {
-    //padding: 16,
     flex: 1,
   },
   notesInput: {
@@ -491,27 +503,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     flex: 1,
   },
+  notesText: {
+    padding: 16,
+    fontSize: 16,
+    lineHeight: 24,
+  },
+  notesPlaceholder: {
+    padding: 16,
+    fontSize: 16,
+    opacity: 0.5,
+    fontStyle: 'italic',
+  },
   editFab: {
     position: "absolute",
     right: 16,
     width: 56,
     height: 56,
     borderRadius: 28,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  doneCheckmark: {
-    position: "absolute",
-    top: 12,
-    right: 12,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#000",
