@@ -15,7 +15,7 @@ export const unstable_settings = {
 };
 
 SplashScreen.setOptions({
-  duration: 1000,
+  duration: 300,
   fade: true,
 });
 

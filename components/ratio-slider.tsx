@@ -2,7 +2,7 @@ import { BaseSlider } from '@/components/base-slider';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import * as Haptics from 'expo-haptics';
-import { StyleSheet } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 
 interface RatioSliderProps {
   label: string;
@@ -25,7 +25,9 @@ export function RatioSlider({
 }: RatioSliderProps) {
   const handleValueChange = (newValue: number) => {
     // Trigger light haptic feedback on value change
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (Platform.OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
     // Ensure value doesn't go below 1
     onValueChange(Math.max(1, newValue));
   };
