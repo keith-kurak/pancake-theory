@@ -32,16 +32,18 @@ const BaseSlider = ({
   const [trackWidth, setTrackWidth] = useState(0);
   const offset = useSharedValue(0);
 
-  // Convert value to position (0 to trackWidth)
+  // Convert value to position (HANDLE_SIZE/2 to trackWidth - HANDLE_SIZE/2)
   const valueToPosition = (val: number) => {
     const normalizedValue =
       (val - minimumValue) / (maximumValue - minimumValue);
-    return normalizedValue * trackWidth;
+    const usableWidth = trackWidth - HANDLE_SIZE;
+    return HANDLE_SIZE / 2 + normalizedValue * usableWidth;
   };
 
   // Convert position to value
   const positionToValue = (pos: number) => {
-    const normalizedPosition = pos / trackWidth;
+    const usableWidth = trackWidth - HANDLE_SIZE;
+    const normalizedPosition = (pos - HANDLE_SIZE / 2) / usableWidth;
     const rawValue =
       minimumValue + normalizedPosition * (maximumValue - minimumValue);
     // Round to nearest step
@@ -77,11 +79,11 @@ const BaseSlider = ({
   const pan = Gesture.Pan()
     .onChange((event) => {
       const newOffset = offset.value + event.changeX;
-      // Clamp offset to track bounds
-      offset.value = Math.max(0, Math.min(trackWidth, newOffset));
-    })
-    .onEnd(() => {
-      // Update value when gesture ends
+      // Clamp offset to prevent handle from going past edges
+      const minOffset = HANDLE_SIZE / 2;
+      const maxOffset = trackWidth - HANDLE_SIZE / 2;
+      offset.value = Math.max(minOffset, Math.min(maxOffset, newOffset));
+      // Update value continuously as the slider moves
       runOnJS(updateValue)(offset.value);
     });
 
@@ -91,12 +93,21 @@ const BaseSlider = ({
     };
   });
 
+  const fillStyle = useAnimatedStyle(() => {
+    return {
+      width: offset.value,
+    };
+  });
+
   return (
     <GestureHandlerRootView style={styles.container}>
       <View
         style={[styles.sliderTrack, { backgroundColor }]}
         onLayout={handleLayout}
       >
+        <Animated.View
+          style={[styles.sliderFill, fillStyle, { backgroundColor: tintColor }]}
+        />
         <GestureDetector gesture={pan}>
           <Animated.View
             style={[
@@ -124,6 +135,13 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     justifyContent: "center",
     position: "relative",
+  },
+  sliderFill: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    height: 4,
+    borderRadius: 2,
   },
   sliderHandle: {
     width: HANDLE_SIZE,
