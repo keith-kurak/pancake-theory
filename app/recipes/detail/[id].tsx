@@ -6,12 +6,14 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { getRecipeById } from "@/data/recipes";
+import useKeyboardState from "@/hooks/use-keyboard-state";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { breakfastActions, breakfastStore$ } from "@/store/breakfast-store";
 import { showConfirmDialog } from "@/utils/confirm-dialog";
 import { formatAmount, scaleIngredient } from "@/utils/recipe-scaler";
 import { useValue } from "@legendapp/state/react";
 import * as Haptics from "expo-haptics";
+import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -20,7 +22,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  TextInput,
+  TextInput
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -73,6 +75,8 @@ export default function RecipeDetailScreen() {
 
   const insets = useSafeAreaInsets();
 
+  const { isKeyboardOpen, isKeyboardAnimating } = useKeyboardState();
+
   // Sync checked ingredients to store when active
   useEffect(() => {
     if (isActive) {
@@ -88,6 +92,15 @@ export default function RecipeDetailScreen() {
       breakfastActions.updatePendingRecipeScale(scaleFactor);
     }
   }, [scaleFactor, isActive]);
+
+  // keep recipe on screen when making it
+  useEffect(() => {
+    if (isActive) {
+      activateKeepAwakeAsync();
+    } else {
+      deactivateKeepAwake();
+    }
+  }, [isActive]);
 
   if (!recipe) {
     return (
@@ -175,6 +188,7 @@ export default function RecipeDetailScreen() {
 
   const handleTabChange = (tab: TabType) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setIsEditingNotes(false);
     setActiveTab(tab);
   };
 
@@ -329,41 +343,46 @@ export default function RecipeDetailScreen() {
         )}
 
         {activeTab === "notes" && (
-          <>
+          <KeyboardAvoidingView
+            behavior={"padding"}
+            style={styles.content}
+            keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 116}
+          >
+            <ThemedView style={{ flex: 1 }}>
             {isEditingNotes ? (
-              <KeyboardAvoidingView
-                behavior={Platform.OS === "ios" ? "padding" : "height"}
-                style={styles.content}
-                keyboardVerticalOffset={100}
-              >
-                <ThemedView style={[styles.notesContainer, { backgroundColor }]}>
-                  <TextInput
-                    ref={notesInputRef}
-                    style={[
-                      styles.notesInput,
-                      {
-                        color: textColor,
-                      },
-                    ]}
-                    value={notes}
-                    onChangeText={setNotes}
-                    placeholder="Add notes about this recipe..."
-                    placeholderTextColor={textColor + "80"}
-                    multiline
-                    textAlignVertical="top"
-                    editable={true}
-                  />
-                </ThemedView>
-              </KeyboardAvoidingView>
+              <ThemedView style={[styles.notesContainer, { backgroundColor }]}>
+                <TextInput
+                  ref={notesInputRef}
+                  style={[
+                    styles.notesInput,
+                    {
+                      color: textColor,
+                    },
+                  ]}
+                  value={notes}
+                  onChangeText={setNotes}
+                  placeholder="Add notes about this recipe..."
+                  placeholderTextColor={textColor + "80"}
+                  multiline
+                  textAlignVertical="top"
+                  editable={true}
+                />
+              </ThemedView>
             ) : (
               <ScrollView style={styles.content}>
-                <ThemedView style={[styles.notesContainer, { backgroundColor }]}>
+                <ThemedView
+                  style={[styles.notesContainer, { backgroundColor }]}
+                >
                   {notes.trim() ? (
-                    <ThemedText style={[styles.notesText, { color: textColor }]}>
+                    <ThemedText
+                      style={[styles.notesText, { color: textColor }]}
+                    >
                       {notes}
                     </ThemedText>
                   ) : (
-                    <ThemedText style={[styles.notesPlaceholder, { color: textColor }]}>
+                    <ThemedText
+                      style={[styles.notesPlaceholder, { color: textColor }]}
+                    >
                       No notes yet.
                     </ThemedText>
                   )}
@@ -376,23 +395,25 @@ export default function RecipeDetailScreen() {
                 onPress={handleDoneEditing}
                 style={[
                   styles.editFab,
-                  { backgroundColor: tintColor, bottom: insets.bottom + 16 },
+                  { backgroundColor: tintColor, bottom: 16 },
                 ]}
               >
                 <IconSymbol name="checkmark" size={24} color="white" />
               </Pressable>
-            ) : (
+            ) : null }
+            {!isEditingNotes ? (
               <Pressable
                 onPress={handleEditNotes}
                 style={[
                   styles.editFab,
-                  { backgroundColor: tintColor, bottom: insets.bottom + 16 },
+                  { backgroundColor: tintColor, bottom: 16 },
                 ]}
               >
                 <IconSymbol name="pencil" size={24} color="white" />
               </Pressable>
-            )}
-          </>
+            ): null}
+            </ThemedView>
+          </KeyboardAvoidingView>
         )}
 
         {/* Action Buttons - Hidden on Notes tab */}
@@ -411,42 +432,42 @@ export default function RecipeDetailScreen() {
           </ThemedView>
         )}
 
-        {activeTab !== "notes" && mode === "active" && activeTab === "ingredients" && (
-          <ThemedView
-            style={[styles.buttonContainer, { marginBottom: insets.bottom }]}
-          >
-            {allIngredientsChecked ? (
-              <Pressable
-                onPress={handleMadeIt}
-                style={[styles.actionButton, { backgroundColor: tintColor }]}
-              >
-                <ThemedText
-                  style={[styles.actionButtonText]}
+        {activeTab !== "notes" &&
+          mode === "active" &&
+          activeTab === "ingredients" && (
+            <ThemedView
+              style={[styles.buttonContainer, { marginBottom: insets.bottom }]}
+            >
+              {allIngredientsChecked ? (
+                <Pressable
+                  onPress={handleMadeIt}
+                  style={[styles.actionButton, { backgroundColor: tintColor }]}
                 >
-                  I made it!
-                </ThemedText>
-              </Pressable>
-            ) : (
-              <Pressable
-                onPress={handleCancelRecipe}
-                style={[
-                  styles.actionButton,
-                  {
-                    backgroundColor: "transparent",
-                    borderWidth: 1,
-                    borderColor: tintColor,
-                  },
-                ]}
-              >
-                <ThemedText
-                  style={[styles.actionButtonText, { color: tintColor }]}
+                  <ThemedText style={[styles.actionButtonText]}>
+                    I made it!
+                  </ThemedText>
+                </Pressable>
+              ) : (
+                <Pressable
+                  onPress={handleCancelRecipe}
+                  style={[
+                    styles.actionButton,
+                    {
+                      backgroundColor: "transparent",
+                      borderWidth: 1,
+                      borderColor: tintColor,
+                    },
+                  ]}
                 >
-                  Cancel Recipe
-                </ThemedText>
-              </Pressable>
-            )}
-          </ThemedView>
-        )}
+                  <ThemedText
+                    style={[styles.actionButtonText, { color: tintColor }]}
+                  >
+                    Cancel Recipe
+                  </ThemedText>
+                </Pressable>
+              )}
+            </ThemedView>
+          )}
 
         {activeTab !== "notes" && mode === "pending-other" && (
           <ThemedView
@@ -501,6 +522,7 @@ const styles = StyleSheet.create({
   notesInput: {
     padding: 16,
     fontSize: 16,
+    lineHeight: 24,
     flex: 1,
   },
   notesText: {
@@ -512,7 +534,7 @@ const styles = StyleSheet.create({
     padding: 16,
     fontSize: 16,
     opacity: 0.5,
-    fontStyle: 'italic',
+    fontStyle: "italic",
   },
   editFab: {
     position: "absolute",
