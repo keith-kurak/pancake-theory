@@ -6,23 +6,23 @@
     { "name": "All-purpose flour", "amount": 2, "unit": "cups", "category": "flour" },
     { "name": "Baking powder", "amount": 2, "unit": "tsp", "category": "other" },
     { "name": "Salt", "amount": 0.5, "unit": "tsp", "category": "other" },
-    { "name": "Egg yolks", "amount": 4, "unit": "large", "category": "eggs" },
+    { "name": "Eggs (separated)", "amount": 4, "unit": "large", "category": "eggs" },
     { "name": "Sugar", "amount": 2, "unit": "tbsp", "category": "other" },
     { "name": "Whole milk", "amount": 2, "unit": "cups", "category": "liquid" },
     { "name": "Unsalted butter (melted)", "amount": 4, "unit": "tbsp", "category": "other" },
     { "name": "Vanilla extract", "amount": 0.5, "unit": "tsp", "category": "other" },
-    { "name": "Egg whites", "amount": 4, "unit": "large", "category": "eggs" },
     { "name": "Nonstick cooking spray", "amount": null, "unit": null, "category": "other" }
   ],
   "directions": [
     "Preheat waffle iron",
-    "Sift flour, baking powder, and salt into a bowl.",
+    "Separate your eggs into yolks and whites.",
+    "Beat egg whites until stiff peaks form; set aside.",
     "In another bowl, whisk egg yolks and sugar until pale and smooth.",
     "Add milk, melted butter, and vanilla; whisk to combine.",
-    "Add dry ingredients and whisk until just blended; do not overmix.",
-    "In a separate bowl, beat egg whites to soft peaks, then gently fold into batter.",
+    "Sift flour, baking powder, and salt into another bowl.",
+    "Add dry ingredients to egg yolk mixture and whisk until just blended.",
+    "Gently fold in egg whites into the batter.",
     "Coat waffle iron with nonstick spray and pour in enough batter to cover the grid.",
-    "Cook until golden brown, about 2–3 minutes, or as directed by your waffle iron.",
-    "Repeat with remaining batter and serve warm."
+    "Cook until golden brown, about 2–3 minutes, or as directed by your waffle iron."
   ]
 }
