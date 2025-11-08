@@ -8,6 +8,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
 
+import OtaUpdateOverlay from "@/components/OtaUpdateOverlay";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 
 export const unstable_settings = {
@@ -38,6 +39,7 @@ export default function RootLayout() {
         />
       </Stack>
       <StatusBar style="auto" />
+      <OtaUpdateOverlay />
     </ThemeProvider>
   );
 }
