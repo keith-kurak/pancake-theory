@@ -51,6 +51,7 @@ export function BreakfastCard({ type }: BreakfastCardProps) {
         { backgroundColor, borderColor },
         pressed && styles.pressed,
       ]}
+      testID="make-it-button"
     >
       <ThemedView style={[styles.content, { backgroundColor: "transparent" }]}>
         <ThemedText style={styles.title}>{breakfastInfo.name}</ThemedText>
