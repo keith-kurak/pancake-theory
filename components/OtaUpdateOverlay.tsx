@@ -91,9 +91,9 @@ export default function ExpoOtaUpdateMonitor() {
               paddingLeft: 8,
               paddingVertical: 16,
             }}
-            onPress={() => {
+            onPress={async () => {
               Alert.alert("update pressed")
-              reloadAsync({
+              await reloadAsync({
                 reloadScreenOptions: {
                   backgroundColor,
                   spinner: {
@@ -102,6 +102,7 @@ export default function ExpoOtaUpdateMonitor() {
                   }
                 }
               });
+              Alert.alert("update resolved")
             }}
           >
             <ThemedText
