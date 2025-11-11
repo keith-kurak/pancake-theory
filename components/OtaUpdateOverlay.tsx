@@ -8,10 +8,11 @@ import {
   useUpdates,
 } from "expo-updates";
 import { useEffect, useState } from "react";
-import { AppState, Pressable } from "react-native";
+import { Alert, AppState, } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemedText } from "./themed-text";
 import { ThemedView } from "./themed-view";
+import { PressableWithOpacity } from "./ui/PressableWithOpacity";
 
 // const for testing update visuals
 const OVERRIDE_OVERLAY_VISIBLE = false;
@@ -61,7 +62,7 @@ export default function ExpoOtaUpdateMonitor() {
 
   if (!visible) return null;
 
-  if (downloadedUpdate || OVERRIDE_OVERLAY_VISIBLE) {
+  if (isUpdatePending || OVERRIDE_OVERLAY_VISIBLE) {
     return (
       <ThemedView
         style={[
@@ -83,7 +84,7 @@ export default function ExpoOtaUpdateMonitor() {
             backgroundColor,
           }}
         >
-          <Pressable
+          <PressableWithOpacity
             style={{
               flex: 1,
               justifyContent: "center",
@@ -91,6 +92,7 @@ export default function ExpoOtaUpdateMonitor() {
               paddingVertical: 16,
             }}
             onPress={() => {
+              Alert.alert("update pressed")
               reloadAsync({
                 reloadScreenOptions: {
                   backgroundColor,
@@ -114,8 +116,8 @@ export default function ExpoOtaUpdateMonitor() {
                 ? "A critical update is available. Updating now."
                 : "An update is available. Tap here to update."}
             </ThemedText>
-          </Pressable>
-          <Pressable
+          </PressableWithOpacity>
+          <PressableWithOpacity
             onPress={() => setVisible(false)}
             style={{
               paddingRight: 8,
@@ -125,7 +127,7 @@ export default function ExpoOtaUpdateMonitor() {
             accessibilityLabel="Close update notification"
           >
             <Ionicons color={textColor} size={30} name="close-outline" />
-          </Pressable>
+          </PressableWithOpacity>
         </ThemedView>
       </ThemedView>
     );
