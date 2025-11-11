@@ -64,8 +64,8 @@ function HistoryScreen() {
         </ThemedText>
         {isUpdatePending && (
           <Button
-            onPress={() => {
-              Updates.reloadAsync();
+            onPress={async () => {
+              await Updates.reloadAsync();
             }}
             title="Restart to Update"
           />
