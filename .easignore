@@ -45,3 +45,5 @@ app-example
 # Maestro
 .maestro/screenshots/
 temp.json
+
+/publish/stores/*

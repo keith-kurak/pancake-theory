@@ -1,10 +1,10 @@
+import type { Ratios } from '@/types/breakfast';
 import {
-  normalizeRatios,
   calculateDistance,
   findClosestBreakfast,
   getRankedBreakfasts,
+  normalizeRatios,
 } from '../ratio-matcher';
-import type { Ratios } from '@/types/breakfast';
 
 describe('normalizeRatios', () => {
   it('should normalize ratios to percentages that sum to 100', () => {
@@ -111,7 +111,7 @@ describe('findClosestBreakfast', () => {
     const ratios: Ratios = { flour: 1, liquid: 2, eggs: 3 };
     const result = findClosestBreakfast(ratios);
 
-    expect(result).toBe('dutch baby');
+    expect(result).toBe('dutch-baby');
   });
 
   it('should return "popover" for popover ratios (1:1:2)', () => {
@@ -191,7 +191,7 @@ describe('getRankedBreakfasts', () => {
     const ratios: Ratios = { flour: 2, liquid: 2, eggs: 1 };
     const ranked = getRankedBreakfasts(ratios);
 
-    expect(ranked).toHaveLength(7);
+    expect(ranked).toHaveLength(8);
     expect(ranked[0].type).toBe('pancakes'); // Closest match
     expect(ranked[0].distance).toBeLessThan(ranked[1].distance);
   });
