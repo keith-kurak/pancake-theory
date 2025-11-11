@@ -8,7 +8,7 @@ import {
   useUpdates,
 } from "expo-updates";
 import { useEffect, useState } from "react";
-import { Alert, AppState, } from "react-native";
+import { AppState } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemedText } from "./themed-text";
 import { ThemedView } from "./themed-view";
@@ -92,7 +92,6 @@ export default function ExpoOtaUpdateMonitor() {
               paddingVertical: 16,
             }}
             onPress={async () => {
-              Alert.alert("update pressed")
               await reloadAsync({
                 reloadScreenOptions: {
                   backgroundColor,
@@ -102,7 +101,6 @@ export default function ExpoOtaUpdateMonitor() {
                   }
                 }
               });
-              Alert.alert("update resolved")
             }}
           >
             <ThemedText

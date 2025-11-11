@@ -5,7 +5,7 @@ import { ThemedView } from "@/components/themed-view";
 import { breakfastStore$ } from "@/store/breakfast-store";
 import type { HistoryEntry as HistoryEntryType } from "@/types/breakfast";
 import { observer, useValue } from "@legendapp/state/react";
-import Updates, { useUpdates } from "expo-updates";
+import { reloadAsync, useUpdates } from "expo-updates";
 import { useMemo, useState } from "react";
 import { Button, FlatList, RefreshControl, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -65,7 +65,9 @@ function HistoryScreen() {
         {isUpdatePending && (
           <Button
             onPress={async () => {
-              await Updates.reloadAsync();
+              setRefreshing(true);
+              await reloadAsync();
+              setRefreshing(false);
             }}
             title="Restart to Update"
           />
