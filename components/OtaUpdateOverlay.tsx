@@ -1,5 +1,4 @@
 import { useThemeColor } from "@/hooks/use-theme-color";
-import { isAvailableUpdateCritical } from "@/utils/update-utils";
 import Ionicons from "@expo/vector-icons/build/Ionicons";
 import {
   checkForUpdateAsync,
@@ -18,8 +17,7 @@ import { PressableWithOpacity } from "./ui/PressableWithOpacity";
 const OVERRIDE_OVERLAY_VISIBLE = false;
 
 export default function ExpoOtaUpdateMonitor() {
-  const updatesSystem = useUpdates();
-  const { isUpdateAvailable, isUpdatePending, downloadedUpdate, availableUpdate, isRestarting } = updatesSystem;
+  const { isUpdateAvailable, isUpdatePending } = useUpdates();
   const { top } = useSafeAreaInsets();
   const [visible, setVisible] = useState(true);
 
@@ -51,14 +49,9 @@ export default function ExpoOtaUpdateMonitor() {
     (async function doAsync() {
       if (isUpdateAvailable) {
         await fetchUpdateAsync();
-        if (isAvailableUpdateCritical(updatesSystem)) {
-          setTimeout(() => {
-            reloadAsync();
-          }, 3000);
-        }
       }
     })();
-  }, [isUpdateAvailable, updatesSystem]);
+  }, [isUpdateAvailable]);
 
   if (!visible) return null;
 
@@ -98,8 +91,8 @@ export default function ExpoOtaUpdateMonitor() {
                   spinner: {
                     color: textColor,
                     size: "medium",
-                  }
-                }
+                  },
+                },
               });
             }}
           >
@@ -111,9 +104,7 @@ export default function ExpoOtaUpdateMonitor() {
                 },
               ]}
             >
-              {isAvailableUpdateCritical(updatesSystem)
-                ? "A critical update is available. Updating now."
-                : "An update is available. Tap here to update."}
+              An update is available. Tap here to update.
             </ThemedText>
           </PressableWithOpacity>
           <PressableWithOpacity

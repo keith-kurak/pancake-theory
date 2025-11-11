@@ -6,8 +6,8 @@ import { breakfastStore$ } from "@/store/breakfast-store";
 import type { HistoryEntry as HistoryEntryType } from "@/types/breakfast";
 import { observer, useValue } from "@legendapp/state/react";
 import { reloadAsync, useUpdates } from "expo-updates";
-import { useMemo, useState } from "react";
-import { Button, FlatList, RefreshControl, StyleSheet } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { AppState, Button, FlatList, RefreshControl, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 function HistoryScreen() {
@@ -34,6 +34,19 @@ function HistoryScreen() {
 
     return items;
   }, [history, pendingRecipe]);
+
+    // check for update when app is brought back to foreground
+    useEffect(() => {
+      const subscription = AppState.addEventListener("change", (nextAppState) => {
+        if (nextAppState === "active") {
+          //checkForUpdateAsync();
+        }
+      });
+  
+      return () => {
+        subscription.remove();
+      };
+    }, []);
 
   const onRefresh = () => {
     setRefreshing(true);
