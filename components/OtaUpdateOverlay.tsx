@@ -1,5 +1,4 @@
 import { useThemeColor } from "@/hooks/use-theme-color";
-import { isAvailableUpdateCritical } from "@/utils/update-utils";
 import Ionicons from "@expo/vector-icons/build/Ionicons";
 import {
   checkForUpdateAsync,
@@ -8,17 +7,17 @@ import {
   useUpdates,
 } from "expo-updates";
 import { useEffect, useState } from "react";
-import { AppState, Pressable } from "react-native";
+import { AppState } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemedText } from "./themed-text";
 import { ThemedView } from "./themed-view";
+import { PressableWithOpacity } from "./ui/PressableWithOpacity";
 
 // const for testing update visuals
 const OVERRIDE_OVERLAY_VISIBLE = false;
 
 export default function ExpoOtaUpdateMonitor() {
-  const updatesSystem = useUpdates();
-  const { isUpdateAvailable, isUpdatePending, downloadedUpdate, availableUpdate, isRestarting } = updatesSystem;
+  const { isUpdateAvailable, isUpdatePending } = useUpdates();
   const { top } = useSafeAreaInsets();
   const [visible, setVisible] = useState(true);
 
@@ -50,18 +49,13 @@ export default function ExpoOtaUpdateMonitor() {
     (async function doAsync() {
       if (isUpdateAvailable) {
         await fetchUpdateAsync();
-        if (isAvailableUpdateCritical(updatesSystem)) {
-          setTimeout(() => {
-            reloadAsync();
-          }, 3000);
-        }
       }
     })();
-  }, [isUpdateAvailable, updatesSystem]);
+  }, [isUpdateAvailable]);
 
   if (!visible) return null;
 
-  if (downloadedUpdate || OVERRIDE_OVERLAY_VISIBLE) {
+  if (isUpdatePending || OVERRIDE_OVERLAY_VISIBLE) {
     return (
       <ThemedView
         style={[
@@ -83,22 +77,22 @@ export default function ExpoOtaUpdateMonitor() {
             backgroundColor,
           }}
         >
-          <Pressable
+          <PressableWithOpacity
             style={{
               flex: 1,
               justifyContent: "center",
               paddingLeft: 8,
               paddingVertical: 16,
             }}
-            onPress={() => {
-              reloadAsync({
+            onPress={async () => {
+              await reloadAsync({
                 reloadScreenOptions: {
                   backgroundColor,
                   spinner: {
                     color: textColor,
                     size: "medium",
-                  }
-                }
+                  },
+                },
               });
             }}
           >
@@ -110,12 +104,10 @@ export default function ExpoOtaUpdateMonitor() {
                 },
               ]}
             >
-              {isAvailableUpdateCritical(updatesSystem)
-                ? "A critical update is available. Updating now."
-                : "An update is available. Tap here to update."}
+              An update is available. Tap here to update.
             </ThemedText>
-          </Pressable>
-          <Pressable
+          </PressableWithOpacity>
+          <PressableWithOpacity
             onPress={() => setVisible(false)}
             style={{
               paddingRight: 8,
@@ -125,7 +117,7 @@ export default function ExpoOtaUpdateMonitor() {
             accessibilityLabel="Close update notification"
           >
             <Ionicons color={textColor} size={30} name="close-outline" />
-          </Pressable>
+          </PressableWithOpacity>
         </ThemedView>
       </ThemedView>
     );
