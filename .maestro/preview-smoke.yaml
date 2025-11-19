@@ -4,6 +4,6 @@ appId: com.keithkurak.pancaketheorypreview
 - takeScreenshot: '.maestro/screenshots/preview-smoke-1'
 - assertVisible: '.*Make it.*'
 - tapOn:
-    id: "make-it-button"
+    text: ".*Make it.*"
 - takeScreenshot: '.maestro/screenshots/preview-smoke-2'
 - assertVisible: '.*Fluffy Pancakes.*'
