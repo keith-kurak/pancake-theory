@@ -11,7 +11,7 @@
     { "name": "Milk", "amount": 1.75, "unit": "cups", "category": "liquid" },
     { "name": "Butter (melted)", "amount": 0.25, "unit": "cups", "category": "other" },
     { "name": "Vanilla extract", "amount": 2, "unit": "tsp", "category": "other" },
-    { "name": "Egg", "amount": 1, "unit": "large", "category": "eggs" }
+    { "name": "Egg", "amount": 2, "unit": "large", "category": "eggs" }
   ],
   "directions": [
     "In a large bowl, whisk together the flour, sugar, baking powder, baking soda, and salt.",
