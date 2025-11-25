@@ -1,0 +1,10 @@
+name: Android Development Build
+
+jobs:
+  android_development_build:
+    name: Build Android
+    needs: [android_get_build] 
+    type: build
+    params:
+      platform: android
+      profile: development
