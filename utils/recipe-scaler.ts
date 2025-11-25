@@ -1,8 +1,20 @@
 /**
  * Scale an ingredient amount by a given factor
+ * Eggs are always rounded up to whole numbers
  */
-export function scaleIngredient(amount: number, scaleFactor: number): number {
-  return amount * scaleFactor;
+export function scaleIngredient(
+  amount: number,
+  scaleFactor: number,
+  category?: string
+): number {
+  const scaled = amount * scaleFactor;
+
+  // Round up eggs to whole numbers
+  if (category === 'eggs') {
+    return Math.ceil(scaled);
+  }
+
+  return scaled;
 }
 
 /**

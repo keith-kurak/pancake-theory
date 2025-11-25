@@ -294,7 +294,8 @@ export default function RecipeDetailScreen() {
                 {recipe.ingredients.map((ingredient, index) => {
                   const scaledAmount = scaleIngredient(
                     ingredient.amount,
-                    scaleFactor
+                    scaleFactor,
+                    ingredient.category
                   );
                   const formattedAmount = formatAmount(scaledAmount);
 
