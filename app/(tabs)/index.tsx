@@ -7,7 +7,7 @@ import { Sizes } from "@/constants/sizes";
 import type { Ratios } from "@/types/breakfast";
 import { findClosestBreakfast } from "@/utils/ratio-matcher";
 import { useMemo, useState } from "react";
-import { StyleSheet } from "react-native";
+import { Platform, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function ChooserScreen() {
@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
     //marginTop: 24,
     padding: 16,
     gap: 8,
-    marginBottom: 16,
+    marginBottom: Platform.OS === 'android' ? 24 : 16,
   },
   slidersTitle: {
     alignSelf: "center",
