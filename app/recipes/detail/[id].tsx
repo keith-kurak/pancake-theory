@@ -152,7 +152,10 @@ export default function RecipeDetailScreen() {
 
     if (confirmed) {
       breakfastActions.cancelPendingRecipe();
-      router.back();
+      // something weird and crashy started happening
+      setTimeout(() => {
+        router.back();
+      }, 300);
     }
   };
 

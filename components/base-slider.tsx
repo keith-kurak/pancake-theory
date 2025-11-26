@@ -8,6 +8,9 @@ interface BaseSliderProps {
   minimumValue?: number;
   maximumValue?: number;
   step?: number;
+  // we suppress the steps on android for the ratio slider because it looks bad,
+  // but they're appropriate on other sliders
+  androidUseExplicitSteps?: boolean;
 }
 
 export function BaseSlider({
@@ -16,6 +19,7 @@ export function BaseSlider({
   minimumValue = 1,
   maximumValue = 15,
   step = 0.5,
+  androidUseExplicitSteps = false,
 }: BaseSliderProps) {
   const tintColor = useThemeColor({}, 'tint');
   const backgroundColor = useThemeColor(

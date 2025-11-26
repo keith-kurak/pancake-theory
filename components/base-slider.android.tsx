@@ -21,6 +21,9 @@ interface BaseSliderProps {
   minimumValue?: number;
   maximumValue?: number;
   step?: number;
+  // we suppress the steps on android for the ratio slider because it looks bad,
+  // but they're appropriate on other sliders
+  androidUseExplicitSteps?: boolean;
 }
 
 export function BaseSlider({
@@ -29,6 +32,7 @@ export function BaseSlider({
   minimumValue = 1,
   maximumValue = 15,
   step = 0.5,
+  androidUseExplicitSteps = false,
 }: BaseSliderProps) {
   return (
     <BaseSliderInner
@@ -37,6 +41,7 @@ export function BaseSlider({
       minimumValue={minimumValue}
       maximumValue={maximumValue}
       step={step}
+      androidUseExplicitSteps={androidUseExplicitSteps}
     />
   );
 }
@@ -47,6 +52,7 @@ function ExpoUiBaseSliderInner({
   minimumValue = 1,
   maximumValue = 15,
   step = 0.5,
+  androidUseExplicitSteps = false,
 }: BaseSliderProps) {
   const tintColor = useThemeColor({}, "tint");
   const backgroundColor = useThemeColor(
@@ -64,6 +70,7 @@ function ExpoUiBaseSliderInner({
       min={minimumValue}
       max={maximumValue}
       style={{ width: "100%", height: 40 }}
+      steps={androidUseExplicitSteps ? (steps - 1) : undefined}
       elementColors={{
         thumbColor: tintColor,
         activeTrackColor: tintColor,

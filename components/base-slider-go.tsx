@@ -21,6 +21,10 @@ interface BaseSliderProps {
   minimumValue?: number;
   maximumValue?: number;
   step?: number;
+  // we suppress the steps on android for the ratio slider because it looks bad,
+  // but they're appropriate on other sliders
+  // only used on base-slider.android.tsx
+  androidUseExplicitSteps?: boolean;
 }
 
 const BaseSliderGo = ({
@@ -29,6 +33,7 @@ const BaseSliderGo = ({
   minimumValue = 1,
   maximumValue = 15,
   step = 0.5,
+  androidUseExplicitSteps = false,
 }: BaseSliderProps) => {
   const [trackWidth, setTrackWidth] = useState(0);
   const offset = useSharedValue(0);
