@@ -4,12 +4,11 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import * as Haptics from "expo-haptics";
 import { useRef } from "react";
 import {
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   TextInput,
+  View,
 } from "react-native";
 
 interface NotesTabProps {
@@ -52,33 +51,26 @@ export function NotesTab({
     notesInputRef.current?.blur();
   };
 
-  return (
-    <>
+  return <View style={{ flex: 1 }}>
       {isEditing ? (
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={styles.content}
-          keyboardVerticalOffset={100}
-        >
-          <ThemedView style={[styles.notesContainer, { backgroundColor }]}>
-            <TextInput
-              ref={notesInputRef}
-              style={[
-                styles.notesInput,
-                {
-                  color: textColor,
-                },
-              ]}
-              value={notes}
-              onChangeText={onNotesChange}
-              placeholder="Add notes about this recipe..."
-              placeholderTextColor={textColor + "80"}
-              multiline
-              textAlignVertical="top"
-              editable={true}
-            />
-          </ThemedView>
-        </KeyboardAvoidingView>
+        <ThemedView style={[styles.notesContainer, { backgroundColor }]}>
+          <TextInput
+            ref={notesInputRef}
+            style={[
+              styles.notesInput,
+              {
+                color: textColor,
+              },
+            ]}
+            value={notes}
+            onChangeText={onNotesChange}
+            placeholder="Add notes about this recipe..."
+            placeholderTextColor={textColor + "80"}
+            multiline
+            textAlignVertical="top"
+            editable={true}
+          />
+        </ThemedView>
       ) : (
         <ScrollView style={styles.content}>
           <ThemedView style={[styles.notesContainer, { backgroundColor }]}>
@@ -118,8 +110,7 @@ export function NotesTab({
           <IconSymbol name="pencil" size={24} color="white" />
         </Pressable>
       )}
-    </>
-  );
+    </View>;
 }
 
 const styles = StyleSheet.create({
@@ -132,12 +123,13 @@ const styles = StyleSheet.create({
   notesInput: {
     padding: 16,
     fontSize: 16,
+    lineHeight: 18,
     flex: 1,
   },
   notesText: {
     padding: 16,
     fontSize: 16,
-    lineHeight: 24,
+    lineHeight: 18,
   },
   notesPlaceholder: {
     padding: 16,

@@ -10,6 +10,7 @@ import "react-native-reanimated";
 
 import ExpoOtaUpdateMonitor from "@/components/OtaUpdateOverlay";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { KeyboardAvoidingView, Platform } from "react-native";
 
 export const unstable_settings = {
   anchor: "(tabs)",
@@ -25,21 +26,26 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen
-          name="(tabs)"
-          options={{
-            headerShown: false,
-            headerBackButtonDisplayMode: "minimal",
-          }}
-        />
-        <Stack.Screen
-          name="modal"
-          options={{ presentation: "modal", title: "Modal" }}
-        />
-      </Stack>
-      <StatusBar style="auto" />
-      <ExpoOtaUpdateMonitor />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "padding"}
+        style={{ flex: 1 }}
+      >
+        <Stack>
+          <Stack.Screen
+            name="(tabs)"
+            options={{
+              headerShown: false,
+              headerBackButtonDisplayMode: "minimal",
+            }}
+          />
+          <Stack.Screen
+            name="modal"
+            options={{ presentation: "modal", title: "Modal" }}
+          />
+        </Stack>
+        <StatusBar style="auto" />
+        <ExpoOtaUpdateMonitor />
+      </KeyboardAvoidingView>
     </ThemeProvider>
   );
 }
