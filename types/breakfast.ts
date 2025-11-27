@@ -46,6 +46,7 @@ export interface PendingRecipe {
   scaleFactor: number;
   checkedIngredients: number[];
   startTime: number;
+  prepEndTime?: number; // When user switched from prep to cook
 }
 
 export interface HistoryEntry {
@@ -55,7 +56,9 @@ export interface HistoryEntry {
   recipeType: BreakfastType;
   timestamp: number;
   scaleFactor: number;
-  cookingDuration?: number;
+  cookingDuration?: number; // Total duration (for backwards compat)
+  prepDuration?: number; // Time spent in prep phase
+  cookDuration?: number; // Time spent in cook phase
 }
 
 export interface BreakfastState {

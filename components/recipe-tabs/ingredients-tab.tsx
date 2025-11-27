@@ -14,6 +14,9 @@ interface IngredientsTabProps {
   onToggleIngredient: (index: number) => void;
   isActive: boolean;
   startTime?: number;
+  prepEndTime?: number;
+  onSwitchToCook?: () => void;
+  onSwitchToPrep?: () => void;
   backgroundColor: string;
 }
 
@@ -25,12 +28,22 @@ export function IngredientsTab({
   onToggleIngredient,
   isActive,
   startTime,
+  prepEndTime,
+  onSwitchToCook,
+  onSwitchToPrep,
   backgroundColor,
 }: IngredientsTabProps) {
   return (
     <ScrollView style={styles.content}>
       <ThemedView style={{ backgroundColor }}>
-        {isActive && startTime && <RecipeTimer startTime={startTime} />}
+        {isActive && startTime && (
+          <RecipeTimer
+            startTime={startTime}
+            prepEndTime={prepEndTime}
+            onSwitchToCook={onSwitchToCook}
+            onSwitchToPrep={onSwitchToPrep}
+          />
+        )}
 
         <ScaleSlider
           value={scaleFactor}

@@ -104,6 +104,20 @@ export const breakfastActions = {
     }
   },
 
+  switchToCook: () => {
+    const pending = breakfastStore$.pendingRecipe.peek();
+    if (pending && !pending.prepEndTime) {
+      breakfastStore$.pendingRecipe.prepEndTime.set(Date.now());
+    }
+  },
+
+  switchToPrep: () => {
+    const pending = breakfastStore$.pendingRecipe.peek();
+    if (pending && pending.prepEndTime) {
+      breakfastStore$.pendingRecipe.prepEndTime.set(undefined);
+    }
+  },
+
   cancelPendingRecipe: () => {
     breakfastStore$.pendingRecipe.set(null);
   },
@@ -111,13 +125,26 @@ export const breakfastActions = {
   completePendingRecipe: () => {
     const pending = breakfastStore$.pendingRecipe.peek();
     if (pending) {
-      const duration = Date.now() - pending.startTime;
+      const endTime = Date.now();
+      const totalDuration = endTime - pending.startTime;
+
+      let prepDuration: number | undefined;
+      let cookDuration: number | undefined;
+
+      if (pending.prepEndTime) {
+        // User used timer splits
+        prepDuration = pending.prepEndTime - pending.startTime;
+        cookDuration = endTime - pending.prepEndTime;
+      }
+
       breakfastActions.addToHistory({
         recipeId: pending.recipeId,
         recipeName: pending.recipeName,
         recipeType: pending.recipeType,
         scaleFactor: pending.scaleFactor,
-        cookingDuration: duration,
+        cookingDuration: totalDuration,
+        prepDuration,
+        cookDuration,
       });
       breakfastStore$.pendingRecipe.set(null);
     }

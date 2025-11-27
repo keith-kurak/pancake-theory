@@ -179,6 +179,14 @@ export default function RecipeDetailScreen() {
     setIsEditingNotes(true);
   };
 
+  const handleSwitchToCook = () => {
+    breakfastActions.switchToCook();
+  };
+
+  const handleSwitchToPrep = () => {
+    breakfastActions.switchToPrep();
+  };
+
   return (
     <>
       <Stack.Screen
@@ -271,6 +279,9 @@ export default function RecipeDetailScreen() {
             onToggleIngredient={toggleIngredient}
             isActive={isActive}
             startTime={pendingRecipeValue?.startTime}
+            prepEndTime={pendingRecipeValue?.prepEndTime}
+            onSwitchToCook={handleSwitchToCook}
+            onSwitchToPrep={handleSwitchToPrep}
             backgroundColor={backgroundColor}
           />
         )}
