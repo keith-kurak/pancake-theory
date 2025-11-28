@@ -1,7 +1,8 @@
-import type { HistoryEntry, PendingRecipe } from '@/types/breakfast';
-import { observable } from '@legendapp/state';
+import type { HistoryEntry, PendingRecipe, RecipeNote, UserRecipeData } from '@/types/breakfast';
+import { observable, Observable, syncState, when } from '@legendapp/state';
 import { observablePersistSqlite } from '@legendapp/state/persist-plugins/expo-sqlite';
 import { configureSynced, syncObservable } from '@legendapp/state/sync';
+import * as Crypto from 'expo-crypto';
 import Storage from 'expo-sqlite/kv-store';
 
 const persistOptions = configureSynced({
@@ -14,7 +15,10 @@ const persistOptions = configureSynced({
 // Ratios are local state, recipes/breakfast types are static data
 interface BreakfastStore {
   history: HistoryEntry[];
+  // legacy recipe notes (just a text blob per recipe)
   recipeNotes: Record<string, string>; // recipeId -> notes
+  // new recipe notes (notes log items per recipe)
+  userRecipesData: Record<string, UserRecipeData>;
   pendingRecipe: PendingRecipe | null;
 }
 
@@ -22,6 +26,7 @@ const initialState: BreakfastStore = {
   history: [],
   recipeNotes: {},
   pendingRecipe: null,
+  userRecipesData: {}
 };
 
 // Create the observable store
@@ -35,6 +40,48 @@ syncObservable(
         },
     }),
 );
+
+// migrate any old notes over to new structure after persistence is loaded
+(async function migrateLegacyRecipeNotes() {
+  const status$ = syncState(breakfastStore$)
+  await when(status$.isPersistLoaded)
+  const currentNotes = breakfastStore$.recipeNotes.peek();
+  const userRecipesData = breakfastStore$.userRecipesData;
+
+  for (const [recipeId, notes] of Object.entries(currentNotes)) {
+    if (notes.trim()) {
+      // Check if we already have data for this recipe
+      let recipeData = userRecipesData[recipeId];
+      if (!recipeData) {
+        userRecipesData[recipeId].set({
+          recipeId,
+          notes: [],
+        });
+        recipeData = userRecipesData[recipeId];
+      }
+
+      // Add a new RecipeNote entry
+      recipeData.notes.push({
+        id: Crypto.randomUUID(),
+        timestamp: Date.now(),
+        content: notes.trim(),
+      });
+    }
+  }
+})();
+
+function getUserRecipeData(recipeId: string): Observable<UserRecipeData> {
+  const userRecipesData = breakfastStore$.userRecipesData;
+  let recipeData = userRecipesData[recipeId];
+  if (!recipeData) {
+    userRecipesData[recipeId].set({
+      recipeId,
+      notes: [],
+    });
+    recipeData = userRecipesData[recipeId];
+  }
+  return recipeData;
+}
 
 // Actions for managing history, recipe notes, and pending recipes
 export const breakfastActions = {
@@ -58,18 +105,25 @@ export const breakfastActions = {
   },
 
   saveRecipeNotes: (recipeId: string, notes: string) => {
-    if (notes.trim()) {
-      breakfastStore$.recipeNotes[recipeId].set(notes.trim());
-    } else {
-      // Remove notes if empty
-      const currentNotes = breakfastStore$.recipeNotes.peek();
-      const { [recipeId]: _, ...rest } = currentNotes;
-      breakfastStore$.recipeNotes.set(rest);
-    }
+    const userRecipeData = getUserRecipeData(recipeId);
+    userRecipeData.notes.push(
+      {
+        id: Crypto.randomUUID(),
+        timestamp: Date.now(),
+        content: notes,
+      }
+    )
   },
 
-  getRecipeNotes: (recipeId: string): string => {
-    return breakfastStore$.recipeNotes[recipeId].peek() || '';
+  deleteRecipeNote: (recipeId: string, noteId: string) => {
+    const userRecipeData = getUserRecipeData(recipeId);
+    const updatedNotes = userRecipeData.notes.peek().filter(note => note.id !== noteId);
+    userRecipeData.notes.set(updatedNotes);
+  },
+
+  getRecipeNotes: (recipeId: string): RecipeNote[] => {
+     const userRecipeData = getUserRecipeData(recipeId);
+     return userRecipeData.notes.get();
   },
 
   // Pending recipe actions

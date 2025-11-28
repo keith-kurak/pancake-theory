@@ -15,6 +15,7 @@
         "expo": "~54.0.25",
         "expo-application": "~7.0.7",
         "expo-constants": "~18.0.10",
+        "expo-crypto": "~15.0.7",
         "expo-dev-client": "~6.0.18",
         "expo-font": "~14.0.9",
         "expo-haptics": "~15.0.7",
@@ -1031,6 +1032,8 @@
     "expo-atlas": ["expo-atlas@0.4.3", "", { "dependencies": { "@expo/server": "^0.5.0", "arg": "^5.0.2", "chalk": "^4.1.2", "compression": "^1.7.4", "connect": "^3.7.0", "express": "^4.19.2", "freeport-async": "^2.0.0", "getenv": "^2.0.0", "morgan": "^1.10.0", "open": "^8.4.2", "serve-static": "^1.15.0", "stream-json": "^1.8.0" }, "peerDependencies": { "expo": "*" }, "bin": { "expo-atlas": "build/src/cli/bin.js" } }, "sha512-nN2bouxFvMsqZqLl0ka+eI9Ofida0PcuoE4v+7fHlgyp95X2cCL8Acf0nRKXmmIBEYazdw0d7BAOZfC0b41oxA=="],
 
     "expo-constants": ["expo-constants@18.0.10", "", { "dependencies": { "@expo/config": "~12.0.10", "@expo/env": "~2.0.7" }, "peerDependencies": { "expo": "*", "react-native": "*" } }, "sha512-Rhtv+X974k0Cahmvx6p7ER5+pNhBC0XbP1lRviL2J1Xl4sT2FBaIuIxF/0I0CbhOsySf0ksqc5caFweAy9Ewiw=="],
+
+    "expo-crypto": ["expo-crypto@15.0.7", "", { "dependencies": { "base64-js": "^1.3.0" }, "peerDependencies": { "expo": "*" } }, "sha512-FUo41TwwGT2e5rA45PsjezI868Ch3M6wbCZsmqTWdF/hr+HyPcrp1L//dsh/hsrsyrQdpY/U96Lu71/wXePJeg=="],
 
     "expo-dev-client": ["expo-dev-client@6.0.18", "", { "dependencies": { "expo-dev-launcher": "6.0.18", "expo-dev-menu": "7.0.17", "expo-dev-menu-interface": "2.0.0", "expo-manifests": "~1.0.9", "expo-updates-interface": "~2.0.0" }, "peerDependencies": { "expo": "*" } }, "sha512-8QKWvhsoZpMkecAMlmWoRHnaTNiPS3aO7E42spZOMjyiaNRJMHZsnB8W2b63dt3Yg3oLyskLAoI8IOmnqVX8vA=="],
 

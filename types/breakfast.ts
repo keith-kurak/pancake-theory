@@ -67,3 +67,15 @@ export interface BreakfastState {
   recipes: Record<string, Recipe>;
   history: HistoryEntry[];
 }
+
+export interface RecipeNote {
+  id: string;
+  timestamp: number;
+  content: string;
+}
+
+// expand this later as there's more per-recipe user data
+export interface UserRecipeData {
+  recipeId: string;
+  notes: RecipeNote[];
+}
