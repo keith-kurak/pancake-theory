@@ -10,7 +10,7 @@ import "react-native-reanimated";
 
 import ExpoOtaUpdateMonitor from "@/components/OtaUpdateOverlay";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { KeyboardAvoidingView, Platform } from "react-native";
+import { KeyboardAvoidingView, KeyboardProvider } from "react-native-keyboard-controller";
 
 export const unstable_settings = {
   anchor: "(tabs)",
@@ -25,9 +25,10 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   return (
+    <KeyboardProvider>
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "padding"}
+        behavior={"padding"}
         style={{ flex: 1 }}
       >
         <Stack>
@@ -47,5 +48,6 @@ export default function RootLayout() {
         <ExpoOtaUpdateMonitor />
       </KeyboardAvoidingView>
     </ThemeProvider>
+    </KeyboardProvider>
   );
 }
