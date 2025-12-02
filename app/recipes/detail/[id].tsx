@@ -53,8 +53,12 @@ export default function RecipeDetailScreen() {
   const [activeTab, setActiveTab] = useState<TabType>("ingredients");
   const [scaleFactor, setScaleFactor] = useState(initialScale);
   const [checkedIngredients, setCheckedIngredients] = useState(initialChecked);
-  const [notes, setNotes] = useState(() => breakfastActions.getRecipeNotes(id));
-  const [isEditingNotes, setIsEditingNotes] = useState(false);
+
+  // Get notes from store
+  const notes = useValue(() => {
+    const userRecipeData = breakfastStore$.userRecipesData[id];
+    return userRecipeData?.notes?.get() || [];
+  });
 
   const tintColor = useThemeColor({}, "tint");
   const backgroundColor = useThemeColor({}, "background");
@@ -170,13 +174,12 @@ export default function RecipeDetailScreen() {
     setActiveTab(tab);
   };
 
-  const handleDoneEditing = () => {
-    breakfastActions.saveRecipeNotes(id, notes);
-    setIsEditingNotes(false);
+  const handleAddNote = (content: string) => {
+    breakfastActions.saveRecipeNotes(id, content);
   };
 
-  const handleEditNotes = () => {
-    setIsEditingNotes(true);
+  const handleDeleteNote = (noteId: string) => {
+    breakfastActions.deleteRecipeNote(id, noteId);
   };
 
   const handleSwitchToCook = () => {
@@ -291,10 +294,8 @@ export default function RecipeDetailScreen() {
         {activeTab === "notes" && (
           <NotesTab
             notes={notes}
-            onNotesChange={setNotes}
-            isEditing={isEditingNotes}
-            onStartEditing={handleEditNotes}
-            onStopEditing={handleDoneEditing}
+            onAddNote={handleAddNote}
+            onDeleteNote={handleDeleteNote}
             tintColor={tintColor}
             textColor={textColor}
             backgroundColor={backgroundColor}

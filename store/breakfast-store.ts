@@ -68,6 +68,9 @@ syncObservable(
       });
     }
   }
+
+  // Clear out legacy notes
+  breakfastStore$.recipeNotes.set({});
 })();
 
 function getUserRecipeData(recipeId: string): Observable<UserRecipeData> {
