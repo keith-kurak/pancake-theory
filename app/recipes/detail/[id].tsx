@@ -54,12 +54,6 @@ export default function RecipeDetailScreen() {
   const [scaleFactor, setScaleFactor] = useState(initialScale);
   const [checkedIngredients, setCheckedIngredients] = useState(initialChecked);
 
-  // Get notes from store
-  const notes = useValue(() => {
-    const userRecipeData = breakfastStore$.userRecipesData[id];
-    return userRecipeData?.notes?.get() || [];
-  });
-
   const tintColor = useThemeColor({}, "tint");
   const backgroundColor = useThemeColor({}, "background");
   const textColor = useThemeColor({}, "text");
@@ -174,14 +168,6 @@ export default function RecipeDetailScreen() {
     setActiveTab(tab);
   };
 
-  const handleAddNote = (content: string) => {
-    breakfastActions.saveRecipeNotes(id, content);
-  };
-
-  const handleDeleteNote = (noteId: string) => {
-    breakfastActions.deleteRecipeNote(id, noteId);
-  };
-
   const handleSwitchToCook = () => {
     breakfastActions.switchToCook();
   };
@@ -293,13 +279,7 @@ export default function RecipeDetailScreen() {
 
         {activeTab === "notes" && (
           <NotesTab
-            notes={notes}
-            onAddNote={handleAddNote}
-            onDeleteNote={handleDeleteNote}
-            tintColor={tintColor}
-            textColor={textColor}
-            backgroundColor={backgroundColor}
-            bottomInset={insets.bottom}
+            recipeId={id}
           />
         )}
 

@@ -1,7 +1,10 @@
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { useThemeColor } from "@/hooks/use-theme-color";
+import { breakfastActions, breakfastStore$ } from "@/store/breakfast-store";
 import type { RecipeNote } from "@/types/breakfast";
+import { useValue } from "@legendapp/state/react";
 import * as Haptics from "expo-haptics";
 import { useRef, useState } from "react";
 import {
@@ -12,29 +15,30 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface NotesTabProps {
-  notes: RecipeNote[];
-  onAddNote: (content: string) => void;
-  onDeleteNote: (noteId: string) => void;
-  tintColor: string;
-  textColor: string;
-  backgroundColor: string;
-  bottomInset: number;
+  recipeId: string;
 }
 
 export function NotesTab({
-  notes,
-  onAddNote,
-  onDeleteNote,
-  tintColor,
-  textColor,
-  backgroundColor,
-  bottomInset,
+  recipeId,
 }: NotesTabProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [newNoteText, setNewNoteText] = useState("");
   const inputRef = useRef<TextInput>(null);
+
+  // Get notes from store
+  const notes = useValue(() => {
+    const userRecipeData = breakfastStore$.userRecipesData[recipeId];
+    return userRecipeData?.notes?.get().slice().sort((a, b) => b.timestamp - a.timestamp) || [];
+  });
+
+  // Theme colors
+  const tintColor = useThemeColor({}, 'tint');
+  const textColor = useThemeColor({}, 'text');
+  const backgroundColor = useThemeColor({}, 'background');
+  const insets = useSafeAreaInsets();
 
   const handleStartAdding = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -54,7 +58,7 @@ export function NotesTab({
   const handleSaveNote = () => {
     if (newNoteText.trim()) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      onAddNote(newNoteText.trim());
+      breakfastActions.saveRecipeNotes(recipeId, newNoteText.trim());
       setNewNoteText("");
       setIsAdding(false);
       Keyboard.dismiss();
@@ -63,7 +67,7 @@ export function NotesTab({
 
   const handleDeleteNote = (noteId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onDeleteNote(noteId);
+    breakfastActions.deleteRecipeNote(recipeId, noteId);
   };
 
   const formatTimestamp = (timestamp: number) => {
@@ -124,12 +128,10 @@ export function NotesTab({
     </ThemedView>
   );
 
-  const notesSorted = notes.slice().sort((a, b) => b.timestamp - a.timestamp);
-
   return (
     <View style={{ flex: 1 }}>
       <FlatList
-        data={notesSorted}
+        data={notes}
         renderItem={renderNote}
         keyExtractor={(item) => item.id}
         contentContainerStyle={[
@@ -137,7 +139,6 @@ export function NotesTab({
           notes.length === 0 && styles.emptyListContent,
         ]}
         ListEmptyComponent={renderEmptyState}
-        inverted={false}
       />
 
       {isAdding && (
@@ -196,7 +197,7 @@ export function NotesTab({
           onPress={handleStartAdding}
           style={[
             styles.addFab,
-            { backgroundColor: tintColor, bottom: bottomInset + 16 },
+            { backgroundColor: tintColor, bottom: insets.bottom + 16 },
           ]}
         >
           <IconSymbol name="plus" size={24} color="white" />
