@@ -31,7 +31,7 @@ export function NotesTab({
   // Get notes from store
   const notes = useValue(() => {
     const userRecipeData = breakfastStore$.userRecipesData[recipeId];
-    return userRecipeData?.notes?.get().slice().sort((a, b) => b.timestamp - a.timestamp) || [];
+    return userRecipeData?.notes?.get()?.slice().sort((a, b) => b.timestamp - a.timestamp) || [];
   });
 
   // Theme colors
