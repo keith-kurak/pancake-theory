@@ -15,6 +15,13 @@ export default function TabLayout() {
         })}
         <Label hidden>Chooser</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="browse">
+        {Platform.select({
+          ios: <Icon sf="list.bullet" />,
+          android: <Icon src={<VectorIcon family={MaterialIcons} name="view-list" />} />,
+        })}
+        <Label hidden>Browse</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="history">
         {Platform.select({
           ios: <Icon sf="clock.fill" />,
