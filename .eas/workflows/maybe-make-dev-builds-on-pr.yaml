@@ -25,6 +25,7 @@ jobs:
       profile: development
   ios_simulator_development_build:
     needs: [ios_get_build]
+    if: ${{ !needs.ios_get_build.outputs.build_id }}
     name: Build iOS simulator
     type: build
     params:
@@ -33,6 +34,7 @@ jobs:
   android_development_build:
     name: Build Android
     needs: [android_get_build] 
+    if: ${{ !needs.android_get_build.outputs.build_id }}
     type: build
     params:
       platform: android
@@ -40,6 +42,7 @@ jobs:
   ios_device_development_build:
     name: Build iOS device
     needs: [ios_get_build]
+    if: ${{ !needs.ios_get_build.outputs.build_id }}
     type: build
     params:
       platform: ios
