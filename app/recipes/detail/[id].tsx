@@ -1,27 +1,17 @@
-import { DirectionItem } from "@/components/direction-item";
-import { IngredientItem } from "@/components/ingredient-item";
-import { RecipeTimer } from "@/components/recipe-timer";
-import { ScaleSlider } from "@/components/scale-slider";
+import { DirectionsTab } from "@/components/recipe-tabs/directions-tab";
+import { IngredientsTab } from "@/components/recipe-tabs/ingredients-tab";
+import { NotesTab } from "@/components/recipe-tabs/notes-tab";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { IconSymbol } from "@/components/ui/icon-symbol";
 import { getRecipeById } from "@/data/recipes";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { breakfastActions, breakfastStore$ } from "@/store/breakfast-store";
 import { showConfirmDialog } from "@/utils/confirm-dialog";
-import { formatAmount, scaleIngredient } from "@/utils/recipe-scaler";
 import { useValue } from "@legendapp/state/react";
 import * as Haptics from "expo-haptics";
 import { router, Stack, useLocalSearchParams } from "expo-router";
-import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-} from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { Pressable, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type TabType = "ingredients" | "directions" | "notes";
@@ -63,9 +53,6 @@ export default function RecipeDetailScreen() {
   const [activeTab, setActiveTab] = useState<TabType>("ingredients");
   const [scaleFactor, setScaleFactor] = useState(initialScale);
   const [checkedIngredients, setCheckedIngredients] = useState(initialChecked);
-  const [notes, setNotes] = useState(() => breakfastActions.getRecipeNotes(id));
-  const [isEditingNotes, setIsEditingNotes] = useState(false);
-  const notesInputRef = useRef<TextInput>(null);
 
   const tintColor = useThemeColor({}, "tint");
   const backgroundColor = useThemeColor({}, "background");
@@ -163,7 +150,10 @@ export default function RecipeDetailScreen() {
 
     if (confirmed) {
       breakfastActions.cancelPendingRecipe();
-      router.back();
+      // something weird and crashy started happening
+      setTimeout(() => {
+        router.back();
+      }, 300);
     }
   };
 
@@ -178,20 +168,12 @@ export default function RecipeDetailScreen() {
     setActiveTab(tab);
   };
 
-  const handleDoneEditing = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    breakfastActions.saveRecipeNotes(id, notes);
-    setIsEditingNotes(false);
-    notesInputRef.current?.blur();
+  const handleSwitchToCook = () => {
+    breakfastActions.switchToCook();
   };
 
-  const handleEditNotes = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setIsEditingNotes(true);
-    // Focus the input after state updates
-    setTimeout(() => {
-      notesInputRef.current?.focus();
-    }, 100);
+  const handleSwitchToPrep = () => {
+    breakfastActions.switchToPrep();
   };
 
   return (
@@ -278,121 +260,27 @@ export default function RecipeDetailScreen() {
 
         {/* Content */}
         {activeTab === "ingredients" && (
-          <ScrollView style={styles.content}>
-            <ThemedView style={{ backgroundColor }}>
-              {isActive && pendingRecipeValue && (
-                <RecipeTimer startTime={pendingRecipeValue.startTime} />
-              )}
-
-              <ScaleSlider
-                value={scaleFactor}
-                onValueChange={setScaleFactor}
-                disabled={!isActive}
-              />
-
-              <ThemedView style={styles.ingredientsList}>
-                {recipe.ingredients.map((ingredient, index) => {
-                  const scaledAmount = scaleIngredient(
-                    ingredient.amount,
-                    scaleFactor
-                  );
-                  const formattedAmount = formatAmount(scaledAmount);
-
-                  return (
-                    <IngredientItem
-                      key={index}
-                      name={ingredient.name}
-                      amount={formattedAmount}
-                      unit={ingredient.unit}
-                      checked={checkedIngredients.has(index)}
-                      onToggle={() => toggleIngredient(index)}
-                    />
-                  );
-                })}
-              </ThemedView>
-            </ThemedView>
-          </ScrollView>
+          <IngredientsTab
+            recipe={recipe}
+            scaleFactor={scaleFactor}
+            onScaleChange={setScaleFactor}
+            checkedIngredients={checkedIngredients}
+            onToggleIngredient={toggleIngredient}
+            isActive={isActive}
+            startTime={pendingRecipeValue?.startTime}
+            prepEndTime={pendingRecipeValue?.prepEndTime}
+            onSwitchToCook={handleSwitchToCook}
+            onSwitchToPrep={handleSwitchToPrep}
+            backgroundColor={backgroundColor}
+          />
         )}
 
-        {activeTab === "directions" && (
-          <ScrollView style={styles.content}>
-            <ThemedView style={styles.directionsList}>
-              {recipe.directions.map((direction, index) => (
-                <DirectionItem
-                  key={index}
-                  stepNumber={index + 1}
-                  instruction={direction}
-                />
-              ))}
-            </ThemedView>
-          </ScrollView>
-        )}
+        {activeTab === "directions" && <DirectionsTab recipe={recipe} />}
 
         {activeTab === "notes" && (
-          <>
-            {isEditingNotes ? (
-              <KeyboardAvoidingView
-                behavior={Platform.OS === "ios" ? "padding" : "height"}
-                style={styles.content}
-                keyboardVerticalOffset={100}
-              >
-                <ThemedView style={[styles.notesContainer, { backgroundColor }]}>
-                  <TextInput
-                    ref={notesInputRef}
-                    style={[
-                      styles.notesInput,
-                      {
-                        color: textColor,
-                      },
-                    ]}
-                    value={notes}
-                    onChangeText={setNotes}
-                    placeholder="Add notes about this recipe..."
-                    placeholderTextColor={textColor + "80"}
-                    multiline
-                    textAlignVertical="top"
-                    editable={true}
-                  />
-                </ThemedView>
-              </KeyboardAvoidingView>
-            ) : (
-              <ScrollView style={styles.content}>
-                <ThemedView style={[styles.notesContainer, { backgroundColor }]}>
-                  {notes.trim() ? (
-                    <ThemedText style={[styles.notesText, { color: textColor }]}>
-                      {notes}
-                    </ThemedText>
-                  ) : (
-                    <ThemedText style={[styles.notesPlaceholder, { color: textColor }]}>
-                      No notes yet.
-                    </ThemedText>
-                  )}
-                </ThemedView>
-              </ScrollView>
-            )}
-
-            {isEditingNotes ? (
-              <Pressable
-                onPress={handleDoneEditing}
-                style={[
-                  styles.editFab,
-                  { backgroundColor: tintColor, bottom: insets.bottom + 16 },
-                ]}
-              >
-                <IconSymbol name="checkmark" size={24} color="white" />
-              </Pressable>
-            ) : (
-              <Pressable
-                onPress={handleEditNotes}
-                style={[
-                  styles.editFab,
-                  { backgroundColor: tintColor, bottom: insets.bottom + 16 },
-                ]}
-              >
-                <IconSymbol name="pencil" size={24} color="white" />
-              </Pressable>
-            )}
-          </>
+          <NotesTab
+            recipeId={id}
+          />
         )}
 
         {/* Action Buttons - Hidden on Notes tab */}
@@ -486,48 +374,6 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 16,
   },
-  content: {
-    flex: 1,
-  },
-  ingredientsList: {
-    paddingVertical: 8,
-  },
-  directionsList: {
-    paddingVertical: 8,
-  },
-  notesContainer: {
-    flex: 1,
-  },
-  notesInput: {
-    padding: 16,
-    fontSize: 16,
-    flex: 1,
-  },
-  notesText: {
-    padding: 16,
-    fontSize: 16,
-    lineHeight: 24,
-  },
-  notesPlaceholder: {
-    padding: 16,
-    fontSize: 16,
-    opacity: 0.5,
-    fontStyle: 'italic',
-  },
-  editFab: {
-    position: "absolute",
-    right: 16,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
   buttonContainer: {
     padding: 16,
     borderTopWidth: 1,
@@ -539,16 +385,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   actionButtonText: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "white",
-  },
-  madeItButton: {
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  madeItText: {
     fontSize: 18,
     fontWeight: "bold",
     color: "white",

@@ -1,9 +1,8 @@
-import { StyleSheet } from 'react-native';
-import Slider from '@react-native-community/slider';
-import * as Haptics from 'expo-haptics';
+import { BaseSlider } from '@/components/base-slider';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { useThemeColor } from '@/hooks/use-theme-color';
+import * as Haptics from 'expo-haptics';
+import { StyleSheet, View } from 'react-native';
 
 interface ScaleSliderProps {
   value: number;
@@ -12,36 +11,31 @@ interface ScaleSliderProps {
 }
 
 export function ScaleSlider({ value, onValueChange, disabled = false }: ScaleSliderProps) {
-  const tintColor = useThemeColor({}, 'tint');
-  const backgroundColor = useThemeColor(
-    { light: '#f0f0f0', dark: '#333' },
-    'background'
-  );
-
   const handleValueChange = (newValue: number) => {
     if (disabled) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onValueChange(newValue);
   };
 
+  // Round to 1 decimal place to avoid floating point precision issues
+  const displayValue = Math.round(value * 10) / 10;
+
   return (
     <ThemedView style={[styles.container, disabled && { opacity: 0.5 }]}>
       <ThemedView style={styles.labelRow}>
         <ThemedText style={styles.label}>Scale Recipe</ThemedText>
-        <ThemedText style={styles.value}>{value}x</ThemedText>
+        <ThemedText style={styles.value}>{displayValue}x</ThemedText>
       </ThemedView>
-      <Slider
-        style={styles.slider}
-        minimumValue={0.5}
-        maximumValue={3}
-        step={0.5}
-        value={value}
-        onValueChange={handleValueChange}
-        minimumTrackTintColor={tintColor}
-        maximumTrackTintColor={backgroundColor}
-        thumbTintColor={tintColor}
-        disabled={disabled}
-      />
+      <View style={styles.sliderContainer} pointerEvents={disabled ? 'none' : 'auto'}>
+        <BaseSlider
+          value={value}
+          onValueChange={handleValueChange}
+          minimumValue={0.5}
+          maximumValue={3}
+          step={0.5}
+          androidUseExplicitSteps={true}
+        />
+      </View>
     </ThemedView>
   );
 }
@@ -69,8 +63,7 @@ const styles = StyleSheet.create({
     minWidth: 50,
     textAlign: 'right',
   },
-  slider: {
+  sliderContainer: {
     width: '100%',
-    height: 40,
   },
 });

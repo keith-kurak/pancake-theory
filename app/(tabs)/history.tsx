@@ -63,7 +63,7 @@ function HistoryScreen() {
         Complete a recipe to see it appear here!
       </ThemedText>
       <ThemedText style={styles.emptyHint}>
-        Go to the Chooser tab, find a recipe, and tap "I made it!" when you're
+        Go to the Chooser tab, find a recipe, and tap &quot;I made it!&quot; when you&apos;re
         done.
       </ThemedText>
     </ThemedView>

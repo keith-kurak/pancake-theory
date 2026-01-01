@@ -46,6 +46,7 @@ export interface PendingRecipe {
   scaleFactor: number;
   checkedIngredients: number[];
   startTime: number;
+  prepEndTime?: number; // When user switched from prep to cook
 }
 
 export interface HistoryEntry {
@@ -55,7 +56,9 @@ export interface HistoryEntry {
   recipeType: BreakfastType;
   timestamp: number;
   scaleFactor: number;
-  cookingDuration?: number;
+  cookingDuration?: number; // Total duration (for backwards compat)
+  prepDuration?: number; // Time spent in prep phase
+  cookDuration?: number; // Time spent in cook phase
 }
 
 export interface BreakfastState {
@@ -63,4 +66,16 @@ export interface BreakfastState {
   breakfastTypes: Record<BreakfastType, BreakfastTypeDefinition>;
   recipes: Record<string, Recipe>;
   history: HistoryEntry[];
+}
+
+export interface RecipeNote {
+  id: string;
+  timestamp: number;
+  content: string;
+}
+
+// expand this later as there's more per-recipe user data
+export interface UserRecipeData {
+  recipeId: string;
+  notes: RecipeNote[];
 }

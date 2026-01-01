@@ -93,6 +93,11 @@ export function HistoryEntry({ entry }: HistoryEntryProps) {
             {entry.cookingDuration && (
               <ThemedText style={styles.duration}>
                 {formatDuration(entry.cookingDuration)}
+                {entry.cookDuration && (
+                  <ThemedText style={[styles.duration, { opacity: 0.5 }]}>
+                    {' '}({formatDuration(entry.cookDuration)} cook)
+                  </ThemedText>
+                )}
               </ThemedText>
             )}
             {entry.scaleFactor !== 1 && (
