@@ -4,7 +4,7 @@ import { BREAKFAST_TYPES } from "@/constants/breakfast-ratios";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import type { BreakfastType } from "@/types/breakfast";
 import { StyleSheet, View } from "react-native";
-import Svg, { Circle, G, Path, Text as SvgText } from "react-native-svg";
+import Svg, { G, Path } from "react-native-svg";
 
 interface BreakfastPieChartProps {
   typeCounts: Record<BreakfastType, number>;
@@ -98,8 +98,18 @@ export function BreakfastPieChart({
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedText style={styles.title}>Breakfast Distribution</ThemedText>
-
+      <ThemedView style={styles.legend}>
+        {slices.map((slice) => (
+          <ThemedView key={slice.type} style={styles.legendItem}>
+            <View
+              style={[styles.legendColor, { backgroundColor: slice.color }]}
+            />
+            <ThemedText style={[styles.legendText, { color: textColor }]}>
+              {slice.name} ({slice.percentage.toFixed(0)}%)
+            </ThemedText>
+          </ThemedView>
+        ))}
+      </ThemedView>
       <View style={styles.chartContainer}>
         <Svg width={size} height={size}>
           <G>
@@ -114,19 +124,6 @@ export function BreakfastPieChart({
           </G>
         </Svg>
       </View>
-
-      <ThemedView style={styles.legend}>
-        {slices.map((slice) => (
-          <ThemedView key={slice.type} style={styles.legendItem}>
-            <View
-              style={[styles.legendColor, { backgroundColor: slice.color }]}
-            />
-            <ThemedText style={[styles.legendText, { color: textColor }]}>
-              {slice.name}: {slice.count} ({slice.percentage.toFixed(0)}%)
-            </ThemedText>
-          </ThemedView>
-        ))}
-      </ThemedView>
     </ThemedView>
   );
 }
@@ -135,7 +132,9 @@ const styles = StyleSheet.create({
   container: {
     padding: 16,
     alignItems: "center",
+    justifyContent: "center",
     backgroundColor: "transparent",
+    flexDirection: "row",
   },
   title: {
     fontSize: 18,
@@ -144,11 +143,14 @@ const styles = StyleSheet.create({
   },
   chartContainer: {
     marginBottom: 16,
+    justifyContent: "center",
+    alignItems: "center",
   },
   legend: {
     alignSelf: "stretch",
     gap: 8,
     backgroundColor: "transparent",
+    justifyContent: "center",
   },
   legendItem: {
     flexDirection: "row",

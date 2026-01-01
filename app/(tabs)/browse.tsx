@@ -180,6 +180,7 @@ export default function BrowseScreen() {
         ListHeaderComponent={renderHeader}
         contentContainerStyle={styles.listContent}
         stickySectionHeadersEnabled={false}
+        ListFooterComponent={() => <ThemedView style={{ height: 80 }} />}
       />
     </ThemedView>
   );
