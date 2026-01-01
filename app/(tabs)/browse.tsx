@@ -161,13 +161,20 @@ export default function BrowseScreen() {
     </ThemedView>
   );
 
-  const renderHeader = () => (
-    <>
-      {totalCount > 0 && (
-        <BreakfastPieChart typeCounts={typeCounts} totalCount={totalCount} />
-      )}
-    </>
-  );
+  const renderHeader = () => {
+    // Count how many different breakfast types have been made
+    const uniqueTypesMade = Object.values(typeCounts).filter(
+      (count) => count > 0
+    ).length;
+
+    return (
+      <>
+        {uniqueTypesMade >= 2 && (
+          <BreakfastPieChart typeCounts={typeCounts} totalCount={totalCount} />
+        )}
+      </>
+    );
+  };
 
   return (
     <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
