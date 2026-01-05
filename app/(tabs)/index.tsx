@@ -38,6 +38,7 @@ export default function ChooserScreen() {
 
   const updateEggs = (value: number) => {
     setRatios((prev) => ({ ...prev, eggs: value }));
+    // one tiny change to trigger a build
   };
 
   return (
