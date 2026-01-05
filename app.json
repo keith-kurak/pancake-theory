@@ -47,7 +47,8 @@
           }
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      "@rnrepo/expo-config-plugin"
     ], 
     "experiments": {
       "typedRoutes": true,
