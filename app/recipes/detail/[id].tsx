@@ -1,3 +1,4 @@
+import { MaybeUseKeepAwake } from "@/components/maybe-use-keep-awake";
 import { DirectionsTab } from "@/components/recipe-tabs/directions-tab";
 import { IngredientsTab } from "@/components/recipe-tabs/ingredients-tab";
 import { NotesTab } from "@/components/recipe-tabs/notes-tab";
@@ -64,7 +65,7 @@ export default function RecipeDetailScreen() {
   useEffect(() => {
     if (isActive) {
       breakfastActions.updatePendingRecipeProgress(
-        Array.from(checkedIngredients)
+        Array.from(checkedIngredients),
       );
     }
   }, [checkedIngredients, isActive]);
@@ -128,7 +129,7 @@ export default function RecipeDetailScreen() {
       recipe.id,
       recipe.name,
       recipe.type,
-      scaleFactor
+      scaleFactor,
     );
   };
 
@@ -178,6 +179,7 @@ export default function RecipeDetailScreen() {
 
   return (
     <>
+      <MaybeUseKeepAwake enabled={isActive} />
       <Stack.Screen
         options={{
           title: recipe.name,
@@ -277,11 +279,7 @@ export default function RecipeDetailScreen() {
 
         {activeTab === "directions" && <DirectionsTab recipe={recipe} />}
 
-        {activeTab === "notes" && (
-          <NotesTab
-            recipeId={id}
-          />
-        )}
+        {activeTab === "notes" && <NotesTab recipeId={id} />}
 
         {/* Action Buttons - Hidden on Notes tab */}
         {activeTab !== "notes" && mode === "viewing" && (
@@ -299,42 +297,42 @@ export default function RecipeDetailScreen() {
           </ThemedView>
         )}
 
-        {activeTab !== "notes" && mode === "active" && activeTab === "ingredients" && (
-          <ThemedView
-            style={[styles.buttonContainer, { marginBottom: insets.bottom }]}
-          >
-            {allIngredientsChecked ? (
-              <Pressable
-                onPress={handleMadeIt}
-                style={[styles.actionButton, { backgroundColor: tintColor }]}
-              >
-                <ThemedText
-                  style={[styles.actionButtonText]}
+        {activeTab !== "notes" &&
+          mode === "active" &&
+          activeTab === "ingredients" && (
+            <ThemedView
+              style={[styles.buttonContainer, { marginBottom: insets.bottom }]}
+            >
+              {allIngredientsChecked ? (
+                <Pressable
+                  onPress={handleMadeIt}
+                  style={[styles.actionButton, { backgroundColor: tintColor }]}
                 >
-                  I made it!
-                </ThemedText>
-              </Pressable>
-            ) : (
-              <Pressable
-                onPress={handleCancelRecipe}
-                style={[
-                  styles.actionButton,
-                  {
-                    backgroundColor: "transparent",
-                    borderWidth: 1,
-                    borderColor: tintColor,
-                  },
-                ]}
-              >
-                <ThemedText
-                  style={[styles.actionButtonText, { color: tintColor }]}
+                  <ThemedText style={[styles.actionButtonText]}>
+                    I made it!
+                  </ThemedText>
+                </Pressable>
+              ) : (
+                <Pressable
+                  onPress={handleCancelRecipe}
+                  style={[
+                    styles.actionButton,
+                    {
+                      backgroundColor: "transparent",
+                      borderWidth: 1,
+                      borderColor: tintColor,
+                    },
+                  ]}
                 >
-                  Cancel Recipe
-                </ThemedText>
-              </Pressable>
-            )}
-          </ThemedView>
-        )}
+                  <ThemedText
+                    style={[styles.actionButtonText, { color: tintColor }]}
+                  >
+                    Cancel Recipe
+                  </ThemedText>
+                </Pressable>
+              )}
+            </ThemedView>
+          )}
 
         {activeTab !== "notes" && mode === "pending-other" && (
           <ThemedView
