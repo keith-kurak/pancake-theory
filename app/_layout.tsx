@@ -9,6 +9,7 @@ import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
 
 import ExpoOtaUpdateMonitor from "@/components/OtaUpdateOverlay";
+import { useBackgroundCookingNotification } from "@/hooks/use-background-cooking-notification";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { KeyboardAvoidingView, KeyboardProvider } from "react-native-keyboard-controller";
 
@@ -23,6 +24,7 @@ SplashScreen.setOptions({
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  useBackgroundCookingNotification();
 
   return (
     <KeyboardProvider>
