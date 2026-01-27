@@ -1,5 +1,3 @@
-const { runtimeVersion } = require("expo-updates");
-
 module.exports = ({ config }) => {
   let bundleIdSuffix = '';
   if (process.env.APP_VARIANT) {
