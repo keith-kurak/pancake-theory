@@ -20,7 +20,7 @@ export default function ChooserScreen() {
   });
 
    useEffect(() => {
-    AppMetrics.markFirstRender();
+    AppMetrics.markInteractive();
   }, []);
 
   const insets = useSafeAreaInsets();
