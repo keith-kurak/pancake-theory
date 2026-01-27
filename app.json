@@ -48,8 +48,12 @@
         }
       ],
       "expo-sqlite",
-      "@rnrepo/expo-config-plugin"
-    ], 
+      "@rnrepo/expo-config-plugin",
+      "expo-eas-observe",
+      "expo-font",
+      "expo-image",
+      "expo-web-browser"
+    ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
