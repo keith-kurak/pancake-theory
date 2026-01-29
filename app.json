@@ -48,7 +48,6 @@
         }
       ],
       "expo-sqlite",
-      "@rnrepo/expo-config-plugin",
       "expo-eas-observe",
       "expo-font",
       "expo-image",
