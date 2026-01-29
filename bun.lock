@@ -18,6 +18,7 @@
         "expo-constants": "55.0.3-canary-20260128-67ce8d5",
         "expo-crypto": "55.0.4-canary-20260128-67ce8d5",
         "expo-dev-client": "55.0.4-canary-20260128-67ce8d5",
+        "expo-eas-client": "^1.0.8",
         "expo-eas-observe": "^0.0.13",
         "expo-font": "55.0.4-canary-20260128-67ce8d5",
         "expo-haptics": "55.0.4-canary-20260128-67ce8d5",
@@ -1015,7 +1016,7 @@
 
     "expo-dev-menu-interface": ["expo-dev-menu-interface@55.0.2-canary-20260128-67ce8d5", "", { "peerDependencies": { "expo": "55.0.0-canary-20260128-67ce8d5" } }, "sha512-1RvAC/RX6DKFBH70PvXxPAkQ1Mtd2OBi+rtPb6E9EBxNLOOILbJLonMuudGD4LazEE+S+g75p2C2IeRUD0lLcA=="],
 
-    "expo-eas-client": ["expo-eas-client@55.0.2", "", {}, "sha512-fjOgSXaZFBK2Xmzn/uw0DTF3BsYv97JEa4PYXXqVCEvNJPwJB1cV1eX6Xyq6iKGIhMPH9k62sOc+oUdt094WCw=="],
+    "expo-eas-client": ["expo-eas-client@1.0.8", "", {}, "sha512-5or11NJhSeDoHHI6zyvQDW2cz/yFyE+1Cz8NTs5NK8JzC7J0JrkUgptWtxyfB6Xs/21YRNifd3qgbBN3hfKVgA=="],
 
     "expo-eas-observe": ["expo-eas-observe@0.0.13", "", { "dependencies": { "expo-eas-client": "^55.0.0", "expo-updates-interface": "^55.0.0" }, "peerDependencies": { "expo": "*" } }, "sha512-j5csOy4PvfRzmUpK+IB6jBXr0dt8V/wfrZhQWsg6MjNFKO0tuHG8zpHvDZ+vl/sJbfQaBD8NrQOQWT7ZHuxvQQ=="],
 
@@ -2268,6 +2269,8 @@
     "execa/signal-exit": ["signal-exit@3.0.7", "", {}, "sha512-wnD2ZE+l+SPC/uoS0vXeE9L1+0wuaMqKlfz9AMUo38JsyLSBWSFcHR1Rri62LZc12vLr1gb3jl7iwQhgwpAbGQ=="],
 
     "expo/@expo/config-plugins": ["@expo/config-plugins@55.0.4-canary-20260128-67ce8d5", "", { "dependencies": { "@expo/config-types": "55.0.0-canary-20260128-67ce8d5", "@expo/json-file": "10.0.12-canary-20260128-67ce8d5", "@expo/plist": "0.5.3-canary-20260128-67ce8d5", "@expo/sdk-runtime-versions": "^1.0.0", "chalk": "^4.1.2", "debug": "^4.3.5", "getenv": "^2.0.0", "glob": "^13.0.0", "resolve-from": "^5.0.0", "semver": "^7.5.4", "slugify": "^1.6.6", "xcode": "^3.0.1", "xml2js": "0.6.0" } }, "sha512-pCwxapzB92Qww2UT54Zkbt1BOfGCKxZv8mcqHDeBglGs8AigerSPL2zhDBhmjrJ6MMTNqBxcX+8JML4RE2Tpnw=="],
+
+    "expo-eas-observe/expo-eas-client": ["expo-eas-client@55.0.2", "", {}, "sha512-fjOgSXaZFBK2Xmzn/uw0DTF3BsYv97JEa4PYXXqVCEvNJPwJB1cV1eX6Xyq6iKGIhMPH9k62sOc+oUdt094WCw=="],
 
     "expo-eas-observe/expo-updates-interface": ["expo-updates-interface@55.1.1", "", { "peerDependencies": { "expo": "*" } }, "sha512-++rlh9dNRUgm+uqN+x4vB/8ELidt0gc3kbwec55YzRizdD845kn5ufjTcGpkGs9SbAYHsP0eh8axlKHpY/v7Kg=="],
 

@@ -28,6 +28,7 @@
     "expo-constants": "55.0.3-canary-20260128-67ce8d5",
     "expo-crypto": "55.0.4-canary-20260128-67ce8d5",
     "expo-dev-client": "55.0.4-canary-20260128-67ce8d5",
+    "expo-eas-client": "^1.0.8",
     "expo-eas-observe": "^0.0.13",
     "expo-font": "55.0.4-canary-20260128-67ce8d5",
     "expo-haptics": "55.0.4-canary-20260128-67ce8d5",
