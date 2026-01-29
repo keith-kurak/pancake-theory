@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { Icon, Label, NativeTabs, VectorIcon } from 'expo-router/unstable-native-tabs';
+import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import React from 'react';
 import { Platform } from 'react-native';
 
@@ -10,24 +10,24 @@ export default function TabLayout() {
     <NativeTabs>
       <NativeTabs.Trigger name="index">
         {Platform.select({
-          ios: <Icon sf="slider.horizontal.3" />,
-          android: <Icon src={<VectorIcon family={MaterialIcons} name="tune" />} />,
+          ios: <NativeTabs.Trigger.Icon sf="slider.horizontal.3" />,
+          android: <NativeTabs.Trigger.Icon src={<NativeTabs.Trigger.VectorIcon family={MaterialIcons} name="tune" />} />,
         })}
-        <Label hidden>Chooser</Label>
+        <NativeTabs.Trigger.Label hidden>Chooser</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="browse">
         {Platform.select({
-          ios: <Icon sf="list.bullet" />,
-          android: <Icon src={<VectorIcon family={MaterialIcons} name="view-list" />} />,
+          ios: <NativeTabs.Trigger.Icon sf="list.bullet" />,
+          android: <NativeTabs.Trigger.Icon src={<NativeTabs.Trigger.VectorIcon family={MaterialIcons} name="view-list" />} />,
         })}
-        <Label hidden>Browse</Label>
+        <NativeTabs.Trigger.Label hidden>Browse</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="history">
         {Platform.select({
-          ios: <Icon sf="clock.fill" />,
-          android: <Icon src={<VectorIcon family={MaterialIcons} name="schedule" />} />,
+          ios: <NativeTabs.Trigger.Icon sf="clock.fill" />,
+          android: <NativeTabs.Trigger.Icon src={<NativeTabs.Trigger.VectorIcon family={MaterialIcons} name="schedule" />} />,
         })}
-        <Label hidden>History</Label>
+        <NativeTabs.Trigger.Label hidden>History</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
     </NativeTabs>
   );
