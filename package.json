@@ -22,7 +22,7 @@
     "@react-navigation/material-top-tabs": "^7.3.9",
     "@react-navigation/native": "^7.1.8",
     "@rnrepo/expo-config-plugin": "^0.2.0-beta.0",
-    "expo": "^55.0.0-preview.6",
+    "expo": "~55.0.0-preview.7",
     "expo-application": "~55.0.2",
     "expo-constants": "~55.0.2",
     "expo-crypto": "~55.0.2",
@@ -57,12 +57,12 @@
   },
   "devDependencies": {
     "@types/jest": "29.5.14",
-    "@types/react": "~19.1.0",
+    "@types/react": "~19.2.2",
     "eslint": "^9.25.0",
-    "eslint-config-expo": "~10.0.0",
+    "eslint-config-expo": "~55.0.0",
     "expo-atlas": "^0.4.0",
     "expo-mcp": "~0.2.1",
-    "jest-expo": "~54.0.16",
+    "jest-expo": "~55.0.4",
     "typescript": "~5.9.2"
   },
   "private": true
