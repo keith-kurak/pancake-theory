@@ -6,23 +6,53 @@ import type { BreakfastType } from "@/types/breakfast";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import { router } from "expo-router";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Platform, Pressable, StyleSheet } from "react-native";
+
+const CYCLE_INTERVAL = 5000;
+const FADE_DURATION = 800;
 
 interface BreakfastCardProps {
   type: BreakfastType;
 }
 
-// Map breakfast types to image files
-const BREAKFAST_IMAGES: Record<BreakfastType, any> = {
-  pancakes: require("@/assets/breakfasts/pancakes.png"),
-  waffles: require("@/assets/breakfasts/waffles.png"),
-  crepes: require("@/assets/breakfasts/crepes.png"),
-  "dutch-baby": require("@/assets/breakfasts/dutchbaby.png"),
-  popover: require("@/assets/breakfasts/popovers.png"),
-  donut: require("@/assets/breakfasts/donuts.png"),
-  clafoutis: require("@/assets/breakfasts/clafoutis.png"),
-  "breakfast-cake": require("@/assets/breakfasts/breakfastcake.png"),
-};
+function CyclingImage({
+  images,
+  style,
+}: {
+  images: number[];
+  style: any;
+}) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const indexRef = useRef(0);
+
+  // Reset to primary image when image set changes (new breakfast type)
+  useEffect(() => {
+    setCurrentIndex(0);
+    indexRef.current = 0;
+  }, [images]);
+
+  useEffect(() => {
+    if (images.length <= 1) return;
+
+    const interval = setInterval(() => {
+      const next = (indexRef.current + 1) % images.length;
+      indexRef.current = next;
+      setCurrentIndex(next);
+    }, CYCLE_INTERVAL);
+
+    return () => clearInterval(interval);
+  }, [images.length]);
+
+  return (
+    <Image
+      source={images[currentIndex]}
+      style={style}
+      contentFit="contain"
+      transition={{ duration: FADE_DURATION, effect: "cross-dissolve" }}
+    />
+  );
+}
 
 export function BreakfastCard({ type }: BreakfastCardProps) {
   const backgroundColor = useThemeColor(
@@ -36,7 +66,13 @@ export function BreakfastCard({ type }: BreakfastCardProps) {
   const tintColor = useThemeColor({}, "tint");
 
   const breakfastInfo = BREAKFAST_TYPES[type];
-  const imageSource = BREAKFAST_IMAGES[type];
+  const allImages = useMemo(() => {
+    const imgs = [breakfastInfo.primaryImage];
+    if (breakfastInfo.userImages) {
+      imgs.push(...breakfastInfo.userImages);
+    }
+    return imgs;
+  }, [breakfastInfo]);
 
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -56,7 +92,7 @@ export function BreakfastCard({ type }: BreakfastCardProps) {
       <ThemedView style={[styles.content, { backgroundColor: "transparent" }]}>
         <ThemedText style={styles.title}>{breakfastInfo.name}</ThemedText>
 
-        <Image source={imageSource} style={styles.image} contentFit="contain" />
+        <CyclingImage images={allImages} style={styles.image} />
 
         <ThemedText style={styles.description}>
           {

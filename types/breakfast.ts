@@ -20,6 +20,8 @@ export interface BreakfastTypeDefinition {
   description: string;
   serveWith: string;
   tips?: string[];
+  primaryImage: number;
+  userImages?: number[];
 }
 
 export type IngredientCategory = 'flour' | 'liquid' | 'eggs' | 'other';
