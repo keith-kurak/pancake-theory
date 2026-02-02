@@ -1,28 +1,43 @@
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { BREAKFAST_TYPES } from '@/constants/breakfast-ratios';
-import { useThemeColor } from '@/hooks/use-theme-color';
-import type { HistoryEntry as HistoryEntryType } from '@/types/breakfast';
-import * as Haptics from 'expo-haptics';
-import { router } from 'expo-router';
-import { Pressable, StyleSheet } from 'react-native';
+import { ThemedText } from "@/components/themed-text";
+import { ThemedView } from "@/components/themed-view";
+import { IconSymbol } from "@/components/ui/icon-symbol";
+import { BREAKFAST_TYPES } from "@/constants/breakfast-ratios";
+import { useThemeColor } from "@/hooks/use-theme-color";
+import { breakfastStore$ } from "@/store/breakfast-store";
+import { observer } from "@legendapp/state/react";
+import * as Haptics from "expo-haptics";
+import { router } from "expo-router";
+import { Pressable, StyleSheet } from "react-native";
 
 interface HistoryEntryProps {
-  entry: HistoryEntryType;
+  historyIndex: number;
 }
 
-export function HistoryEntry({ entry }: HistoryEntryProps) {
+export const HistoryEntry = observer(function HistoryEntry({
+  historyIndex,
+}: HistoryEntryProps) {
+  const entry = breakfastStore$.history[historyIndex].get();
+
   const backgroundColor = useThemeColor(
-    { light: '#f8f8f8', dark: '#2a2a2a' },
-    'background'
+    { light: "#f8f8f8", dark: "#2a2a2a" },
+    "background",
   );
   const borderColor = useThemeColor(
-    { light: '#e0e0e0', dark: '#404040' },
-    'text'
+    { light: "#e0e0e0", dark: "#404040" },
+    "text",
   );
-  const tintColor = useThemeColor({}, 'tint');
+  const tintColor = useThemeColor({}, "tint");
 
+  const secondaryTextColor = useThemeColor(
+    { light: "#666", dark: "#999" },
+    "text",
+  );
   const breakfastInfo = BREAKFAST_TYPES[entry.recipeType];
+
+  const handleEditPress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push(`/history/edit/${entry.id}` as any);
+  };
 
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -42,18 +57,18 @@ export function HistoryEntry({ entry }: HistoryEntryProps) {
     const diffInDays = diffInMs / (1000 * 60 * 60 * 24);
 
     if (diffInHours < 1) {
-      return 'Just now';
+      return "Just now";
     } else if (diffInHours < 24) {
       const hours = Math.floor(diffInHours);
-      return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+      return `${hours} hour${hours > 1 ? "s" : ""} ago`;
     } else if (diffInDays < 7) {
       const days = Math.floor(diffInDays);
-      return `${days} day${days > 1 ? 's' : ''} ago`;
+      return `${days} day${days > 1 ? "s" : ""} ago`;
     } else {
       return date.toLocaleDateString(undefined, {
-        month: 'short',
-        day: 'numeric',
-        year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
+        month: "short",
+        day: "numeric",
+        year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
       });
     }
   };
@@ -66,6 +81,8 @@ export function HistoryEntry({ entry }: HistoryEntryProps) {
     return `${hours}h ${mins}m`;
   };
 
+  const myScaleFactor = Math.round(entry.scaleFactor * 10) / 10;
+
   return (
     <Pressable
       onPress={handlePress}
@@ -75,42 +92,55 @@ export function HistoryEntry({ entry }: HistoryEntryProps) {
         pressed && styles.pressed,
       ]}
     >
-      <ThemedView style={[styles.content, { backgroundColor: 'transparent' }]}>
-        <ThemedView style={[styles.header, { backgroundColor: 'transparent' }]}>
-          <ThemedText style={styles.recipeName} numberOfLines={1}>
-            {entry.recipeName}
-          </ThemedText>
+      <ThemedView style={[styles.content, { backgroundColor: "transparent" }]}>
+        <ThemedView style={[styles.header, { backgroundColor: "transparent" }]}>
+          <ThemedView style={[styles.headerRow, { backgroundColor: "transparent" }]}>
+            <ThemedText style={[styles.recipeName, { flex: 1 }]} numberOfLines={1}>
+              {entry.recipeName}
+            </ThemedText>
+            <Pressable
+              onPress={(e) => {
+                e.stopPropagation();
+                handleEditPress();
+              }}
+              hitSlop={8}
+              style={({ pressed }) => pressed && styles.pressed}
+            >
+              <IconSymbol name="pencil" size={18} color={secondaryTextColor} />
+            </Pressable>
+          </ThemedView>
           <ThemedText style={[styles.type, { color: tintColor }]}>
             {breakfastInfo.name}
           </ThemedText>
         </ThemedView>
 
-        <ThemedView style={[styles.footer, { backgroundColor: 'transparent' }]}>
+        <ThemedView style={[styles.footer, { backgroundColor: "transparent" }]}>
           <ThemedText style={styles.timestamp}>
             {formatDate(entry.timestamp)}
           </ThemedText>
-          <ThemedView style={[styles.metadata, { backgroundColor: 'transparent' }]}>
+          <ThemedView
+            style={[styles.metadata, { backgroundColor: "transparent" }]}
+          >
             {entry.cookingDuration && (
               <ThemedText style={styles.duration}>
                 {formatDuration(entry.cookingDuration)}
                 {entry.cookDuration && (
                   <ThemedText style={[styles.duration, { opacity: 0.5 }]}>
-                    {' '}({formatDuration(entry.cookDuration)} cook)
+                    {" "}
+                    ({formatDuration(entry.cookDuration)} cook)
                   </ThemedText>
                 )}
               </ThemedText>
             )}
             {entry.scaleFactor !== 1 && (
-              <ThemedText style={styles.scale}>
-                {entry.scaleFactor}x
-              </ThemedText>
+              <ThemedText style={styles.scale}>{myScaleFactor}x</ThemedText>
             )}
           </ThemedView>
         </ThemedView>
       </ThemedView>
     </Pressable>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -128,36 +158,41 @@ const styles = StyleSheet.create({
   header: {
     gap: 4,
   },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   recipeName: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   type: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   timestamp: {
     fontSize: 12,
     opacity: 0.6,
   },
   metadata: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
-    alignItems: 'center',
+    alignItems: "center",
   },
   duration: {
     fontSize: 12,
     opacity: 0.7,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   scale: {
     fontSize: 12,
     opacity: 0.6,
-    fontStyle: 'italic',
+    fontStyle: "italic",
   },
 });
