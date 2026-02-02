@@ -207,6 +207,16 @@ export const breakfastActions = {
     }
   },
 
+  updateHistoryEntry: (id: string, prepDuration: number, cookDuration: number) => {
+    const currentHistory = breakfastStore$.history.peek();
+    const index = currentHistory.findIndex((entry) => entry.id === id);
+    if (index !== -1) {
+      breakfastStore$.history[index].prepDuration.set(prepDuration);
+      breakfastStore$.history[index].cookDuration.set(cookDuration);
+      breakfastStore$.history[index].cookingDuration.set(prepDuration + cookDuration);
+    }
+  },
+
   getPendingRecipe: (): PendingRecipe | null => {
     return breakfastStore$.pendingRecipe.peek();
   },

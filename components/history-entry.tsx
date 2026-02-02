@@ -1,17 +1,23 @@
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { IconSymbol } from "@/components/ui/icon-symbol";
 import { BREAKFAST_TYPES } from "@/constants/breakfast-ratios";
 import { useThemeColor } from "@/hooks/use-theme-color";
-import type { HistoryEntry as HistoryEntryType } from "@/types/breakfast";
+import { breakfastStore$ } from "@/store/breakfast-store";
+import { observer } from "@legendapp/state/react";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { Pressable, StyleSheet } from "react-native";
 
 interface HistoryEntryProps {
-  entry: HistoryEntryType;
+  historyIndex: number;
 }
 
-export function HistoryEntry({ entry }: HistoryEntryProps) {
+export const HistoryEntry = observer(function HistoryEntry({
+  historyIndex,
+}: HistoryEntryProps) {
+  const entry = breakfastStore$.history[historyIndex].get();
+
   const backgroundColor = useThemeColor(
     { light: "#f8f8f8", dark: "#2a2a2a" },
     "background",
@@ -22,7 +28,16 @@ export function HistoryEntry({ entry }: HistoryEntryProps) {
   );
   const tintColor = useThemeColor({}, "tint");
 
+  const secondaryTextColor = useThemeColor(
+    { light: "#666", dark: "#999" },
+    "text",
+  );
   const breakfastInfo = BREAKFAST_TYPES[entry.recipeType];
+
+  const handleEditPress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push(`/history/edit/${entry.id}` as any);
+  };
 
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -79,9 +94,21 @@ export function HistoryEntry({ entry }: HistoryEntryProps) {
     >
       <ThemedView style={[styles.content, { backgroundColor: "transparent" }]}>
         <ThemedView style={[styles.header, { backgroundColor: "transparent" }]}>
-          <ThemedText style={styles.recipeName} numberOfLines={1}>
-            {entry.recipeName}
-          </ThemedText>
+          <ThemedView style={[styles.headerRow, { backgroundColor: "transparent" }]}>
+            <ThemedText style={[styles.recipeName, { flex: 1 }]} numberOfLines={1}>
+              {entry.recipeName}
+            </ThemedText>
+            <Pressable
+              onPress={(e) => {
+                e.stopPropagation();
+                handleEditPress();
+              }}
+              hitSlop={8}
+              style={({ pressed }) => pressed && styles.pressed}
+            >
+              <IconSymbol name="pencil" size={18} color={secondaryTextColor} />
+            </Pressable>
+          </ThemedView>
           <ThemedText style={[styles.type, { color: tintColor }]}>
             {breakfastInfo.name}
           </ThemedText>
@@ -113,7 +140,7 @@ export function HistoryEntry({ entry }: HistoryEntryProps) {
       </ThemedView>
     </Pressable>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -130,6 +157,11 @@ const styles = StyleSheet.create({
   },
   header: {
     gap: 4,
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   recipeName: {
     fontSize: 18,

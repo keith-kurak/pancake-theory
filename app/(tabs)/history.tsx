@@ -3,7 +3,6 @@ import { PendingRecipeCard } from "@/components/pending-recipe-card";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { breakfastStore$ } from "@/store/breakfast-store";
-import type { HistoryEntry as HistoryEntryType } from "@/types/breakfast";
 import { observer, useValue } from "@legendapp/state/react";
 import { useMemo, useState } from "react";
 import { FlatList, RefreshControl, StyleSheet } from "react-native";
@@ -19,14 +18,14 @@ function HistoryScreen() {
 
   // Combine pending recipe and history into a single list
   const displayItems = useMemo(() => {
-    const items: { type: "pending" | "history"; data: any }[] = [];
+    const items: { type: "pending" | "history"; data: any; historyIndex?: number }[] = [];
 
     if (pendingRecipe) {
       items.push({ type: "pending", data: pendingRecipe });
     }
 
-    history.forEach((entry: HistoryEntryType) => {
-      items.push({ type: "history", data: entry });
+    history.forEach((entry, index) => {
+      items.push({ type: "history", data: entry, historyIndex: index });
     });
 
     return items;
@@ -71,13 +70,13 @@ function HistoryScreen() {
         keyExtractor={(item, index) =>
           item.type === "pending" ? "pending" : item.data.id
         }
-        renderItem={({ item }) =>
-          item.type === "pending" ? (
+        renderItem={({ item }) => {
+          return item.type === "pending" ? (
             <PendingRecipeCard recipe={item.data} />
           ) : (
-            <HistoryEntry entry={item.data} />
-          )
-        }
+            <HistoryEntry historyIndex={item.historyIndex!} />
+          );
+        }}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={renderEmptyState}
         refreshControl={
