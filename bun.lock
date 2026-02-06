@@ -18,7 +18,7 @@
         "expo-constants": "55.0.3-canary-20260128-67ce8d5",
         "expo-crypto": "55.0.4-canary-20260128-67ce8d5",
         "expo-dev-client": "55.0.4-canary-20260128-67ce8d5",
-        "expo-eas-client": "^1.0.8",
+        "expo-eas-client": "^55.0.3-canary-20260128-67ce8d5",
         "expo-eas-observe": "^0.0.13",
         "expo-font": "55.0.4-canary-20260128-67ce8d5",
         "expo-haptics": "55.0.4-canary-20260128-67ce8d5",
@@ -1016,7 +1016,7 @@
 
     "expo-dev-menu-interface": ["expo-dev-menu-interface@55.0.2-canary-20260128-67ce8d5", "", { "peerDependencies": { "expo": "55.0.0-canary-20260128-67ce8d5" } }, "sha512-1RvAC/RX6DKFBH70PvXxPAkQ1Mtd2OBi+rtPb6E9EBxNLOOILbJLonMuudGD4LazEE+S+g75p2C2IeRUD0lLcA=="],
 
-    "expo-eas-client": ["expo-eas-client@1.0.8", "", {}, "sha512-5or11NJhSeDoHHI6zyvQDW2cz/yFyE+1Cz8NTs5NK8JzC7J0JrkUgptWtxyfB6Xs/21YRNifd3qgbBN3hfKVgA=="],
+    "expo-eas-client": ["expo-eas-client@55.0.3-canary-20260128-67ce8d5", "", {}, "sha512-aEyGWWq1Qqi5YP2s8TXXqtCUAvoiu5j3lcH8pu+3kJo/pITMpUn9kHqeaQTeObB7ZNa3j8DKncVdwJQCpfBQCA=="],
 
     "expo-eas-observe": ["expo-eas-observe@0.0.13", "", { "dependencies": { "expo-eas-client": "^55.0.0", "expo-updates-interface": "^55.0.0" }, "peerDependencies": { "expo": "*" } }, "sha512-j5csOy4PvfRzmUpK+IB6jBXr0dt8V/wfrZhQWsg6MjNFKO0tuHG8zpHvDZ+vl/sJbfQaBD8NrQOQWT7ZHuxvQQ=="],
 
@@ -2274,13 +2274,9 @@
 
     "expo-eas-observe/expo-updates-interface": ["expo-updates-interface@55.1.1", "", { "peerDependencies": { "expo": "*" } }, "sha512-++rlh9dNRUgm+uqN+x4vB/8ELidt0gc3kbwec55YzRizdD845kn5ufjTcGpkGs9SbAYHsP0eh8axlKHpY/v7Kg=="],
 
-    "expo-insights/expo-eas-client": ["expo-eas-client@55.0.3-canary-20260128-67ce8d5", "", {}, "sha512-aEyGWWq1Qqi5YP2s8TXXqtCUAvoiu5j3lcH8pu+3kJo/pITMpUn9kHqeaQTeObB7ZNa3j8DKncVdwJQCpfBQCA=="],
-
     "expo-modules-autolinking/commander": ["commander@7.2.0", "", {}, "sha512-QrWXB+ZQSVPmIWIhtEO9H+gwHaMGYiF5ChvoJ+K9ZGHG/sVsa6yiesAD1GC/x46sET00Xlwo1u49RVVVzvcSkw=="],
 
     "expo-updates/arg": ["arg@4.1.0", "", {}, "sha512-ZWc51jO3qegGkVh8Hwpv636EkbesNV5ZNQPCtRa+0qytRYPEs9IYT9qITY9buezqUH5uqyzlWLcufrzU2rffdg=="],
-
-    "expo-updates/expo-eas-client": ["expo-eas-client@55.0.3-canary-20260128-67ce8d5", "", {}, "sha512-aEyGWWq1Qqi5YP2s8TXXqtCUAvoiu5j3lcH8pu+3kJo/pITMpUn9kHqeaQTeObB7ZNa3j8DKncVdwJQCpfBQCA=="],
 
     "expo-updates/glob": ["glob@13.0.0", "", { "dependencies": { "minimatch": "^10.1.1", "minipass": "^7.1.2", "path-scurry": "^2.0.0" } }, "sha512-tvZgpqk6fz4BaNZ66ZsRaZnbHvP/jG3uKJvAZOwEVUL4RTA5nJeeLYfyN9/VA8NX/V3IBG+hkeuGpKjvELkVhA=="],
 
