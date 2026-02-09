@@ -1,6 +1,5 @@
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { IconSymbol } from "@/components/ui/icon-symbol";
 import { BREAKFAST_TYPES } from "@/constants/breakfast-ratios";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { breakfastStore$ } from "@/store/breakfast-store";
@@ -27,26 +26,11 @@ export const HistoryEntry = observer(function HistoryEntry({
     "text",
   );
   const tintColor = useThemeColor({}, "tint");
-
-  const secondaryTextColor = useThemeColor(
-    { light: "#666", dark: "#999" },
-    "text",
-  );
   const breakfastInfo = BREAKFAST_TYPES[entry.recipeType];
-
-  const handleEditPress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push(`/history/edit/${entry.id}` as any);
-  };
 
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push({
-      pathname: `/recipes/detail/${entry.recipeId}`,
-      params: {
-        scale: entry.scaleFactor.toString(),
-      },
-    } as any);
+    router.push(`/history/detail/${entry.id}` as any);
   };
 
   const formatDate = (timestamp: number) => {
@@ -94,24 +78,22 @@ export const HistoryEntry = observer(function HistoryEntry({
     >
       <ThemedView style={[styles.content, { backgroundColor: "transparent" }]}>
         <ThemedView style={[styles.header, { backgroundColor: "transparent" }]}>
-          <ThemedView style={[styles.headerRow, { backgroundColor: "transparent" }]}>
-            <ThemedText style={[styles.recipeName, { flex: 1 }]} numberOfLines={1}>
-              {entry.recipeName}
-            </ThemedText>
-            <Pressable
-              onPress={(e) => {
-                e.stopPropagation();
-                handleEditPress();
-              }}
-              hitSlop={8}
-              style={({ pressed }) => pressed && styles.pressed}
-            >
-              <IconSymbol name="pencil" size={18} color={secondaryTextColor} />
-            </Pressable>
-          </ThemedView>
-          <ThemedText style={[styles.type, { color: tintColor }]}>
-            {breakfastInfo.name}
+          <ThemedText style={styles.recipeName} numberOfLines={1}>
+            {entry.recipeName}
           </ThemedText>
+          <ThemedView
+            style={[styles.typeRow, { backgroundColor: "transparent" }]}
+          >
+            <ThemedText style={[styles.type, { color: tintColor }]}>
+              {breakfastInfo.name}
+            </ThemedText>
+            {entry.rating && (
+              <ThemedText style={styles.rating}>
+                {"★".repeat(entry.rating)}
+                {"☆".repeat(5 - entry.rating)}
+              </ThemedText>
+            )}
+          </ThemedView>
         </ThemedView>
 
         <ThemedView style={[styles.footer, { backgroundColor: "transparent" }]}>
@@ -158,11 +140,6 @@ const styles = StyleSheet.create({
   header: {
     gap: 4,
   },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
   recipeName: {
     fontSize: 18,
     fontWeight: "600",
@@ -170,6 +147,16 @@ const styles = StyleSheet.create({
   type: {
     fontSize: 14,
     fontWeight: "500",
+  },
+  typeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  rating: {
+    fontSize: 12,
+    color: "#FFD700",
+    paddingBottom: 2,
   },
   footer: {
     flexDirection: "row",

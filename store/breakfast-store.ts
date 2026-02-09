@@ -1,14 +1,19 @@
-import type { HistoryEntry, PendingRecipe, RecipeNote, UserRecipeData } from '@/types/breakfast';
-import { observable, Observable, syncState, when } from '@legendapp/state';
-import { observablePersistSqlite } from '@legendapp/state/persist-plugins/expo-sqlite';
-import { configureSynced, syncObservable } from '@legendapp/state/sync';
-import * as Crypto from 'expo-crypto';
-import Storage from 'expo-sqlite/kv-store';
+import type {
+  HistoryEntry,
+  PendingRecipe,
+  RecipeNote,
+  UserRecipeData,
+} from "@/types/breakfast";
+import { observable, Observable, syncState, when } from "@legendapp/state";
+import { observablePersistSqlite } from "@legendapp/state/persist-plugins/expo-sqlite";
+import { configureSynced, syncObservable } from "@legendapp/state/sync";
+import * as Crypto from "expo-crypto";
+import Storage from "expo-sqlite/kv-store";
 
 const persistOptions = configureSynced({
-    persist: {
-        plugin: observablePersistSqlite(Storage)
-    },
+  persist: {
+    plugin: observablePersistSqlite(Storage),
+  },
 });
 
 // Store only persistent data (history, recipe notes, pending recipe)
@@ -26,25 +31,25 @@ const initialState: BreakfastStore = {
   history: [],
   recipeNotes: {},
   pendingRecipe: null,
-  userRecipesData: {}
+  userRecipesData: {},
 };
 
 // Create the observable store
 export const breakfastStore$ = observable<BreakfastStore>(initialState);
 
 syncObservable(
-    breakfastStore$,
-    persistOptions({
-        persist: {
-            name: 'breakfastStore',
-        },
-    }),
+  breakfastStore$,
+  persistOptions({
+    persist: {
+      name: "breakfastStore",
+    },
+  }),
 );
 
 // migrate any old notes over to new structure after persistence is loaded
 (async function migrateLegacyRecipeNotes() {
-  const status$ = syncState(breakfastStore$)
-  await when(status$.isPersistLoaded)
+  const status$ = syncState(breakfastStore$);
+  await when(status$.isPersistLoaded);
   const currentNotes = breakfastStore$.recipeNotes.peek();
   const userRecipesData = breakfastStore$.userRecipesData;
 
@@ -88,13 +93,14 @@ function getUserRecipeData(recipeId: string): Observable<UserRecipeData> {
 
 // Actions for managing history, recipe notes, and pending recipes
 export const breakfastActions = {
-  addToHistory: (entry: Omit<HistoryEntry, 'id' | 'timestamp'>) => {
+  addToHistory: (entry: Omit<HistoryEntry, "id" | "timestamp">): string => {
     const newEntry: HistoryEntry = {
       ...entry,
-      id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+      id: Crypto.randomUUID(),
       timestamp: Date.now(),
     };
     breakfastStore$.history.unshift(newEntry);
+    return newEntry.id;
   },
 
   clearHistory: () => {
@@ -109,32 +115,40 @@ export const breakfastActions = {
 
   saveRecipeNotes: (recipeId: string, notes: string) => {
     const userRecipeData = getUserRecipeData(recipeId);
-    userRecipeData.notes.push(
-      {
-        id: Crypto.randomUUID(),
-        timestamp: Date.now(),
-        content: notes,
-      }
-    )
+    const noteId = Crypto.randomUUID();
+    userRecipeData.notes.push({
+      id: noteId,
+      timestamp: Date.now(),
+      content: notes,
+    });
+
+    // If there's a pending recipe for this recipe, track this note
+    const pending = breakfastStore$.pendingRecipe.peek();
+    if (pending && pending.recipeId === recipeId) {
+      const existingNoteIds = pending.noteIds || [];
+      breakfastStore$.pendingRecipe.noteIds.set([...existingNoteIds, noteId]);
+    }
   },
 
   deleteRecipeNote: (recipeId: string, noteId: string) => {
     const userRecipeData = getUserRecipeData(recipeId);
-    const updatedNotes = userRecipeData.notes.peek().filter(note => note.id !== noteId);
+    const updatedNotes = userRecipeData.notes
+      .peek()
+      .filter((note) => note.id !== noteId);
     userRecipeData.notes.set(updatedNotes);
   },
 
   getRecipeNotes: (recipeId: string): RecipeNote[] => {
-     const userRecipeData = getUserRecipeData(recipeId);
-     return userRecipeData.notes.get();
+    const userRecipeData = getUserRecipeData(recipeId);
+    return userRecipeData.notes.get();
   },
 
   // Pending recipe actions
   startRecipe: (
     recipeId: string,
     recipeName: string,
-    recipeType: import('@/types/breakfast').BreakfastType,
-    scaleFactor: number
+    recipeType: import("@/types/breakfast").BreakfastType,
+    scaleFactor: number,
   ) => {
     const pendingRecipe: PendingRecipe = {
       recipeId,
@@ -179,7 +193,7 @@ export const breakfastActions = {
     breakfastStore$.pendingRecipe.set(null);
   },
 
-  completePendingRecipe: () => {
+  completePendingRecipe: (options?: { rating?: number; note?: string }) => {
     const pending = breakfastStore$.pendingRecipe.peek();
     if (pending) {
       const endTime = Date.now();
@@ -194,7 +208,7 @@ export const breakfastActions = {
         cookDuration = endTime - pending.prepEndTime;
       }
 
-      breakfastActions.addToHistory({
+      const historyEntryId = breakfastActions.addToHistory({
         recipeId: pending.recipeId,
         recipeName: pending.recipeName,
         recipeType: pending.recipeType,
@@ -202,18 +216,64 @@ export const breakfastActions = {
         cookingDuration: totalDuration,
         prepDuration,
         cookDuration,
+        rating: options?.rating,
       });
+
+      // If a note was provided, save it and associate with history entry
+      if (options?.note?.trim()) {
+        const userRecipeData = getUserRecipeData(pending.recipeId);
+        const noteId = Crypto.randomUUID();
+        userRecipeData.notes.push({
+          id: noteId,
+          timestamp: Date.now(),
+          content: options.note.trim(),
+          historyEntryId,
+        });
+      }
+
+      // Associate any notes created during this session with the history entry
+      if (pending.noteIds && pending.noteIds.length > 0) {
+        const userRecipeData = getUserRecipeData(pending.recipeId);
+        const notes = userRecipeData.notes.peek();
+        const updatedNotes = notes.map((note) =>
+          pending.noteIds!.includes(note.id)
+            ? { ...note, historyEntryId }
+            : note,
+        );
+        userRecipeData.notes.set(updatedNotes);
+      }
+
       breakfastStore$.pendingRecipe.set(null);
     }
   },
 
-  updateHistoryEntry: (id: string, prepDuration: number, cookDuration: number) => {
+  updateHistoryEntry: (
+    id: string,
+    updates: {
+      prepDuration?: number;
+      cookDuration?: number;
+      rating?: number | null;
+    },
+  ) => {
     const currentHistory = breakfastStore$.history.peek();
     const index = currentHistory.findIndex((entry) => entry.id === id);
     if (index !== -1) {
-      breakfastStore$.history[index].prepDuration.set(prepDuration);
-      breakfastStore$.history[index].cookDuration.set(cookDuration);
-      breakfastStore$.history[index].cookingDuration.set(prepDuration + cookDuration);
+      if (updates.prepDuration !== undefined) {
+        breakfastStore$.history[index].prepDuration.set(updates.prepDuration);
+      }
+      if (updates.cookDuration !== undefined) {
+        breakfastStore$.history[index].cookDuration.set(updates.cookDuration);
+      }
+      if (updates.prepDuration !== undefined && updates.cookDuration !== undefined) {
+        breakfastStore$.history[index].cookingDuration.set(
+          updates.prepDuration + updates.cookDuration,
+        );
+      }
+      if (updates.rating !== undefined) {
+        breakfastStore$.history[index].rating.set(
+          updates.rating === null ? undefined : updates.rating,
+        );
+      }
     }
   },
 
