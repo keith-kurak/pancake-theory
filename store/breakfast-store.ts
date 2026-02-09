@@ -249,17 +249,31 @@ export const breakfastActions = {
 
   updateHistoryEntry: (
     id: string,
-    prepDuration: number,
-    cookDuration: number,
+    updates: {
+      prepDuration?: number;
+      cookDuration?: number;
+      rating?: number | null;
+    },
   ) => {
     const currentHistory = breakfastStore$.history.peek();
     const index = currentHistory.findIndex((entry) => entry.id === id);
     if (index !== -1) {
-      breakfastStore$.history[index].prepDuration.set(prepDuration);
-      breakfastStore$.history[index].cookDuration.set(cookDuration);
-      breakfastStore$.history[index].cookingDuration.set(
-        prepDuration + cookDuration,
-      );
+      if (updates.prepDuration !== undefined) {
+        breakfastStore$.history[index].prepDuration.set(updates.prepDuration);
+      }
+      if (updates.cookDuration !== undefined) {
+        breakfastStore$.history[index].cookDuration.set(updates.cookDuration);
+      }
+      if (updates.prepDuration !== undefined && updates.cookDuration !== undefined) {
+        breakfastStore$.history[index].cookingDuration.set(
+          updates.prepDuration + updates.cookDuration,
+        );
+      }
+      if (updates.rating !== undefined) {
+        breakfastStore$.history[index].rating.set(
+          updates.rating === null ? undefined : updates.rating,
+        );
+      }
     }
   },
 

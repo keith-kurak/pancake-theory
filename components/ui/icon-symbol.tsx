@@ -23,6 +23,7 @@ const MAPPING = {
   'clock.fill': 'schedule',
   'flame': 'local-fire-department',
   'plus': 'add',
+  'trash': 'delete',
 } as IconMapping;
 
 /**
