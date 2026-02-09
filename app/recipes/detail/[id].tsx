@@ -133,11 +133,6 @@ export default function RecipeDetailScreen() {
     );
   };
 
-  const handleContinue = () => {
-    // Already in active mode, just a visual confirmation
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
-
   const handleCancelRecipe = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 

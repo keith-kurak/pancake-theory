@@ -45,18 +45,14 @@ export function IngredientsTab({
           />
         )}
 
-        <ScaleSlider
-          value={scaleFactor}
-          onValueChange={onScaleChange}
-          disabled={!isActive}
-        />
+        <ScaleSlider value={scaleFactor} onValueChange={onScaleChange} />
 
         <ThemedView style={styles.ingredientsList}>
           {recipe.ingredients.map((ingredient, index) => {
             const scaledAmount = scaleIngredient(
               ingredient.amount,
               scaleFactor,
-              ingredient.category
+              ingredient.category,
             );
             const formattedAmount = formatAmount(scaledAmount);
 
