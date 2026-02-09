@@ -94,8 +94,13 @@ export const HistoryEntry = observer(function HistoryEntry({
     >
       <ThemedView style={[styles.content, { backgroundColor: "transparent" }]}>
         <ThemedView style={[styles.header, { backgroundColor: "transparent" }]}>
-          <ThemedView style={[styles.headerRow, { backgroundColor: "transparent" }]}>
-            <ThemedText style={[styles.recipeName, { flex: 1 }]} numberOfLines={1}>
+          <ThemedView
+            style={[styles.headerRow, { backgroundColor: "transparent" }]}
+          >
+            <ThemedText
+              style={[styles.recipeName, { flex: 1 }]}
+              numberOfLines={1}
+            >
               {entry.recipeName}
             </ThemedText>
             <Pressable
@@ -109,9 +114,19 @@ export const HistoryEntry = observer(function HistoryEntry({
               <IconSymbol name="pencil" size={18} color={secondaryTextColor} />
             </Pressable>
           </ThemedView>
-          <ThemedText style={[styles.type, { color: tintColor }]}>
-            {breakfastInfo.name}
-          </ThemedText>
+          <ThemedView
+            style={[styles.typeRow, { backgroundColor: "transparent" }]}
+          >
+            <ThemedText style={[styles.type, { color: tintColor }]}>
+              {breakfastInfo.name}
+            </ThemedText>
+            {entry.rating && (
+              <ThemedText style={styles.rating}>
+                {"★".repeat(entry.rating)}
+                {"☆".repeat(5 - entry.rating)}
+              </ThemedText>
+            )}
+          </ThemedView>
         </ThemedView>
 
         <ThemedView style={[styles.footer, { backgroundColor: "transparent" }]}>
@@ -170,6 +185,16 @@ const styles = StyleSheet.create({
   type: {
     fontSize: 14,
     fontWeight: "500",
+  },
+  typeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  rating: {
+    fontSize: 12,
+    color: "#FFD700",
+    paddingBottom: 2,
   },
   footer: {
     flexDirection: "row",

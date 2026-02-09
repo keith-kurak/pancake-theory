@@ -155,8 +155,7 @@ export default function RecipeDetailScreen() {
 
   const handleMadeIt = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    breakfastActions.completePendingRecipe();
-    router.push("/(tabs)/history");
+    router.push(`/recipes/feedback/${id}` as any);
   };
 
   const handleTabChange = (tab: TabType) => {
