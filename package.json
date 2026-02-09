@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "scripts": {
     "start-go": "EXPO_UNSTABLE_MCP_SERVER=1 npx expo start --go",
-    "start": "EXPO_UNSTABLE_MCP_SERVER=1 npx expo start --go",
+    "start": "EXPO_UNSTABLE_MCP_SERVER=1 npx expo start",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo start --android",
     "ios": "expo start --ios",
