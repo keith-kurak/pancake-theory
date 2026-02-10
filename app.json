@@ -57,8 +57,10 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "1de013cf-b8b2-4ac3-9e4d-dd70bfd4892e"
-      }
+        "projectId": "1de013cf-b8b2-4ac3-9e4d-dd70bfd4892e",
+        "test": 3
+      },
+      "someProp": "whatev"
     },
     "owner": "expo-production",
     "runtimeVersion": {
