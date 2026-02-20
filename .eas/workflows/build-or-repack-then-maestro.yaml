@@ -1,8 +1,7 @@
 name: preview-with-maestro
 
-ffdfdfdf:
+jobs:
   fingerprint:
-    blurb: bah
     environment: preview
     type: fingerprint
 
