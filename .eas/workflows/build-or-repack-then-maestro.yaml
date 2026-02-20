@@ -2,6 +2,7 @@ name: preview-with-maestro
 
 jobs:
   fingerprint:
+    blurb: bah
     environment: preview
     type: fingerprint
 
@@ -34,7 +35,7 @@ jobs:
     image: latest
     params:
       build_id: ${{ needs.android_repack.outputs.build_id || needs.android_build.outputs.build_id }}
-      flow_path: ['.maestro/preview-smoke.yaml']
+      flow_path: [".maestro/preview-smoke.yaml"]
       record_screen: true
   ios_get_build:
     needs: [fingerprint]
@@ -65,5 +66,5 @@ jobs:
     image: latest
     params:
       build_id: ${{ needs.ios_repack.outputs.build_id || needs.ios_build.outputs.build_id }}
-      flow_path: ['.maestro/preview-smoke.yaml']
+      flow_path: [".maestro/preview-smoke.yaml"]
       record_screen: true
