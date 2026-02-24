@@ -1,0 +1,9 @@
+name: Update Preview
+
+jobs:
+  update_production:
+    name: Update Preview Channel
+    type: update
+    params:
+      channel: production
+      platform: android
