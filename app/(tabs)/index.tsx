@@ -55,7 +55,7 @@ export default function ChooserScreen() {
     >
       {/* Matched breakfast card */}
       <ThemedView style={styles.cardContainer}>
-        <BreakfastCard type={matchedBreakfast} />
+        <BreakfastCard key={matchedBreakfast} type={matchedBreakfast} />
       </ThemedView>
 
       {/* Sliders at the bottom */}

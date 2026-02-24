@@ -133,11 +133,6 @@ export default function RecipeDetailScreen() {
     );
   };
 
-  const handleContinue = () => {
-    // Already in active mode, just a visual confirmation
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
-
   const handleCancelRecipe = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
@@ -160,8 +155,7 @@ export default function RecipeDetailScreen() {
 
   const handleMadeIt = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    breakfastActions.completePendingRecipe();
-    router.push("/(tabs)/history");
+    router.push(`/recipes/feedback/${id}` as any);
   };
 
   const handleTabChange = (tab: TabType) => {

@@ -3,18 +3,14 @@ import { PendingRecipeCard } from "@/components/pending-recipe-card";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { breakfastStore$ } from "@/store/breakfast-store";
-import type { HistoryEntry as HistoryEntryType } from "@/types/breakfast";
 import { observer, useValue } from "@legendapp/state/react";
-import { reloadAsync, useUpdates } from "expo-updates";
-import { useEffect, useMemo, useState } from "react";
-import { AppState, Button, FlatList, RefreshControl, StyleSheet } from "react-native";
+import { useMemo, useState } from "react";
+import { FlatList, RefreshControl, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 function HistoryScreen() {
   const insets = useSafeAreaInsets();
   const [refreshing, setRefreshing] = useState(false);
-
-  const { isUpdatePending } = useUpdates();
 
   // Get the history and pending recipe from the store
   const history = useValue(breakfastStore$.history);
@@ -22,31 +18,18 @@ function HistoryScreen() {
 
   // Combine pending recipe and history into a single list
   const displayItems = useMemo(() => {
-    const items: { type: "pending" | "history"; data: any }[] = [];
+    const items: { type: "pending" | "history"; data: any; historyIndex?: number }[] = [];
 
     if (pendingRecipe) {
       items.push({ type: "pending", data: pendingRecipe });
     }
 
-    history.forEach((entry: HistoryEntryType) => {
-      items.push({ type: "history", data: entry });
+    history.forEach((entry, index) => {
+      items.push({ type: "history", data: entry, historyIndex: index });
     });
 
     return items;
   }, [history, pendingRecipe]);
-
-    // check for update when app is brought back to foreground
-    useEffect(() => {
-      const subscription = AppState.addEventListener("change", (nextAppState) => {
-        if (nextAppState === "active") {
-          //checkForUpdateAsync();
-        }
-      });
-  
-      return () => {
-        subscription.remove();
-      };
-    }, []);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -63,8 +46,8 @@ function HistoryScreen() {
         Complete a recipe to see it appear here!
       </ThemedText>
       <ThemedText style={styles.emptyHint}>
-        Go to the Chooser tab, find a recipe, and tap &quot;I made it!&quot; when you&apos;re
-        done.
+        Go to the Chooser tab, find a recipe, and tap &quot;I made it!&quot;
+        when you&apos;re done.
       </ThemedText>
     </ThemedView>
   );
@@ -75,16 +58,6 @@ function HistoryScreen() {
         <ThemedText type="title" style={styles.title}>
           History
         </ThemedText>
-        {isUpdatePending && (
-          <Button
-            onPress={async () => {
-              setRefreshing(true);
-              await reloadAsync();
-              setRefreshing(false);
-            }}
-            title="Restart to Update"
-          />
-        )}
         {history.length > 0 && (
           <ThemedText style={styles.subtitle}>
             {history.length} recipe{history.length !== 1 ? "s" : ""} made
@@ -97,13 +70,13 @@ function HistoryScreen() {
         keyExtractor={(item, index) =>
           item.type === "pending" ? "pending" : item.data.id
         }
-        renderItem={({ item }) =>
-          item.type === "pending" ? (
+        renderItem={({ item }) => {
+          return item.type === "pending" ? (
             <PendingRecipeCard recipe={item.data} />
           ) : (
-            <HistoryEntry entry={item.data} />
-          )
-        }
+            <HistoryEntry historyIndex={item.historyIndex!} />
+          );
+        }}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={renderEmptyState}
         refreshControl={
