@@ -7,7 +7,6 @@
     "icon": "./assets/build/ios-light.png",
     "scheme": "pancaketheory",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": false,
       "icon": {
