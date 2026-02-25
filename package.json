@@ -10,7 +10,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "test": "jest",
+    "test": "npx bun test",
     "test-maestro": "maestro test .maestro/preview-smoke.yaml"
   },
   "dependencies": {
@@ -29,7 +29,7 @@
     "expo-crypto": "~55.0.8",
     "expo-dev-client": "~55.0.8",
     "expo-eas-client": "^55.0.2",
-    "expo-eas-observe": "^0.0.13",
+    "expo-eas-observe": "0.0.13",
     "expo-font": "~55.0.4",
     "expo-haptics": "~55.0.8",
     "expo-image": "~55.0.5",
