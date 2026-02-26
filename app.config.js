@@ -1,21 +1,23 @@
 module.exports = ({ config }) => {
-  let bundleIdSuffix = '';
+  let bundleIdSuffix = "";
   if (process.env.APP_VARIANT) {
     bundleIdSuffix += process.env.APP_VARIANT.toLowerCase();
   }
 
   const plugins = config.plugins || [];
   plugins.push([
-    'expo-dev-client',
+    "expo-dev-client",
     {
-      addGeneratedScheme: process.env.APP_VARIANT === 'DEV',
+      addGeneratedScheme: process.env.APP_VARIANT === "DEV",
     },
   ]);
 
   let name = config.name;
   if (process.env.APP_VARIANT) {
-    name = 'PK-' + process.env.APP_VARIANT;
+    name = "PK-" + process.env.APP_VARIANT;
   }
+
+  //test
 
   return {
     ...config,
