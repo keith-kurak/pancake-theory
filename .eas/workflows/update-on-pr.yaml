@@ -1,8 +1,11 @@
 name: Publish PR preview update
+defaults:
+  tools:
+    bun: 1.3.10
 
 on:
   pull_request:
-    branches: ['*']
+    branches: ["*"]
 
 jobs:
   run_unit_tests:

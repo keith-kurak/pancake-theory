@@ -9,6 +9,7 @@ import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
 
 import ExpoOtaUpdateMonitor from "@/components/OtaUpdateOverlay";
+import { registerBackgroundUpdateTask } from "@/utils/background-updates";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import AppMetrics from "expo-eas-observe";
 import { useEffect } from "react";
@@ -25,6 +26,8 @@ SplashScreen.setOptions({
   duration: 300,
   fade: true,
 });
+
+registerBackgroundUpdateTask();
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
