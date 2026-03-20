@@ -26,6 +26,7 @@
     "@sentry/react-native": "^8.5.0",
     "expo": "^55.0.8",
     "expo-application": "~55.0.10",
+    "expo-background-task": "~55.0.10",
     "expo-constants": "~55.0.9",
     "expo-crypto": "~55.0.10",
     "expo-dev-client": "~55.0.18",
