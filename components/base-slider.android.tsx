@@ -7,11 +7,15 @@ let BaseSliderInner = BaseSliderGo;
 
 let Slider: any = View;
 
+let Host: any = View;
+
 const BYPASS_EXPO_UI_SLIDER = false;
 
 if (!isRunningInExpoGo() && !BYPASS_EXPO_UI_SLIDER) {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   Slider = require("@expo/ui/jetpack-compose").Slider;
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  Host = require("@expo/ui/jetpack-compose").Host;
   BaseSliderInner = ExpoUiBaseSliderInner;
 }
 
@@ -57,27 +61,33 @@ function ExpoUiBaseSliderInner({
   const tintColor = useThemeColor({}, "tint");
   const backgroundColor = useThemeColor(
     { light: "#f0f0f0", dark: "#333333" },
-    "background"
+    "background",
   );
 
   // Calculate steps: number of discrete steps between min and max
   const steps = Math.round((maximumValue - minimumValue) / step);
 
   return (
-    <Slider
-      value={value}
-      onValueChange={onValueChange}
-      min={minimumValue}
-      max={maximumValue}
-      style={{ width: "100%", height: 40 }}
-      steps={androidUseExplicitSteps ? (steps - 1) : undefined}
-      elementColors={{
-        thumbColor: tintColor,
-        activeTrackColor: tintColor,
-        inactiveTrackColor: backgroundColor,
-        //activeTickColor: "#ff0000",
-        //inactiveTickColor: "#00ff00",
+    <Host
+      style={{
+        width: "100%",
+        height: 40,
       }}
-    />
+    >
+      <Slider
+        value={value}
+        onValueChange={onValueChange}
+        min={minimumValue}
+        max={maximumValue}
+        steps={androidUseExplicitSteps ? steps - 1 : undefined}
+        colors={{
+          thumbColor: tintColor,
+          activeTrackColor: tintColor,
+          inactiveTrackColor: backgroundColor,
+          //activeTickColor: "#ff0000",
+          //inactiveTickColor: "#00ff00",
+        }}
+      />
+    </Host>
   );
 }
