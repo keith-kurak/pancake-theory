@@ -6,7 +6,7 @@ import { BREAKFAST_TYPES } from "@/constants/breakfast-ratios";
 import { Sizes } from "@/constants/sizes";
 import type { Ratios } from "@/types/breakfast";
 import { findClosestBreakfast } from "@/utils/ratio-matcher";
-import AppMetrics from "expo-eas-observe";
+import AppMetrics from "@/utils/app-metrics";
 import { useEffect, useMemo, useState } from "react";
 import { Platform, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
