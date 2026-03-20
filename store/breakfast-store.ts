@@ -34,6 +34,8 @@ const initialState: BreakfastStore = {
   userRecipesData: {},
 };
 
+//test
+
 // Create the observable store
 export const breakfastStore$ = observable<BreakfastStore>(initialState);
 
@@ -264,7 +266,10 @@ export const breakfastActions = {
       if (updates.cookDuration !== undefined) {
         breakfastStore$.history[index].cookDuration.set(updates.cookDuration);
       }
-      if (updates.prepDuration !== undefined && updates.cookDuration !== undefined) {
+      if (
+        updates.prepDuration !== undefined &&
+        updates.cookDuration !== undefined
+      ) {
         breakfastStore$.history[index].cookingDuration.set(
           updates.prepDuration + updates.cookDuration,
         );
