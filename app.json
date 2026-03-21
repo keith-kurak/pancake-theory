@@ -23,7 +23,7 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/build/adaptive-icon.png"
       },
-      "predictiveBackGestureEnabled": false,
+      "predictiveBackGestureEnabled": true,
       "package": "com.keithkurak.pancaketheory"
     },
     "web": {
