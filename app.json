@@ -2,12 +2,11 @@
   "expo": {
     "name": "Pancake Theory",
     "slug": "pancake-theory",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/build/ios-light.png",
     "scheme": "pancaketheory",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": false,
       "icon": {
@@ -24,8 +23,7 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/build/adaptive-icon.png"
       },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
+      "predictiveBackGestureEnabled": true,
       "package": "com.keithkurak.pancaketheory"
     },
     "web": {
@@ -48,8 +46,18 @@
         }
       ],
       "expo-sqlite",
-      "@rnrepo/expo-config-plugin"
-    ], 
+      "expo-font",
+      "expo-image",
+      "expo-web-browser",
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "pancake-theory",
+          "organization": "keithexpo"
+        }
+      ]
+    ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true

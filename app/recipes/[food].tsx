@@ -1,11 +1,11 @@
-import { RecipeCard } from '@/components/recipe-card';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { BREAKFAST_TYPES } from '@/constants/breakfast-ratios';
-import { getRecipesByType } from '@/data/recipes';
-import type { BreakfastType } from '@/types/breakfast';
-import { Stack, useLocalSearchParams } from 'expo-router';
-import { FlatList, StyleSheet } from 'react-native';
+import { RecipeCard } from "@/components/recipe-card";
+import { ThemedText } from "@/components/themed-text";
+import { ThemedView } from "@/components/themed-view";
+import { BREAKFAST_TYPES } from "@/constants/breakfast-ratios";
+import { getRecipesByType } from "@/data/recipes";
+import type { BreakfastType } from "@/types/breakfast";
+import { Stack, useLocalSearchParams } from "expo-router";
+import { FlatList, StyleSheet } from "react-native";
 
 export default function RecipeListScreen() {
   const { food } = useLocalSearchParams<{ food: BreakfastType }>();
@@ -20,7 +20,7 @@ export default function RecipeListScreen() {
         options={{
           title: breakfastInfo.name,
           headerShown: true,
-          headerBackButtonDisplayMode: 'minimal'
+          headerBackButtonDisplayMode: "minimal",
         }}
       />
       <ThemedView style={styles.container}>
@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
   tipsHeader: {
     fontSize: 20,
     marginBottom: 12,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   tipsList: {
     gap: 8,
@@ -80,13 +80,13 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingVertical: 64,
   },
   emptyText: {
     fontSize: 16,
     opacity: 0.7,
-    textAlign: 'center',
+    textAlign: "center",
   },
 });

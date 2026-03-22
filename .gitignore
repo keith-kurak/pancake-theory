@@ -45,3 +45,4 @@ app-example
 # Maestro
 .maestro/screenshots/
 temp.json
+.env.local
