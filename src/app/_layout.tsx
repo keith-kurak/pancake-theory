@@ -1,7 +1,7 @@
 import {
-    DarkTheme,
-    DefaultTheme,
-    ThemeProvider,
+  DarkTheme,
+  DefaultTheme,
+  ThemeProvider,
 } from "@react-navigation/native";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -10,13 +10,14 @@ import "react-native-reanimated";
 
 import ExpoOtaUpdateMonitor from "@/components/OtaUpdateOverlay";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import AppMetrics from "@/utils/app-metrics";
 import { registerBackgroundUpdateTask } from "@/utils/background-updates";
+import AppMetrics, { AppMetricsRoot } from "@/utils/expo-app-metrics";
+import ExpoObserve from "@/utils/expo-observe";
 import Sentry from "@/utils/sentry";
 import { useEffect } from "react";
 import {
-    KeyboardAvoidingView,
-    KeyboardProvider,
+  KeyboardAvoidingView,
+  KeyboardProvider,
 } from "react-native-keyboard-controller";
 
 Sentry.init({
@@ -50,36 +51,44 @@ SplashScreen.setOptions({
   fade: true,
 });
 
+if (process.env.METRICS_ENV === "e2e") {
+  ExpoObserve.configure({ environment: "e2e" });
+}
+
 registerBackgroundUpdateTask();
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   useEffect(() => {
-    AppMetrics.markFirstRender();
+    AppMetrics.markInteractive();
   }, []);
 
   return (
-    <KeyboardProvider>
-      <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-        <KeyboardAvoidingView behavior={"padding"} style={{ flex: 1 }}>
-          <Stack>
-            <Stack.Screen
-              name="(tabs)"
-              options={{
-                headerShown: false,
-                headerBackButtonDisplayMode: "minimal",
-              }}
-            />
-            <Stack.Screen
-              name="modal"
-              options={{ presentation: "modal", title: "Modal" }}
-            />
-          </Stack>
-          <StatusBar style="auto" />
-          <ExpoOtaUpdateMonitor />
-        </KeyboardAvoidingView>
-      </ThemeProvider>
-    </KeyboardProvider>
+    <AppMetricsRoot>
+      <KeyboardProvider>
+        <ThemeProvider
+          value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
+        >
+          <KeyboardAvoidingView behavior={"padding"} style={{ flex: 1 }}>
+            <Stack>
+              <Stack.Screen
+                name="(tabs)"
+                options={{
+                  headerShown: false,
+                  headerBackButtonDisplayMode: "minimal",
+                }}
+              />
+              <Stack.Screen
+                name="modal"
+                options={{ presentation: "modal", title: "Modal" }}
+              />
+            </Stack>
+            <StatusBar style="auto" />
+            <ExpoOtaUpdateMonitor />
+          </KeyboardAvoidingView>
+        </ThemeProvider>
+      </KeyboardProvider>
+    </AppMetricsRoot>
   );
 }

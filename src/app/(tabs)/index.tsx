@@ -4,7 +4,7 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { BREAKFAST_TYPES } from "@/constants/breakfast-ratios";
 import type { Ratios } from "@/types/breakfast";
-import AppMetrics from "@/utils/app-metrics";
+import AppMetrics from "@/utils/expo-app-metrics";
 import { findClosestBreakfast } from "@/utils/ratio-matcher";
 import { useEffect, useMemo, useState } from "react";
 import { Platform, StyleSheet } from "react-native";
