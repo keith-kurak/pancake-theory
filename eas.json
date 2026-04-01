@@ -12,6 +12,7 @@
     },
     "development-simulator": {
       "extends": "development",
+      "distribution": "internal",
       "ios": {
         "simulator": true
       }
