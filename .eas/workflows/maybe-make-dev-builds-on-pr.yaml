@@ -2,7 +2,11 @@ name: Create development builds if needed
 
 on:
   pull_request:
-    branches: ['*']
+    branches: ["*"]
+
+concurrency:
+  cancel_in_progress: true
+  group: ${{ workflow.filename }}-${{ github.ref }}
 
 jobs:
   fingerprint:
@@ -33,7 +37,7 @@ jobs:
       profile: development-simulator
   android_development_build:
     name: Build Android
-    needs: [android_get_build] 
+    needs: [android_get_build]
     if: ${{ !needs.android_get_build.outputs.build_id }}
     type: build
     params:
