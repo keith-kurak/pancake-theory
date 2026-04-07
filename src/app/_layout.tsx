@@ -11,8 +11,7 @@ import "react-native-reanimated";
 import ExpoOtaUpdateMonitor from "@/components/OtaUpdateOverlay";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { registerBackgroundUpdateTask } from "@/utils/background-updates";
-import AppMetrics, { AppMetricsRoot } from "@/utils/expo-app-metrics";
-import ExpoObserve from "@/utils/expo-observe";
+import ExpoObserve, { AppMetrics, AppMetricsRoot } from "@/utils/expo-observe";
 import Sentry from "@/utils/sentry";
 import { useEffect } from "react";
 import {
