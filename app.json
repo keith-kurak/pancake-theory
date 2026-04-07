@@ -73,7 +73,9 @@
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/1de013cf-b8b2-4ac3-9e4d-dd70bfd4892e"
+      "url": "https://u.expo.dev/1de013cf-b8b2-4ac3-9e4d-dd70bfd4892e",
+      "enabled": true,
+      "enableBsdiffPatchSupport": true
     }
   }
 }

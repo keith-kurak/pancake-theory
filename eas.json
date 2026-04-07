@@ -31,7 +31,12 @@
     "production": {
       "autoIncrement": true,
       "channel": "production",
-      "environment": "production"
+      "environment": "production",
+      "ios": {
+        "environment": {
+          "UPDATES_DISABLED": true
+        }
+      }
     }
   },
   "submit": {
