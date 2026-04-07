@@ -30,7 +30,7 @@
     "expo-constants": "~55.0.11",
     "expo-crypto": "~55.0.12",
     "expo-dev-client": "~55.0.22",
-    "expo-eas-client": "55.0.3",
+    "expo-eas-client": "55.0.5",
     "expo-font": "~55.0.6",
     "expo-glass-effect": "~55.0.10",
     "expo-haptics": "~55.0.12",

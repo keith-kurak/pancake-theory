@@ -6,9 +6,12 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "store",
+      "distribution": "internal",
       "channel": "development",
-      "environment": "development"
+      "environment": "development",
+      "ios": {
+        "distribution": "store"
+      }
     },
     "development-simulator": {
       "extends": "development",
