@@ -1,21 +1,21 @@
 module.exports = ({ config }) => {
-  let bundleIdSuffix = '';
+  let bundleIdSuffix = "";
   if (process.env.APP_VARIANT) {
     bundleIdSuffix += process.env.APP_VARIANT.toLowerCase();
   }
 
   const plugins = config.plugins || [];
   plugins.push([
-    'expo-dev-client',
+    "expo-dev-client",
     {
-      addGeneratedScheme: process.env.APP_VARIANT === 'DEV',
+      addGeneratedScheme: process.env.APP_VARIANT === "DEV",
     },
   ]);
-  plugins.push('expo-background-task');
+  plugins.push("expo-background-task");
 
   let name = config.name;
   if (process.env.APP_VARIANT) {
-    name = 'PK-' + process.env.APP_VARIANT;
+    name = "PK-" + process.env.APP_VARIANT;
   }
 
   return {
@@ -31,6 +31,7 @@ module.exports = ({ config }) => {
     },
     updates: {
       ...config.updates,
+      enabled: process.env.UPDATES_DISABLED !== "1",
     },
     plugins,
   };

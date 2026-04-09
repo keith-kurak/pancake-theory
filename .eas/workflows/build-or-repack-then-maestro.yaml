@@ -1,4 +1,4 @@
-name: preview-with-maestro
+name: Build or Repack, then Maestro
 
 jobs:
   fingerprint:
@@ -17,6 +17,8 @@ jobs:
     needs: [android_get_build]
     if: ${{ needs.android_get_build.outputs.build_id }}
     type: repack
+    env:
+      METRICS_ENV: e2e
     params:
       build_id: ${{ needs.android_get_build.outputs.build_id }}
 
@@ -24,6 +26,8 @@ jobs:
     needs: [android_get_build]
     if: ${{ !needs.android_get_build.outputs.build_id }}
     type: build
+    env:
+      METRICS_ENV: e2e
     params:
       platform: android
       profile: preview
@@ -34,7 +38,7 @@ jobs:
     image: latest
     params:
       build_id: ${{ needs.android_repack.outputs.build_id || needs.android_build.outputs.build_id }}
-      flow_path: ['.maestro/preview-smoke.yaml']
+      flow_path: [".maestro/preview-smoke.yaml"]
       record_screen: true
   ios_get_build:
     needs: [fingerprint]
@@ -48,6 +52,8 @@ jobs:
     needs: [ios_get_build]
     if: ${{ needs.ios_get_build.outputs.build_id }}
     type: repack
+    env:
+      METRICS_ENV: e2e
     params:
       build_id: ${{ needs.ios_get_build.outputs.build_id }}
 
@@ -55,6 +61,8 @@ jobs:
     needs: [ios_get_build]
     if: ${{ !needs.ios_get_build.outputs.build_id }}
     type: build
+    env:
+      METRICS_ENV: e2e
     params:
       platform: ios
       profile: preview-simulator
@@ -65,5 +73,5 @@ jobs:
     image: latest
     params:
       build_id: ${{ needs.ios_repack.outputs.build_id || needs.ios_build.outputs.build_id }}
-      flow_path: ['.maestro/preview-smoke.yaml']
+      flow_path: [".maestro/preview-smoke.yaml"]
       record_screen: true

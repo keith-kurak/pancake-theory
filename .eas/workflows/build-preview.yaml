@@ -1,9 +1,4 @@
-name: Build Preview on Main on push
-
-on:
-  # Trigger on pushes to main branch
-  push:
-    branches: [main]
+name: Build Preview
 
 jobs:
   build_ios:
