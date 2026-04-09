@@ -37,7 +37,7 @@
       "environment": "production",
       "ios": {
         "env": {
-          "UPDATES_DISABLED": true
+          "UPDATES_DISABLED": "1"
         }
       }
     }
