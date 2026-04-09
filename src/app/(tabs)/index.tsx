@@ -4,9 +4,8 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { BREAKFAST_TYPES } from "@/constants/breakfast-ratios";
 import type { Ratios } from "@/types/breakfast";
-import AppMetrics from "@/utils/expo-app-metrics";
 import { findClosestBreakfast } from "@/utils/ratio-matcher";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Platform, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -17,10 +16,6 @@ export default function ChooserScreen() {
     liquid: 6,
     eggs: 3,
   });
-
-  useEffect(() => {
-    AppMetrics.markInteractive();
-  }, []);
 
   const insets = useSafeAreaInsets();
 
