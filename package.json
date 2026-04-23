@@ -70,5 +70,14 @@
     "jest-expo": "~55.0.13",
     "typescript": "~5.9.2"
   },
-  "private": true
+  "private": true,
+  "expo": {
+    "autolinking": {
+      "ios": {
+        "exclude": [
+          "expo-updates"
+        ]
+      }
+    }
+  }
 }

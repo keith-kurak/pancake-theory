@@ -32,6 +32,8 @@ module.exports = ({ config }) => {
     updates: {
       ...config.updates,
       enabled: process.env.UPDATES_DISABLED !== "1",
+      url:
+        process.env.UPDATES_DISABLED !== "1" ? config.updates.url : undefined,
     },
     plugins,
   };
