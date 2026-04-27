@@ -4,6 +4,7 @@ const noop = () => {};
 
 const noopModule = {
   configure: (options: { environment: string }) => {},
+  dispatchEvents: () => {},
 };
 
 const noopAppMetrics = {
@@ -36,4 +37,3 @@ if (isRunningInExpoGo()) {
 export default ExpoObserve;
 
 export { AppMetrics, AppMetricsRoot };
-
