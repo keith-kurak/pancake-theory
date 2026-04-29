@@ -40,6 +40,17 @@
           "UPDATES_DISABLED": "1"
         }
       }
+    },
+    "production-simulator": {
+      "autoIncrement": true,
+      "channel": "production",
+      "environment": "production",
+      "ios": {
+        "simulator": true,
+        "env": {
+          "UPDATES_DISABLED": "1"
+        }
+      }
     }
   },
   "submit": {
