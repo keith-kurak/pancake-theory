@@ -61,6 +61,9 @@ export default function RootLayout() {
 
   useEffect(() => {
     AppMetrics.markInteractive();
+    setTimeout(() => {
+      ExpoObserve.dispatchEvents();
+    }, 1000);
   }, []);
 
   return (
