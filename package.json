@@ -11,7 +11,8 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "test": "npx bun test",
-    "test-maestro": "maestro test .maestro/preview-smoke.yaml"
+    "test-maestro": "maestro test .maestro/preview-smoke.yaml",
+    "eas-build-pre-install": "node ./scripts/configure-autolinking.js"
   },
   "dependencies": {
     "@expo/ui": "~55.0.9",
@@ -70,14 +71,5 @@
     "jest-expo": "~55.0.13",
     "typescript": "~5.9.2"
   },
-  "private": true,
-  "expo": {
-    "autolinking": {
-      "ios": {
-        "exclude": [
-          "expo-updates"
-        ]
-      }
-    }
-  }
+  "private": true
 }

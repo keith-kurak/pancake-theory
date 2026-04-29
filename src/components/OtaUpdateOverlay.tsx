@@ -1,10 +1,10 @@
 import { useThemeColor } from "@/hooks/use-theme-color";
 import Ionicons from "@expo/vector-icons/build/Ionicons";
 import {
-    checkForUpdateAsync,
-    fetchUpdateAsync,
-    reloadAsync,
-    useUpdates,
+  checkForUpdateAsync,
+  fetchUpdateAsync,
+  reloadAsync,
+  useUpdates,
 } from "expo-updates";
 import { useEffect, useState } from "react";
 import { AppState } from "react-native";
@@ -16,7 +16,7 @@ import { PressableWithOpacity } from "./ui/PressableWithOpacity";
 // const for testing update visuals
 const OVERRIDE_OVERLAY_VISIBLE = false;
 
-export default function ExpoOtaUpdateMonitor() {
+function ExpoOtaUpdateMonitor() {
   const { isUpdateAvailable, isUpdatePending } = useUpdates();
   const { top } = useSafeAreaInsets();
   const [visible, setVisible] = useState(true);
@@ -122,4 +122,12 @@ export default function ExpoOtaUpdateMonitor() {
       </ThemedView>
     );
   }
+}
+
+export default function OtaUpdateOverlayOuter() {
+  if (process.env.UPDATES_DISABLED === "1") {
+    return null;
+  }
+
+  return <ExpoOtaUpdateMonitor />;
 }
