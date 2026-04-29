@@ -1,0 +1,51 @@
+appId: com.keithkurak.pancaketheorypreview
+---
+- launchApp
+
+# Tap the "Make it" button on the home screen
+- assertVisible: '.*Make it.*'
+- tapOn:
+    text: ".*Make it.*"
+
+# Tap the fluffy pancake recipe from the recipe list
+- assertVisible: '.*Fluffy Pancakes.*'
+- tapOn:
+    text: ".*Fluffy Pancakes.*"
+
+# Verify recipe detail screen loaded, then start making it
+- assertVisible: "Make it now?"
+- tapOn: "Make it now?"
+
+# Verify the recipe is now in active mode
+- assertVisible: "Cancel Recipe"
+
+# Check off all 9 ingredients
+- tapOn: ".*All-purpose flour.*"
+- tapOn: ".*sugar.*"
+- tapOn: ".*Baking powder.*"
+- tapOn: ".*Baking soda.*"
+- tapOn: ".*Salt.*"
+- tapOn: ".*Milk.*"
+- tapOn: ".*Butter.*"
+- tapOn: ".*Vanilla extract.*"
+- scrollUntilVisible:
+    element: ".*Egg.*"
+    direction: DOWN
+- tapOn: ".*Egg.*"
+
+# All ingredients checked - tap "I made it!"
+- assertVisible: "I made it!"
+- tapOn: "I made it!"
+
+# Rate the recipe (tap 4th star for "Good")
+- assertVisible: "Tap to rate"
+- tapOn:
+    text: "★"
+    index: 3
+- assertVisible: "Good"
+
+# Submit the feedback
+- tapOn: "Done"
+
+# Verify we landed on the history tab
+- assertVisible: ".*History.*"
