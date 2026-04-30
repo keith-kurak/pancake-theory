@@ -8,7 +8,7 @@ import { Platform } from "react-native";
 export default function TabLayout() {
   return (
     <NativeTabs>
-      <NativeTabs.Trigger name="index">
+      <NativeTabs.Trigger name="(chooser)">
         {Platform.select({
           ios: <NativeTabs.Trigger.Icon sf="slider.horizontal.3" />,
           android: (
@@ -24,7 +24,7 @@ export default function TabLayout() {
         })}
         <NativeTabs.Trigger.Label hidden>Chooser</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="browse" role="search">
+      <NativeTabs.Trigger name="(browse)" role="search">
         {Platform.select({
           ios: <NativeTabs.Trigger.Icon sf="magnifyingglass" />,
           android: (
@@ -40,7 +40,7 @@ export default function TabLayout() {
         })}
         <NativeTabs.Trigger.Label hidden>Browse</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="history">
+      <NativeTabs.Trigger name="(history)">
         {Platform.select({
           ios: <NativeTabs.Trigger.Icon sf="clock.fill" />,
           android: (

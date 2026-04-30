@@ -82,13 +82,13 @@ export default function WebTabLayout() {
         <TabList
           style={isDesktop ? styles.desktopTabList : styles.mobileTabList}
         >
-          <TabTrigger name="index" href="/(tabs)" asChild>
+          <TabTrigger name="(chooser)" href="/" asChild>
             <TabButton icon="tune">Chooser</TabButton>
           </TabTrigger>
-          <TabTrigger name="browse" href="/(tabs)/browse" asChild>
+          <TabTrigger name="(browse)" href="/browse" asChild>
             <TabButton icon="search">Browse</TabButton>
           </TabTrigger>
-          <TabTrigger name="history" href="/(tabs)/history" asChild>
+          <TabTrigger name="(history)" href="/history" asChild>
             <TabButton icon="schedule">History</TabButton>
           </TabTrigger>
         </TabList>
