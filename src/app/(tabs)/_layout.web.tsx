@@ -1,10 +1,10 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import {
+  TabList,
+  TabSlot,
+  TabTrigger,
   TabTriggerSlotProps,
   Tabs,
-  TabList,
-  TabTrigger,
-  TabSlot,
 } from "expo-router/ui";
 import { ComponentProps, Ref } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -38,8 +38,8 @@ export default function WebTabLayout() {
   return (
     <Tabs>
       <TabSlot />
-      <View style={styles.tabBarWrapper}>
-        <TabList style={styles.tabList}>
+      <TabList asChild style={styles.tabList}>
+        <View style={styles.tabBarWrapper}>
           <TabTrigger name="index" href="/(tabs)" asChild>
             <TabButton icon="tune">Chooser</TabButton>
           </TabTrigger>
@@ -49,8 +49,8 @@ export default function WebTabLayout() {
           <TabTrigger name="history" href="/(tabs)/history" asChild>
             <TabButton icon="schedule">History</TabButton>
           </TabTrigger>
-        </TabList>
-      </View>
+        </View>
+      </TabList>
     </Tabs>
   );
 }
@@ -59,8 +59,8 @@ const styles = StyleSheet.create({
   tabBarWrapper: {
     position: "absolute",
     bottom: 24,
-    left: 0,
-    right: 0,
+    left: 12,
+    right: 12,
     alignItems: "center",
     pointerEvents: "box-none",
   },

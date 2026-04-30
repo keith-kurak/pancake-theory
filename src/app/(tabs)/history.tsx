@@ -5,7 +5,7 @@ import { ThemedView } from "@/components/themed-view";
 import { breakfastStore$ } from "@/store/breakfast-store";
 import { observer, useValue } from "@legendapp/state/react";
 import { useMemo, useState } from "react";
-import { FlatList, RefreshControl, StyleSheet } from "react-native";
+import { FlatList, Platform, RefreshControl, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 function HistoryScreen() {
@@ -86,7 +86,9 @@ function HistoryScreen() {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
-        ListFooterComponent={() => <ThemedView style={{ height: 80 }} />}
+        ListFooterComponent={() => (
+          <ThemedView style={{ height: Platform.OS === "web" ? 120 : 80 }} />
+        )}
       />
     </ThemedView>
   );

@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
     //marginTop: 24,
     padding: 16,
     gap: 8,
-    marginBottom: Platform.OS === "android" ? 24 : 16,
+    marginBottom: Platform.select({ android: 24, web: 100, default: 16 }),
   },
   slidersTitle: {
     alignSelf: "center",
