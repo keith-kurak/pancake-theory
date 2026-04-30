@@ -24,9 +24,9 @@ export default function TabLayout() {
         })}
         <NativeTabs.Trigger.Label hidden>Chooser</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="browse">
+      <NativeTabs.Trigger name="browse" role="search">
         {Platform.select({
-          ios: <NativeTabs.Trigger.Icon sf="list.bullet" />,
+          ios: <NativeTabs.Trigger.Icon sf="magnifyingglass" />,
           android: (
             <NativeTabs.Trigger.Icon
               src={
