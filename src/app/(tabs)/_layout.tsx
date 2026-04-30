@@ -7,7 +7,7 @@ import { Platform } from "react-native";
 
 export default function TabLayout() {
   return (
-    <NativeTabs>
+    <NativeTabs minimizeBehavior="onScrollDown">
       <NativeTabs.Trigger name="index">
         {Platform.select({
           ios: <NativeTabs.Trigger.Icon sf="slider.horizontal.3" />,

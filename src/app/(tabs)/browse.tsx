@@ -11,7 +11,7 @@ import { useValue } from "@legendapp/state/react";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { useMemo } from "react";
-import { Pressable, SectionList, StyleSheet } from "react-native";
+import { Pressable, ScrollView, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface RecipeSection {
@@ -98,97 +98,97 @@ export default function BrowseScreen() {
     router.push(`/recipes/detail/${recipe.id}` as any);
   };
 
-  const renderRecipe = ({ item }: { item: Recipe }) => {
-    const timesMade = recipeCounts[item.id] || 0;
-    const wasMade = timesMade > 0;
+  const uniqueTypesMade = Object.values(typeCounts).filter(
+    (count) => count > 0,
+  ).length;
 
-    return (
-      <Pressable
-        onPress={() => handleRecipePress(item)}
-        style={({ pressed }) => [
-          styles.recipeCard,
-          { backgroundColor: cardBackground, borderColor },
-          pressed && styles.pressed,
-        ]}
-      >
-        <ThemedView style={styles.recipeCardHeader}>
-          <ThemedView style={styles.recipeCardText}>
-            <ThemedText style={styles.recipeName}>{item.name}</ThemedText>
-            <ThemedText style={[styles.recipeIngredients, { opacity: 0.6 }]}>
-              {item.ingredients.length} ingredient
-              {item.ingredients.length !== 1 ? "s" : ""}
-            </ThemedText>
-          </ThemedView>
-          {wasMade && (
-            <ThemedView style={styles.recipeStats}>
-              <IconSymbol
-                name="checkmark.circle.fill"
-                size={20}
-                color={tintColor}
-              />
-              {timesMade > 1 && (
-                <ThemedText style={[styles.timesMade, { color: tintColor }]}>
-                  {timesMade}×
-                </ThemedText>
-              )}
-            </ThemedView>
-          )}
-        </ThemedView>
-      </Pressable>
-    );
-  };
-
-  const renderSectionHeader = ({ section }: { section: RecipeSection }) => (
+  return (
     <ThemedView
-      style={[
-        styles.sectionHeader,
-        { backgroundColor, borderBottomColor: borderColor },
-      ]}
+      collapsable={false}
+      style={[styles.container, { paddingTop: insets.top }]}
     >
-      <ThemedView style={styles.sectionHeaderRow}>
-        <ThemedText style={[styles.sectionTitle, { color: tintColor }]}>
-          {section.title}
-        </ThemedText>
-        {section.count > 0 && (
-          <ThemedText style={[styles.sectionCount, { color: tintColor }]}>
-            {section.count} made
-          </ThemedText>
-        )}
-      </ThemedView>
-      <ThemedText style={[styles.sectionDescription, { color: textColor }]}>
-        {BREAKFAST_TYPES[section.type].description}
-      </ThemedText>
-    </ThemedView>
-  );
-
-  const renderHeader = () => {
-    // Count how many different breakfast types have been made
-    const uniqueTypesMade = Object.values(typeCounts).filter(
-      (count) => count > 0,
-    ).length;
-
-    return (
-      <>
+      <ScrollView
+        contentInset={{ bottom: insets.bottom }}
+        contentContainerStyle={styles.listContent}
+      >
         {uniqueTypesMade >= 2 && (
           <BreakfastPieChart typeCounts={typeCounts} totalCount={totalCount} />
         )}
-      </>
-    );
-  };
-
-  return (
-    <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
-      <SectionList
-        contentInset={{ bottom: insets.bottom }}
-        sections={sections}
-        keyExtractor={(item) => item.id}
-        renderItem={renderRecipe}
-        renderSectionHeader={renderSectionHeader}
-        ListHeaderComponent={renderHeader}
-        contentContainerStyle={styles.listContent}
-        stickySectionHeadersEnabled={false}
-        ListFooterComponent={() => <ThemedView style={{ height: 80 }} />}
-      />
+        {sections.map((section) => (
+          <ThemedView key={section.type}>
+            <ThemedView
+              style={[
+                styles.sectionHeader,
+                { backgroundColor, borderBottomColor: borderColor },
+              ]}
+            >
+              <ThemedView style={styles.sectionHeaderRow}>
+                <ThemedText style={[styles.sectionTitle, { color: tintColor }]}>
+                  {section.title}
+                </ThemedText>
+                {section.count > 0 && (
+                  <ThemedText
+                    style={[styles.sectionCount, { color: tintColor }]}
+                  >
+                    {section.count} made
+                  </ThemedText>
+                )}
+              </ThemedView>
+              <ThemedText
+                style={[styles.sectionDescription, { color: textColor }]}
+              >
+                {BREAKFAST_TYPES[section.type].description}
+              </ThemedText>
+            </ThemedView>
+            {section.data.map((recipe) => {
+              const timesMade = recipeCounts[recipe.id] || 0;
+              const wasMade = timesMade > 0;
+              return (
+                <Pressable
+                  key={recipe.id}
+                  onPress={() => handleRecipePress(recipe)}
+                  style={({ pressed }) => [
+                    styles.recipeCard,
+                    { backgroundColor: cardBackground, borderColor },
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <ThemedView style={styles.recipeCardHeader}>
+                    <ThemedView style={styles.recipeCardText}>
+                      <ThemedText style={styles.recipeName}>
+                        {recipe.name}
+                      </ThemedText>
+                      <ThemedText
+                        style={[styles.recipeIngredients, { opacity: 0.6 }]}
+                      >
+                        {recipe.ingredients.length} ingredient
+                        {recipe.ingredients.length !== 1 ? "s" : ""}
+                      </ThemedText>
+                    </ThemedView>
+                    {wasMade && (
+                      <ThemedView style={styles.recipeStats}>
+                        <IconSymbol
+                          name="checkmark.circle.fill"
+                          size={20}
+                          color={tintColor}
+                        />
+                        {timesMade > 1 && (
+                          <ThemedText
+                            style={[styles.timesMade, { color: tintColor }]}
+                          >
+                            {timesMade}×
+                          </ThemedText>
+                        )}
+                      </ThemedView>
+                    )}
+                  </ThemedView>
+                </Pressable>
+              );
+            })}
+          </ThemedView>
+        ))}
+        <ThemedView style={{ height: 80 }} />
+      </ScrollView>
     </ThemedView>
   );
 }
