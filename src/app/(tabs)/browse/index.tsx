@@ -9,10 +9,9 @@ import { breakfastStore$ } from "@/store/breakfast-store";
 import type { BreakfastType, Recipe } from "@/types/breakfast";
 import { useValue } from "@legendapp/state/react";
 import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
-import { useMemo } from "react";
+import { router, Stack } from "expo-router";
+import { useMemo, useState } from "react";
 import { Pressable, SectionList, StyleSheet } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface RecipeSection {
   title: string;
@@ -22,7 +21,7 @@ interface RecipeSection {
 }
 
 export default function BrowseScreen() {
-  const insets = useSafeAreaInsets();
+  const [searchText, setSearchText] = useState("");
   const tintColor = useThemeColor({}, "tint");
   const textColor = useThemeColor({}, "text");
   const backgroundColor = useThemeColor({}, "background");
@@ -62,11 +61,11 @@ export default function BrowseScreen() {
     return { typeCounts, recipeCounts, totalCount };
   }, [history]);
 
-  // Group recipes by type
+  // Group recipes by type, filtered by search text
   const sections = useMemo(() => {
     const grouped: RecipeSection[] = [];
+    const query = searchText.toLowerCase().trim();
 
-    // Iterate through all breakfast types in order
     const types: BreakfastType[] = [
       "pancakes",
       "waffles",
@@ -79,7 +78,12 @@ export default function BrowseScreen() {
     ];
 
     types.forEach((type) => {
-      const recipesOfType = RECIPES.filter((recipe) => recipe.type === type);
+      let recipesOfType = RECIPES.filter((recipe) => recipe.type === type);
+      if (query) {
+        recipesOfType = recipesOfType.filter((recipe) =>
+          recipe.name.toLowerCase().includes(query),
+        );
+      }
       if (recipesOfType.length > 0) {
         grouped.push({
           title: BREAKFAST_TYPES[type].name,
@@ -91,7 +95,7 @@ export default function BrowseScreen() {
     });
 
     return grouped;
-  }, [typeCounts]);
+  }, [typeCounts, searchText]);
 
   const handleRecipePress = (recipe: Recipe) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -162,7 +166,6 @@ export default function BrowseScreen() {
   );
 
   const renderHeader = () => {
-    // Count how many different breakfast types have been made
     const uniqueTypesMade = Object.values(typeCounts).filter(
       (count) => count > 0,
     ).length;
@@ -177,9 +180,16 @@ export default function BrowseScreen() {
   };
 
   return (
-    <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
+    <>
+      <Stack.Screen.Title>Browse</Stack.Screen.Title>
+      <Stack.SearchBar
+        placement="automatic"
+        placeholder="Search recipes"
+        autoFocus
+        onChangeText={(e) => setSearchText(e.nativeEvent.text)}
+      />
       <SectionList
-        contentInset={{ bottom: insets.bottom }}
+        contentInsetAdjustmentBehavior="automatic"
         sections={sections}
         keyExtractor={(item) => item.id}
         renderItem={renderRecipe}
@@ -189,26 +199,11 @@ export default function BrowseScreen() {
         stickySectionHeadersEnabled={false}
         ListFooterComponent={() => <ThemedView style={{ height: 80 }} />}
       />
-    </ThemedView>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    padding: 16,
-    paddingBottom: 8,
-    alignItems: "center",
-  },
-  title: {
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 14,
-    opacity: 0.7,
-  },
   listContent: {
     padding: 16,
     paddingTop: 0,
