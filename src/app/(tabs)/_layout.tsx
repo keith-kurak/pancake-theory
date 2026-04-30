@@ -1,13 +1,17 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { TabBarContext } from "@/contexts/tab-bar-context";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
-import React from "react";
+import React, { useState } from "react";
 import { Platform } from "react-native";
 
 // TODO: fall back to JS tabs because native tabs don't look right on web
 
 export default function TabLayout() {
+  const [isTabBarHidden, setIsTabBarHidden] = useState(false);
+
   return (
-    <NativeTabs>
+    <TabBarContext value={{ setIsTabBarHidden }}>
+    <NativeTabs hidden={isTabBarHidden}>
       <NativeTabs.Trigger name="(chooser)">
         {Platform.select({
           ios: <NativeTabs.Trigger.Icon sf="slider.horizontal.3" />,
@@ -57,6 +61,7 @@ export default function TabLayout() {
         <NativeTabs.Trigger.Label hidden>History</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
     </NativeTabs>
+    </TabBarContext>
   );
 }
 
