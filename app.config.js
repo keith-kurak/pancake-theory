@@ -18,6 +18,8 @@ module.exports = ({ config }) => {
     name = "PK-" + process.env.APP_VARIANT;
   }
 
+  // A small change to the app.config
+
   return {
     ...config,
     name,
