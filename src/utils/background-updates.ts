@@ -1,6 +1,7 @@
 import * as BackgroundTask from "expo-background-task";
 import * as TaskManager from "expo-task-manager";
 import * as Updates from "expo-updates";
+import { Platform } from "react-native";
 
 const BACKGROUND_UPDATE_TASK = "background-update-check";
 
@@ -12,6 +13,9 @@ TaskManager.defineTask(BACKGROUND_UPDATE_TASK, async () => {
 });
 
 export async function registerBackgroundUpdateTask() {
+  if (Platform.OS === "web") {
+    return;
+  }
   await BackgroundTask.registerTaskAsync(BACKGROUND_UPDATE_TASK, {
     minimumInterval: 60 * 60 * 24, // once per day
   });
