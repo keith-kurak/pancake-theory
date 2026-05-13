@@ -1,11 +1,5 @@
 import { useThemeColor } from "@/hooks/use-theme-color";
 import Ionicons from "@expo/vector-icons/build/Ionicons";
-import {
-  checkForUpdateAsync,
-  fetchUpdateAsync,
-  reloadAsync,
-  useUpdates,
-} from "expo-updates";
 import { useEffect, useState } from "react";
 import { AppState } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -16,8 +10,14 @@ import { PressableWithOpacity } from "./ui/PressableWithOpacity";
 // const for testing update visuals
 const OVERRIDE_OVERLAY_VISIBLE = false;
 
+function getUpdates() {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  return require("expo-updates") as typeof import("expo-updates");
+}
+
 function ExpoOtaUpdateMonitor() {
-  const { isUpdateAvailable, isUpdatePending } = useUpdates();
+  const Updates = getUpdates();
+  const { isUpdateAvailable, isUpdatePending } = Updates.useUpdates();
   const { top } = useSafeAreaInsets();
   const [visible, setVisible] = useState(true);
 
@@ -35,7 +35,7 @@ function ExpoOtaUpdateMonitor() {
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextAppState) => {
       if (nextAppState === "active") {
-        checkForUpdateAsync();
+        Updates.checkForUpdateAsync();
       }
     });
 
@@ -48,7 +48,7 @@ function ExpoOtaUpdateMonitor() {
   useEffect(() => {
     (async function doAsync() {
       if (isUpdateAvailable) {
-        await fetchUpdateAsync();
+        await Updates.fetchUpdateAsync();
       }
     })();
   }, [isUpdateAvailable]);
@@ -85,7 +85,7 @@ function ExpoOtaUpdateMonitor() {
               paddingVertical: 16,
             }}
             onPress={async () => {
-              await reloadAsync({
+              await Updates.reloadAsync({
                 reloadScreenOptions: {
                   backgroundColor,
                   spinner: {
@@ -125,7 +125,7 @@ function ExpoOtaUpdateMonitor() {
 }
 
 export default function OtaUpdateOverlayOuter() {
-  if (process.env.UPDATES_DISABLED === "1") {
+  if (process.env.UPDATES_DISABLED == "1") {
     return null;
   }
 
