@@ -37,7 +37,7 @@
       "environment": "production",
       "ios": {
         "env": {
-          "UPDATES_DISABLED": "1"
+          "EXPO_PUBLIC_UPDATES_DISABLED": "1"
         }
       }
     },
@@ -48,7 +48,7 @@
       "ios": {
         "simulator": true,
         "env": {
-          "UPDATES_DISABLED": "1"
+          "EXPO_PUBLIC_UPDATES_DISABLED": "1"
         }
       }
     }

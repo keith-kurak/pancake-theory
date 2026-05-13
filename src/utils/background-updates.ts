@@ -2,7 +2,7 @@ import { Platform } from "react-native";
 
 const BACKGROUND_UPDATE_TASK = "background-update-check";
 
-if (process.env.UPDATES_DISABLED !== "1") {
+if (process.env.EXPO_PUBLIC_UPDATES_DISABLED !== "1") {
   const TaskManager =
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     require("expo-task-manager") as typeof import("expo-task-manager");
@@ -18,7 +18,10 @@ if (process.env.UPDATES_DISABLED !== "1") {
 }
 
 export async function registerBackgroundUpdateTask() {
-  if (Platform.OS === "web" || process.env.UPDATES_DISABLED === "1") {
+  if (
+    Platform.OS === "web" ||
+    process.env.EXPO_PUBLIC_UPDATES_DISABLED === "1"
+  ) {
     return;
   }
   const BackgroundTask =

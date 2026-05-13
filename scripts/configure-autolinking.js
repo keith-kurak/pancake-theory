@@ -5,7 +5,7 @@ const pkgPath = path.join(__dirname, "..", "package.json");
 const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
 
 // Only exclude expo-updates for App Store submission builds
-const excludeUpdates = process.env.UPDATES_DISABLED === "1";
+const excludeUpdates = process.env.EXPO_PUBLIC_UPDATES_DISABLED === "1";
 
 pkg.expo = pkg.expo || {};
 

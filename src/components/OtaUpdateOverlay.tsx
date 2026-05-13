@@ -2,6 +2,7 @@ import { useThemeColor } from "@/hooks/use-theme-color";
 import Ionicons from "@expo/vector-icons/build/Ionicons";
 import { useEffect, useState } from "react";
 import { AppState } from "react-native";
+import NativeLog from "react-native-native-log";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemedText } from "./themed-text";
 import { ThemedView } from "./themed-view";
@@ -125,9 +126,12 @@ function ExpoOtaUpdateMonitor() {
 }
 
 export default function OtaUpdateOverlayOuter() {
-  if (process.env.UPDATES_DISABLED == "1") {
+  if (process.env.EXPO_PUBLIC_UPDATES_DISABLED === "1") {
+    NativeLog.log("Updates are disabled, not rendering OtaUpdateOverlay");
     return null;
   }
+
+  NativeLog.log("Rendering OtaUpdateOverlay");
 
   return <ExpoOtaUpdateMonitor />;
 }
