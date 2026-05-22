@@ -20,6 +20,8 @@ module.exports = ({ config }) => {
     name = "PK-" + process.env.APP_VARIANT;
   }
 
+  //test
+
   return {
     ...config,
     name,
