@@ -4,6 +4,8 @@ module.exports = ({ config }) => {
     bundleIdSuffix += process.env.APP_VARIANT.toLowerCase();
   }
 
+  //test
+
   const plugins = config.plugins || [];
   plugins.push([
     "expo-dev-client",
@@ -17,6 +19,8 @@ module.exports = ({ config }) => {
   if (process.env.APP_VARIANT) {
     name = "PK-" + process.env.APP_VARIANT;
   }
+
+  //test ddd
 
   return {
     ...config,
