@@ -4,14 +4,15 @@ import { useThemeColor } from "@/hooks/use-theme-color";
 import { breakfastActions, breakfastStore$ } from "@/store/breakfast-store";
 import { useValue } from "@legendapp/state/react";
 import * as Haptics from "expo-haptics";
+import { Observe } from "expo-observe";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import {
-    Keyboard,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    TextInput,
+  Keyboard,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -55,12 +56,25 @@ export default function FeedbackScreen() {
       rating,
       note: note.trim() || undefined,
     });
+    Observe.logEvent("recipe.completed", {
+      attributes: {
+        recipeName: pendingRecipe.recipeName,
+        feedbackProvided: true,
+      },
+    });
+
     router.replace("/(tabs)/history");
   };
 
   const handleSkip = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     breakfastActions.completePendingRecipe();
+    Observe.logEvent("recipe.completed", {
+      attributes: {
+        recipeName: pendingRecipe.recipeName,
+        feedbackProvided: false,
+      },
+    });
     router.replace("/(tabs)/history");
   };
 

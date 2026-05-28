@@ -1,9 +1,9 @@
+import { Stack } from "expo-router";
 import {
   DarkTheme,
   DefaultTheme,
   ThemeProvider,
-} from "@react-navigation/native";
-import { Stack } from "expo-router";
+} from "expo-router/react-navigation";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
@@ -50,9 +50,15 @@ SplashScreen.setOptions({
   fade: true,
 });
 
+let observeConfig: any = {
+  integrations: { "expo-router": true },
+};
+
 if (process.env.METRICS_ENV === "e2e") {
-  ExpoObserve.configure({ environment: "e2e" });
+  observeConfig = { ...observeConfig, environment: "e2e" };
 }
+
+ExpoObserve.configure(observeConfig);
 
 registerBackgroundUpdateTask();
 

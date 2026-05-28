@@ -10,6 +10,7 @@ import { breakfastActions, breakfastStore$ } from "@/store/breakfast-store";
 import { showConfirmDialog } from "@/utils/confirm-dialog";
 import { useValue } from "@legendapp/state/react";
 import * as Haptics from "expo-haptics";
+import { Observe } from "expo-observe";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet } from "react-native";
@@ -131,6 +132,12 @@ export default function RecipeDetailScreen() {
       recipe.type,
       scaleFactor,
     );
+
+    Observe.logEvent("recipe.started", {
+      attributes: {
+        recipeName: recipe.name,
+      },
+    });
   };
 
   const handleCancelRecipe = async () => {
@@ -146,6 +153,11 @@ export default function RecipeDetailScreen() {
 
     if (confirmed) {
       breakfastActions.cancelPendingRecipe();
+      Observe.logEvent("recipe.canceled", {
+        attributes: {
+          recipeName: recipe.name,
+        },
+      });
       // something weird and crashy started happening
       setTimeout(() => {
         router.back();
