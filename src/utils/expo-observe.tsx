@@ -2,9 +2,10 @@ import { isRunningInExpoGo } from "expo";
 
 const noop = () => {};
 
-const noopModule = {
+const noopObserve = {
   configure: (options: { environment: string }) => {},
   dispatchEvents: () => {},
+  logEvent: (_name: string, _options?: { attributes?: Record<string, unknown> }) => {},
 };
 
 const noopAppMetrics = {
@@ -12,44 +13,37 @@ const noopAppMetrics = {
   markInteractive: noop,
 };
 
-let ExpoObserve: typeof noopModule;
+let Observe: typeof noopObserve;
 
 let AppMetrics: {
   markInteractive(): void;
 };
 
-let AppMetricsRoot: React.FC<{ children: React.ReactNode }>;
-
-let Observe: React.FC<{ children: React.ReactNode }> & {
-  logEvent: (name: string, options?: { attributes?: Record<string, unknown> }) => void;
-};
+let ObserveRoot: React.FC<{ children: React.ReactNode }>;
 
 let useObserve: () => { markInteractive: () => void };
 
 if (isRunningInExpoGo()) {
-  ExpoObserve = noopModule;
+  Observe = noopObserve;
   AppMetrics = noopAppMetrics;
   // eslint-disable-next-line react/display-name
-  AppMetricsRoot = ({ children }) => <>{children}</>;
-  const ObserveNoop: React.FC<{ children: React.ReactNode }> & {
-    logEvent: (name: string, options?: { attributes?: Record<string, unknown> }) => void;
-  } = ({ children }) => <>{children}</>;
-  ObserveNoop.logEvent = noop;
-  Observe = ObserveNoop as typeof Observe;
+  ObserveRoot = ({ children }) => <>{children}</>;
   useObserve = () => ({ markInteractive: noop });
 } else {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  ExpoObserve = require("expo-observe").default;
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  AppMetrics = require("expo-observe").AppMetrics;
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  AppMetricsRoot = require("expo-observe").ObserveRoot;
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  Observe = require("expo-observe").Observe;
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  useObserve = require("expo-observe").useObserve;
+  const mod = require("expo-observe");
+  AppMetrics = mod.AppMetrics;
+  ObserveRoot = mod.ObserveRoot;
+  useObserve = mod.useObserve;
+
+  // On Android the Observe proxy can resolve as an empty object when the
+  // native module's Proxy wrapper doesn't forward all properties. Guard
+  // against that so callers like Observe.logEvent() don't crash.
+  if (mod.Observe && typeof mod.Observe.logEvent === "function") {
+    Observe = mod.Observe;
+  } else {
+    Observe = noopObserve;
+  }
 }
 
-export default ExpoObserve;
-
-export { AppMetrics, AppMetricsRoot, Observe, useObserve };
+export { AppMetrics, Observe, ObserveRoot, useObserve };

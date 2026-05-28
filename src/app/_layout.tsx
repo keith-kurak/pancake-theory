@@ -12,7 +12,7 @@ import ExpoOtaUpdateMonitor from "@/components/OtaUpdateOverlay";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { registerBackgroundUpdateTask } from "@/utils/background-updates";
 import { setupWidgetObserver } from "@/utils/widget-updates";
-import ExpoObserve, { AppMetrics, AppMetricsRoot } from "@/utils/expo-observe";
+import { Observe, ObserveRoot, useObserve } from "@/utils/expo-observe";
 import Sentry from "@/utils/sentry";
 import { useEffect } from "react";
 import {
@@ -65,7 +65,7 @@ if (process.env.METRICS_ENV === "e2e") {
   };
 }
 
-ExpoObserve.configure(observeConfig);
+Observe.configure(observeConfig);
 
 registerBackgroundUpdateTask();
 setupWidgetObserver();
@@ -73,15 +73,17 @@ setupWidgetObserver();
 export default function RootLayout() {
   const colorScheme = useColorScheme();
 
+  const { markInteractive } = useObserve();
+
   useEffect(() => {
-    AppMetrics.markInteractive();
+    markInteractive();
     setTimeout(() => {
-      ExpoObserve.dispatchEvents();
+      Observe.dispatchEvents();
     }, 1000);
-  }, []);
+  }, [markInteractive]);
 
   return (
-    <AppMetricsRoot>
+    <ObserveRoot>
       <KeyboardProvider>
         <ThemeProvider
           value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
@@ -105,6 +107,6 @@ export default function RootLayout() {
           </KeyboardAvoidingView>
         </ThemeProvider>
       </KeyboardProvider>
-    </AppMetricsRoot>
+    </ObserveRoot>
   );
 }
