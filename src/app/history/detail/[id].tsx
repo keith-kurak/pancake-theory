@@ -2,6 +2,7 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { BREAKFAST_TYPES } from "@/constants/breakfast-ratios";
+import { useMarkRouteInteractive } from "@/hooks/use-mark-route-interactive";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { breakfastStore$ } from "@/store/breakfast-store";
 import type { RecipeNote } from "@/types/breakfast";
@@ -13,6 +14,7 @@ import { Pressable, ScrollView, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function HistoryDetailScreen() {
+  useMarkRouteInteractive();
   const { id } = useLocalSearchParams<{ id: string }>();
   const history = useValue(breakfastStore$.history);
   const userRecipesData = useValue(breakfastStore$.userRecipesData);

@@ -1,5 +1,6 @@
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { useMarkRouteInteractive } from "@/hooks/use-mark-route-interactive";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { breakfastActions, breakfastStore$ } from "@/store/breakfast-store";
 import { useValue } from "@legendapp/state/react";
@@ -17,6 +18,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function FeedbackScreen() {
+  useMarkRouteInteractive();
   const { id } = useLocalSearchParams<{ id: string }>();
   const pendingRecipe = useValue(breakfastStore$.pendingRecipe);
   const [rating, setRating] = useState<number | undefined>(undefined);

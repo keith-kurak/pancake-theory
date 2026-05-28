@@ -5,6 +5,7 @@ import { NotesTab } from "@/components/recipe-tabs/notes-tab";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { getRecipeById } from "@/data/recipes";
+import { useMarkRouteInteractive } from "@/hooks/use-mark-route-interactive";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { breakfastActions, breakfastStore$ } from "@/store/breakfast-store";
 import { showConfirmDialog } from "@/utils/confirm-dialog";
@@ -20,6 +21,7 @@ type TabType = "ingredients" | "directions" | "notes";
 type RecipeMode = "viewing" | "active" | "pending-other";
 
 export default function RecipeDetailScreen() {
+  useMarkRouteInteractive();
   const { id, scale } = useLocalSearchParams<{
     id: string;
     scale?: string;

@@ -5,6 +5,7 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { BREAKFAST_TYPES } from "@/constants/breakfast-ratios";
 import { RECIPES } from "@/data/recipes";
 import { useThemeColor } from "@/hooks/use-theme-color";
+import { useMarkRouteInteractive } from "@/hooks/use-mark-route-interactive";
 import { breakfastStore$ } from "@/store/breakfast-store";
 import type { BreakfastType, Recipe } from "@/types/breakfast";
 import { useValue } from "@legendapp/state/react";
@@ -22,6 +23,7 @@ interface RecipeSection {
 }
 
 export default function BrowseScreen() {
+  useMarkRouteInteractive();
   const insets = useSafeAreaInsets();
   const tintColor = useThemeColor({}, "tint");
   const textColor = useThemeColor({}, "text");

@@ -1,9 +1,11 @@
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { useMarkRouteInteractive } from "@/hooks/use-mark-route-interactive";
 import { Link, Stack } from "expo-router";
 import { Platform, Pressable, ScrollView, StyleSheet } from "react-native";
 
 export default function HomePage() {
+  useMarkRouteInteractive();
   // Redirect to index on native platforms
   if (Platform.OS !== "web") {
     return null;

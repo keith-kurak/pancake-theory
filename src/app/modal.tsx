@@ -3,8 +3,10 @@ import { StyleSheet } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { useMarkRouteInteractive } from "@/hooks/use-mark-route-interactive";
 
 export default function ModalScreen() {
+  useMarkRouteInteractive();
   return (
     <ThemedView style={styles.container}>
       <ThemedText type="title">This is a modal</ThemedText>
