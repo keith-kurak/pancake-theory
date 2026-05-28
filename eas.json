@@ -37,7 +37,18 @@
       "environment": "production",
       "ios": {
         "env": {
-          "UPDATES_DISABLED": "1"
+          "EXPO_PUBLIC_UPDATES_DISABLED": "1"
+        }
+      }
+    },
+    "production-simulator": {
+      "autoIncrement": true,
+      "channel": "production",
+      "environment": "production",
+      "ios": {
+        "simulator": true,
+        "env": {
+          "EXPO_PUBLIC_UPDATES_DISABLED": "1"
         }
       }
     }

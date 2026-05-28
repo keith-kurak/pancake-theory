@@ -1,0 +1,8 @@
+name: Build iOS production app
+
+jobs:
+  build_ios:
+    type: build
+    params:
+      platform: ios
+      profile: production-simulator

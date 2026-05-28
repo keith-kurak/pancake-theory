@@ -31,7 +31,11 @@ module.exports = ({ config }) => {
     },
     updates: {
       ...config.updates,
-      enabled: process.env.UPDATES_DISABLED !== "1",
+      enabled: process.env.EXPO_PUBLIC_UPDATES_DISABLED !== "1",
+      url:
+        process.env.EXPO_PUBLIC_UPDATES_DISABLED !== "1"
+          ? config.updates.url
+          : undefined,
     },
     plugins,
   };
