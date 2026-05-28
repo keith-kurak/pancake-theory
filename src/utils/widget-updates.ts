@@ -1,25 +1,13 @@
+import { breakfastStore$ } from "@/store/breakfast-store";
+import BreakfastWidget from "@/widgets/BreakfastWidget";
+import { observe } from "@legendapp/state";
 import { Platform } from "react-native";
 
-import type { PendingRecipe } from "@/types/breakfast";
-
-let widgetModule: typeof import("@/widgets/BreakfastWidget") | null = null;
-
-async function getWidgetModule() {
-  if (widgetModule) return widgetModule;
-  try {
-    widgetModule = await import("@/widgets/BreakfastWidget");
-    return widgetModule;
-  } catch {
-    return null;
-  }
-}
-
-async function pushSnapshot(pending: PendingRecipe | null) {
-  const mod = await getWidgetModule();
-  if (!mod) return;
+function pushSnapshot() {
+  const pending = breakfastStore$.pendingRecipe.peek();
 
   if (pending) {
-    mod.default.updateSnapshot({
+    BreakfastWidget.updateSnapshot({
       isActive: true,
       recipeId: pending.recipeId,
       recipeName: pending.recipeName,
@@ -27,32 +15,20 @@ async function pushSnapshot(pending: PendingRecipe | null) {
       startTime: pending.startTime,
     });
   } else {
-    mod.default.updateSnapshot({ isActive: false });
+    BreakfastWidget.updateSnapshot({ isActive: false });
   }
 }
 
-export async function updateBreakfastWidget() {
+export function updateBreakfastWidget() {
   if (Platform.OS !== "ios") return;
-
-  try {
-    const { breakfastStore$ } = await import("@/store/breakfast-store");
-    await pushSnapshot(breakfastStore$.pendingRecipe.peek());
-  } catch {
-    // Widget updates are best-effort
-  }
+  pushSnapshot();
 }
 
 export function setupWidgetObserver() {
   if (Platform.OS !== "ios") return;
 
-  import("@legendapp/state").then(({ observe }) => {
-    import("@/store/breakfast-store").then(({ breakfastStore$ }) => {
-      observe(() => {
-        // .get() subscribes to changes; grab the value synchronously
-        const pending = breakfastStore$.pendingRecipe.get();
-        // Fire-and-forget the snapshot push
-        pushSnapshot(pending).catch(() => {});
-      });
-    });
+  observe(() => {
+    breakfastStore$.pendingRecipe.get();
+    pushSnapshot();
   });
 }
