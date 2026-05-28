@@ -51,11 +51,17 @@ SplashScreen.setOptions({
 });
 
 let observeConfig: any = {
-  integrations: { "expo-router": true },
+  integrations: {
+    "expo-router": true,
+    dispatchInDebug: true /* a little loud, but helps us generate more test data */,
+  },
 };
 
 if (process.env.METRICS_ENV === "e2e") {
-  observeConfig = { ...observeConfig, environment: "e2e" };
+  observeConfig = {
+    ...observeConfig,
+    environment: "e2e",
+  };
 }
 
 ExpoObserve.configure(observeConfig);
