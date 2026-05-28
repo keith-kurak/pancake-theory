@@ -43,7 +43,7 @@ if (isRunningInExpoGo()) {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   AppMetrics = require("expo-observe").AppMetrics;
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  AppMetricsRoot = require("expo-observe").AppMetricsRoot;
+  AppMetricsRoot = require("expo-observe").ObserveRoot;
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   Observe = require("expo-observe").Observe;
   // eslint-disable-next-line @typescript-eslint/no-require-imports

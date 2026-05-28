@@ -3,9 +3,9 @@ import { ThemedView } from "@/components/themed-view";
 import { useMarkRouteInteractive } from "@/hooks/use-mark-route-interactive";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { breakfastActions, breakfastStore$ } from "@/store/breakfast-store";
+import { Observe } from "@/utils/expo-observe";
 import { useValue } from "@legendapp/state/react";
 import * as Haptics from "expo-haptics";
-import { Observe } from "@/utils/expo-observe";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import {
@@ -54,15 +54,15 @@ export default function FeedbackScreen() {
   const handleDone = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     Keyboard.dismiss();
-    breakfastActions.completePendingRecipe({
-      rating,
-      note: note.trim() || undefined,
-    });
     Observe.logEvent("recipe.completed", {
       attributes: {
         recipeName: pendingRecipe.recipeName,
         feedbackProvided: true,
       },
+    });
+    breakfastActions.completePendingRecipe({
+      rating,
+      note: note.trim() || undefined,
     });
 
     router.replace("/(tabs)/history");
@@ -70,13 +70,13 @@ export default function FeedbackScreen() {
 
   const handleSkip = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    breakfastActions.completePendingRecipe();
     Observe.logEvent("recipe.completed", {
       attributes: {
         recipeName: pendingRecipe.recipeName,
         feedbackProvided: false,
       },
     });
+    breakfastActions.completePendingRecipe();
     router.replace("/(tabs)/history");
   };
 

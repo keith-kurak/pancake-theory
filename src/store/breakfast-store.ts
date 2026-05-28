@@ -7,6 +7,7 @@ import type {
 import { observable, Observable, syncState, when } from "@legendapp/state";
 import { observablePersistSqlite } from "@legendapp/state/persist-plugins/expo-sqlite";
 import { configureSynced, syncObservable } from "@legendapp/state/sync";
+import { updateBreakfastWidget } from "@/utils/widget-updates";
 import * as Crypto from "expo-crypto";
 import Storage from "expo-sqlite/kv-store";
 
@@ -161,6 +162,7 @@ export const breakfastActions = {
       startTime: Date.now(),
     };
     breakfastStore$.pendingRecipe.set(pendingRecipe);
+    updateBreakfastWidget();
   },
 
   updatePendingRecipeProgress: (checkedIngredients: number[]) => {
@@ -193,6 +195,7 @@ export const breakfastActions = {
 
   cancelPendingRecipe: () => {
     breakfastStore$.pendingRecipe.set(null);
+    updateBreakfastWidget();
   },
 
   completePendingRecipe: (options?: { rating?: number; note?: string }) => {
@@ -246,6 +249,7 @@ export const breakfastActions = {
       }
 
       breakfastStore$.pendingRecipe.set(null);
+      updateBreakfastWidget();
     }
   },
 

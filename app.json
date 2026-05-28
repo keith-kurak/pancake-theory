@@ -56,6 +56,19 @@
           "project": "pancake-theory",
           "organization": "keithexpo"
         }
+      ],
+      [
+        "expo-widgets",
+        {
+          "widgets": [
+            {
+              "name": "BreakfastWidget",
+              "displayName": "Breakfast Status",
+              "description": "See your current recipe or start making breakfast",
+              "supportedFamilies": ["systemSmall", "systemMedium"]
+            }
+          ]
+        }
       ]
     ],
     "experiments": {

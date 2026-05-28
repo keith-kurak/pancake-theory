@@ -11,6 +11,7 @@ import "react-native-reanimated";
 import ExpoOtaUpdateMonitor from "@/components/OtaUpdateOverlay";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { registerBackgroundUpdateTask } from "@/utils/background-updates";
+import { setupWidgetObserver } from "@/utils/widget-updates";
 import ExpoObserve, { AppMetrics, AppMetricsRoot } from "@/utils/expo-observe";
 import Sentry from "@/utils/sentry";
 import { useEffect } from "react";
@@ -67,6 +68,7 @@ if (process.env.METRICS_ENV === "e2e") {
 ExpoObserve.configure(observeConfig);
 
 registerBackgroundUpdateTask();
+setupWidgetObserver();
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
