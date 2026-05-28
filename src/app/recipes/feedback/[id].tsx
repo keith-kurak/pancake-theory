@@ -4,7 +4,7 @@ import { useThemeColor } from "@/hooks/use-theme-color";
 import { breakfastActions, breakfastStore$ } from "@/store/breakfast-store";
 import { useValue } from "@legendapp/state/react";
 import * as Haptics from "expo-haptics";
-import { Observe } from "expo-observe";
+import { Observe } from "@/utils/expo-observe";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import {
