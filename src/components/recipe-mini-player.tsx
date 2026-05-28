@@ -1,5 +1,4 @@
 import { BREAKFAST_TYPES } from "@/constants/breakfast-ratios";
-import { useThemeColor } from "@/hooks/use-theme-color";
 import type { PendingRecipe } from "@/types/breakfast";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
@@ -20,12 +19,9 @@ function formatElapsed(startTime: number, now: number) {
   return `${hours}h ${mins}m`;
 }
 
-export function RecipeMiniPlayeçr({ recipe }: RecipeMiniPlayerProps) {
+export function RecipeMiniPlayer({ recipe }: RecipeMiniPlayerProps) {
   const placement = NativeTabs.BottomAccessory.usePlacement();
   const isInline = placement === "inline";
-
-  const tintColor = useThemeColor({}, "tint");
-  const textColor = useThemeColor({}, "text");
 
   const [now, setNow] = useState(() => Date.now());
 
