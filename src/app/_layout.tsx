@@ -12,7 +12,7 @@ import ExpoOtaUpdateMonitor from "@/components/OtaUpdateOverlay";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { registerBackgroundUpdateTask } from "@/utils/background-updates";
 import { setupWidgetObserver } from "@/utils/widget-updates";
-import { Observe, ObserveRoot, useObserve } from "@/utils/expo-observe";
+import { Observe, ObserveRoot, useObserve } from "expo-observe";
 import Sentry from "@/utils/sentry";
 import { useEffect } from "react";
 import {

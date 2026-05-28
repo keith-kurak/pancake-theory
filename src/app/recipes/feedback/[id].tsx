@@ -3,9 +3,9 @@ import { ThemedView } from "@/components/themed-view";
 import { useMarkRouteInteractive } from "@/hooks/use-mark-route-interactive";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { breakfastActions, breakfastStore$ } from "@/store/breakfast-store";
-import { Observe } from "@/utils/expo-observe";
 import { useValue } from "@legendapp/state/react";
 import * as Haptics from "expo-haptics";
+import { AppMetrics } from "expo-observe";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import {
@@ -54,7 +54,7 @@ export default function FeedbackScreen() {
   const handleDone = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     Keyboard.dismiss();
-    Observe.logEvent("recipe.completed", {
+    AppMetrics.logEvent("recipe.completed", {
       attributes: {
         recipeName: pendingRecipe.recipeName,
         feedbackProvided: true,
@@ -70,7 +70,7 @@ export default function FeedbackScreen() {
 
   const handleSkip = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Observe.logEvent("recipe.completed", {
+    AppMetrics.logEvent("recipe.completed", {
       attributes: {
         recipeName: pendingRecipe.recipeName,
         feedbackProvided: false,

@@ -1,4 +1,4 @@
-import { useObserve } from "@/utils/expo-observe";
+import { useObserve } from "expo-observe";
 import { useEffect } from "react";
 
 export function useMarkRouteInteractive() {
