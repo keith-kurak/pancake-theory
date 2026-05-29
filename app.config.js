@@ -21,8 +21,6 @@ module.exports = ({ config }) => {
     name = "PK-" + process.env.APP_VARIANT;
   }
 
-  //test ddd
-
   return {
     ...config,
     name,
