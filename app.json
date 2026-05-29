@@ -2,7 +2,7 @@
   "expo": {
     "name": "Pancake Theory",
     "slug": "pancake-theory",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/build/ios-light.png",
     "scheme": "pancaketheory",
@@ -55,6 +55,19 @@
           "url": "https://sentry.io/",
           "project": "pancake-theory",
           "organization": "keithexpo"
+        }
+      ],
+      [
+        "expo-widgets",
+        {
+          "widgets": [
+            {
+              "name": "BreakfastWidget",
+              "displayName": "Breakfast Status",
+              "description": "See your current recipe or start making breakfast",
+              "supportedFamilies": ["systemSmall", "systemMedium"]
+            }
+          ]
         }
       ]
     ],

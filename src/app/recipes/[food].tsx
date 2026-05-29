@@ -3,11 +3,13 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { BREAKFAST_TYPES } from "@/constants/breakfast-ratios";
 import { getRecipesByType } from "@/data/recipes";
+import { useMarkRouteInteractive } from "@/hooks/use-mark-route-interactive";
 import type { BreakfastType } from "@/types/breakfast";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { FlatList, StyleSheet } from "react-native";
 
 export default function RecipeListScreen() {
+  useMarkRouteInteractive();
   const { food } = useLocalSearchParams<{ food: BreakfastType }>();
 
   // Get recipes for this breakfast type

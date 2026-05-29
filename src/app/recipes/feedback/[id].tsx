@@ -1,21 +1,24 @@
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { useMarkRouteInteractive } from "@/hooks/use-mark-route-interactive";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { breakfastActions, breakfastStore$ } from "@/store/breakfast-store";
 import { useValue } from "@legendapp/state/react";
 import * as Haptics from "expo-haptics";
+import { AppMetrics } from "expo-observe";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import {
-    Keyboard,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    TextInput,
+  Keyboard,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function FeedbackScreen() {
+  useMarkRouteInteractive();
   const { id } = useLocalSearchParams<{ id: string }>();
   const pendingRecipe = useValue(breakfastStore$.pendingRecipe);
   const [rating, setRating] = useState<number | undefined>(undefined);
@@ -51,15 +54,28 @@ export default function FeedbackScreen() {
   const handleDone = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     Keyboard.dismiss();
+    AppMetrics.logEvent("recipe.completed", {
+      attributes: {
+        recipeName: pendingRecipe.recipeName,
+        feedbackProvided: true,
+      },
+    });
     breakfastActions.completePendingRecipe({
       rating,
       note: note.trim() || undefined,
     });
+
     router.replace("/(tabs)/history");
   };
 
   const handleSkip = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    AppMetrics.logEvent("recipe.completed", {
+      attributes: {
+        recipeName: pendingRecipe.recipeName,
+        feedbackProvided: false,
+      },
+    });
     breakfastActions.completePendingRecipe();
     router.replace("/(tabs)/history");
   };

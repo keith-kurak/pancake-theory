@@ -1,9 +1,9 @@
+import { Stack } from "expo-router";
 import {
   DarkTheme,
   DefaultTheme,
   ThemeProvider,
-} from "@react-navigation/native";
-import { Stack } from "expo-router";
+} from "expo-router/react-navigation";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
@@ -11,8 +11,9 @@ import "react-native-reanimated";
 import ExpoOtaUpdateMonitor from "@/components/OtaUpdateOverlay";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { registerBackgroundUpdateTask } from "@/utils/background-updates";
-import ExpoObserve, { AppMetrics, AppMetricsRoot } from "@/utils/expo-observe";
 import Sentry from "@/utils/sentry";
+import { setupWidgetObserver } from "@/utils/widget-updates";
+import { Observe, ObserveRoot, useObserve } from "expo-observe";
 import { useEffect } from "react";
 import {
   KeyboardAvoidingView,
@@ -50,24 +51,39 @@ SplashScreen.setOptions({
   fade: true,
 });
 
+let observeConfig: any = {
+  integrations: {
+    "expo-router": true,
+  },
+  dispatchInDebug: true /* a little loud, but helps us generate more test data */,
+};
+
 if (process.env.METRICS_ENV === "e2e") {
-  ExpoObserve.configure({ environment: "e2e" });
+  observeConfig = {
+    ...observeConfig,
+    environment: "e2e",
+  };
 }
 
+Observe.configure(observeConfig);
+
 registerBackgroundUpdateTask();
+setupWidgetObserver();
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
 
+  const { markInteractive } = useObserve();
+
   useEffect(() => {
-    AppMetrics.markInteractive();
+    markInteractive();
     setTimeout(() => {
-      ExpoObserve.dispatchEvents();
+      Observe.dispatchEvents();
     }, 1000);
-  }, []);
+  }, [markInteractive]);
 
   return (
-    <AppMetricsRoot>
+    <ObserveRoot>
       <KeyboardProvider>
         <ThemeProvider
           value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
@@ -91,6 +107,6 @@ export default function RootLayout() {
           </KeyboardAvoidingView>
         </ThemeProvider>
       </KeyboardProvider>
-    </AppMetricsRoot>
+    </ObserveRoot>
   );
 }

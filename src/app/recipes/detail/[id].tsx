@@ -5,9 +5,11 @@ import { NotesTab } from "@/components/recipe-tabs/notes-tab";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { getRecipeById } from "@/data/recipes";
+import { useMarkRouteInteractive } from "@/hooks/use-mark-route-interactive";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { breakfastActions, breakfastStore$ } from "@/store/breakfast-store";
 import { showConfirmDialog } from "@/utils/confirm-dialog";
+import { Observe } from "expo-observe";
 import { useValue } from "@legendapp/state/react";
 import * as Haptics from "expo-haptics";
 import { router, Stack, useLocalSearchParams } from "expo-router";
@@ -19,6 +21,7 @@ type TabType = "ingredients" | "directions" | "notes";
 type RecipeMode = "viewing" | "active" | "pending-other";
 
 export default function RecipeDetailScreen() {
+  useMarkRouteInteractive();
   const { id, scale } = useLocalSearchParams<{
     id: string;
     scale?: string;
@@ -131,6 +134,12 @@ export default function RecipeDetailScreen() {
       recipe.type,
       scaleFactor,
     );
+
+    Observe.logEvent("recipe.started", {
+      attributes: {
+        recipeName: recipe.name,
+      },
+    });
   };
 
   const handleCancelRecipe = async () => {
@@ -146,6 +155,11 @@ export default function RecipeDetailScreen() {
 
     if (confirmed) {
       breakfastActions.cancelPendingRecipe();
+      Observe.logEvent("recipe.canceled", {
+        attributes: {
+          recipeName: recipe.name,
+        },
+      });
       // something weird and crashy started happening
       setTimeout(() => {
         router.back();

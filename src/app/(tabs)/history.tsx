@@ -2,6 +2,7 @@ import { HistoryEntry } from "@/components/history-entry";
 import { PendingRecipeCard } from "@/components/pending-recipe-card";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { useMarkRouteInteractive } from "@/hooks/use-mark-route-interactive";
 import { breakfastStore$ } from "@/store/breakfast-store";
 import { observer, useValue } from "@legendapp/state/react";
 import { useMemo, useState } from "react";
@@ -9,6 +10,7 @@ import { FlatList, RefreshControl, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 function HistoryScreen() {
+  useMarkRouteInteractive();
   const insets = useSafeAreaInsets();
   const [refreshing, setRefreshing] = useState(false);
 

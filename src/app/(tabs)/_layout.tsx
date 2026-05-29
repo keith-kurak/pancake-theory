@@ -1,13 +1,24 @@
+import { RecipeMiniPlayer } from "@/components/recipe-mini-player";
+import { breakfastStore$ } from "@/store/breakfast-store";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { useValue } from "@legendapp/state/react";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
-import React from "react";
 import { Platform } from "react-native";
 
-// TODO: fall back to JS tabs because native tabs don't look right on web
+const miniPlayerEnabled = false;
 
 export default function TabLayout() {
+  const pendingRecipe = useValue(breakfastStore$.pendingRecipe);
+
+  const showMiniPlayer = pendingRecipe && miniPlayerEnabled;
+
   return (
     <NativeTabs>
+      {showMiniPlayer && (
+        <NativeTabs.BottomAccessory key={pendingRecipe.recipeId}>
+          <RecipeMiniPlayer recipe={pendingRecipe} />
+        </NativeTabs.BottomAccessory>
+      )}
       <NativeTabs.Trigger name="index">
         {Platform.select({
           ios: <NativeTabs.Trigger.Icon sf="slider.horizontal.3" />,
@@ -59,5 +70,3 @@ export default function TabLayout() {
     </NativeTabs>
   );
 }
-
-// comment

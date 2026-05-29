@@ -4,12 +4,14 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { BREAKFAST_TYPES } from "@/constants/breakfast-ratios";
 import type { Ratios } from "@/types/breakfast";
+import { useMarkRouteInteractive } from "@/hooks/use-mark-route-interactive";
 import { findClosestBreakfast } from "@/utils/ratio-matcher";
 import { useMemo, useState } from "react";
 import { Platform, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function ChooserScreen() {
+  useMarkRouteInteractive();
   const [ratios, setRatios] = useState<Ratios>({
     // default to pancake ratios
     flour: 6,

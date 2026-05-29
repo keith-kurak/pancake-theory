@@ -1,6 +1,7 @@
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { useMarkRouteInteractive } from "@/hooks/use-mark-route-interactive";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { breakfastActions, breakfastStore$ } from "@/store/breakfast-store";
 import { showConfirmDialog } from "@/utils/confirm-dialog";
@@ -30,6 +31,7 @@ function hmsToMs(hours: number, minutes: number, seconds: number) {
 }
 
 export default function EditHistoryEntryScreen() {
+  useMarkRouteInteractive();
   const { id } = useLocalSearchParams<{ id: string }>();
   const history = useValue(breakfastStore$.history);
   const entry = useMemo(() => history.find((e) => e.id === id), [history, id]);

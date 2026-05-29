@@ -14,13 +14,12 @@ module.exports = ({ config }) => {
     },
   ]);
   plugins.push("expo-background-task");
+  plugins.push("expo-status-bar");
 
   let name = config.name;
   if (process.env.APP_VARIANT) {
     name = "PK-" + process.env.APP_VARIANT;
   }
-
-  //test ddd
 
   return {
     ...config,

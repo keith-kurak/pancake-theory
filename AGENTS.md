@@ -68,6 +68,23 @@ npx expo export -p web && npx eas-cli@latest deploy   # Deploy web to EAS Hostin
 - **Performance Profiler**: Identify performance bottlenecks
 - **Logging**: Use `console.log` for debugging (remove before production), `console.warn` for deprecation notices, `console.error` for actual errors, and implement error boundaries for production error handling
 
+### Shims for Expo Go Compatibility
+
+Some libraries don't work in Expo Go (the development client). We use shim modules in `src/utils/` that provide noop fallbacks when running in Expo Go and `require()` the real module otherwise.
+
+#### `src/utils/expo-observe.tsx`
+
+All app code must import from `@/utils/expo-observe` instead of `expo-observe` directly. The shim re-exports everything the app uses (`Observe`, `AppMetrics`, `AppMetricsRoot`, `useObserve`) with Expo Go-safe noop fallbacks.
+
+When upgrading `expo-observe`:
+- Check that the names used in `require("expo-observe").<name>` still match the package's actual exports. Renamed exports (e.g., `AppMetricsRoot` → `ObserveRoot`) will silently return `undefined` and cause runtime crashes.
+- Review the package's `index.d.ts` or changelog for renamed/removed exports.
+- If new exports are needed by app code, add them to the shim with a noop fallback in the Expo Go branch.
+
+#### `useMarkRouteInteractive` hook
+
+`src/hooks/use-mark-route-interactive.ts` wraps `useObserve().markInteractive()` in a `useEffect` for screens where time-to-interactive is immediate (no async data loading). It is called in every screen component.
+
 ### Testing & Quality Assurance
 
 #### Automated Testing with MCP Tools
