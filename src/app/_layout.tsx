@@ -11,9 +11,9 @@ import "react-native-reanimated";
 import ExpoOtaUpdateMonitor from "@/components/OtaUpdateOverlay";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { registerBackgroundUpdateTask } from "@/utils/background-updates";
+import Sentry from "@/utils/sentry";
 import { setupWidgetObserver } from "@/utils/widget-updates";
 import { Observe, ObserveRoot, useObserve } from "expo-observe";
-import Sentry from "@/utils/sentry";
 import { useEffect } from "react";
 import {
   KeyboardAvoidingView,
@@ -54,8 +54,8 @@ SplashScreen.setOptions({
 let observeConfig: any = {
   integrations: {
     "expo-router": true,
-    dispatchInDebug: true /* a little loud, but helps us generate more test data */,
   },
+  dispatchInDebug: true /* a little loud, but helps us generate more test data */,
 };
 
 if (process.env.METRICS_ENV === "e2e") {
