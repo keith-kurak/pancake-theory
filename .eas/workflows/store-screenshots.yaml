@@ -1,0 +1,83 @@
+name: Store Screenshots
+
+jobs:
+  fingerprint:
+    environment: preview
+    type: fingerprint
+
+  ios_get_build:
+    needs: [fingerprint]
+    type: get-build
+    params:
+      fingerprint_hash: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
+      platform: ios
+      profile: preview-simulator
+
+  ios_repack:
+    needs: [ios_get_build]
+    if: ${{ needs.ios_get_build.outputs.build_id }}
+    type: repack
+    params:
+      build_id: ${{ needs.ios_get_build.outputs.build_id }}
+
+  ios_build:
+    needs: [ios_get_build]
+    if: ${{ !needs.ios_get_build.outputs.build_id }}
+    type: build
+    params:
+      platform: ios
+      profile: preview-simulator
+
+  ios_screenshots:
+    after: [ios_repack, ios_build]
+    type: maestro
+    params:
+      build_id: ${{ needs.ios_repack.outputs.build_id || needs.ios_build.outputs.build_id }}
+      flow_path: .maestro/store-screenshots.yaml
+      device_identifier: iPhone 16 Pro Max
+    hooks:
+      before_maestro_tests:
+        - name: Set dark mode
+          run: xcrun simctl ui booted appearance dark
+
+  android_get_build:
+    needs: [fingerprint]
+    type: get-build
+    params:
+      fingerprint_hash: ${{ needs.fingerprint.outputs.android_fingerprint_hash }}
+      platform: android
+      profile: preview
+
+  android_repack:
+    needs: [android_get_build]
+    if: ${{ needs.android_get_build.outputs.build_id }}
+    type: repack
+    params:
+      build_id: ${{ needs.android_get_build.outputs.build_id }}
+
+  android_build:
+    needs: [android_get_build]
+    if: ${{ !needs.android_get_build.outputs.build_id }}
+    type: build
+    params:
+      platform: android
+      profile: preview
+
+  android_screenshots:
+    after: [android_repack, android_build]
+    type: maestro
+    params:
+      build_id: ${{ needs.android_repack.outputs.build_id || needs.android_build.outputs.build_id }}
+      flow_path: .maestro/store-screenshots.yaml
+      device_identifier: pixel_8_pro
+    hooks:
+      before_maestro_tests:
+        - name: Set dark mode and gesture navigation
+          run: |
+            adb shell cmd uimode night yes
+            adb shell cmd overlay enable com.android.internal.systemui.navbar.gestural
+            adb shell settings put global sysui_demo_allowed 1
+            adb shell am broadcast -a com.android.systemui.demo -e command enter
+            adb shell am broadcast -a com.android.systemui.demo -e command notifications -e visible false
+            adb shell am broadcast -a com.android.systemui.demo -e command clock -e hhmm 0900
+            adb shell am broadcast -a com.android.systemui.demo -e command battery -e level 100 -e plugged false

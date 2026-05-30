@@ -1,0 +1,15 @@
+appId: com.keithkurak.pancaketheorypreview
+---
+- launchApp
+- assertVisible: ".*Make it.*"
+- takeScreenshot: ${MAESTRO_TESTS_DIR}/store-screenshot-1-chooser
+
+- tapOn:
+    text: ".*Make it.*"
+- assertVisible: ".*Fluffy Pancakes.*"
+- takeScreenshot: ${MAESTRO_TESTS_DIR}/store-screenshot-2-recipes
+
+- tapOn:
+    text: ".*Fluffy Pancakes.*"
+- assertVisible: "Make it now?"
+- takeScreenshot: ${MAESTRO_TESTS_DIR}/store-screenshot-3-detail
