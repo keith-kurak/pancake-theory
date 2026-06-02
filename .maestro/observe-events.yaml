@@ -1,0 +1,43 @@
+appId: com.keithkurak.pancaketheorypreview
+---
+# Generate Expo Observe events by navigating through screens.
+# The expo-router integration logs route changes automatically,
+# and starting a recipe fires a custom recipe.started event.
+
+- launchApp
+
+# 1. Chooser tab (home) — loaded on launch
+- assertVisible: '.*Make it.*'
+
+# 2. Browse tab
+- tapOn: "Browse"
+- assertVisible: '.*Pancakes.*'
+
+# 3. Tap into a recipe detail screen
+- tapOn: '.*Fluffy Pancakes.*'
+- assertVisible: "Make it now?"
+
+# 4. Start the recipe (fires recipe.started event)
+- tapOn: "Make it now?"
+- assertVisible: "Cancel Recipe"
+
+# 5. Go back to browse
+- back
+- assertVisible: '.*Pancakes.*'
+
+# 6. History tab
+- tapOn: "History"
+
+# 7. Back to Chooser tab
+- tapOn: "Chooser"
+- assertVisible: '.*Make it.*'
+
+# Flush Observe events: backgrounding the app triggers auto-dispatch
+- pressKey: Home
+- extendedWaitUntil:
+    visible: ".*"
+    timeout: 5000
+- launchApp
+- extendedWaitUntil:
+    visible: '.*Make it.*'
+    timeout: 5000
