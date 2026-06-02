@@ -42,3 +42,13 @@ appId: com.keithkurak.pancaketheorypreview
 - extendedWaitUntil:
     visible: '.*Make it.*'
     timeout: 5000
+
+# Second flush to pick up any events generated after relaunch
+- pressKey: Home
+- extendedWaitUntil:
+    visible: ".*"
+    timeout: 5000
+- launchApp
+- extendedWaitUntil:
+    visible: '.*Make it.*'
+    timeout: 5000
