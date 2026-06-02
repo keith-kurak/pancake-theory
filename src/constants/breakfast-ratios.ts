@@ -2,7 +2,7 @@ import type { BreakfastType, BreakfastTypeDefinition } from "@/types/breakfast";
 
 export const BREAKFAST_TYPES: Record<BreakfastType, BreakfastTypeDefinition> = {
   pancakes: {
-    name: "Pancakes",
+    name: "パンケーキ",
     ratios: { flour: 2, liquid: 2, eggs: 1 },
     description: "Fluffy and thick",
     serveWith: "Serve with butter and maple syrup",
