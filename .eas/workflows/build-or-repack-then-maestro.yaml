@@ -38,6 +38,7 @@ jobs:
     image: latest
     params:
       build_id: ${{ needs.android_repack.outputs.build_id || needs.android_build.outputs.build_id }}
+      device_identifier: pixel_8_pro
       flow_path:
         [".maestro/preview-smoke.yaml", ".maestro/make-fluffy-pancakes.yaml"]
       record_screen: true
@@ -74,6 +75,7 @@ jobs:
     image: latest
     params:
       build_id: ${{ needs.ios_repack.outputs.build_id || needs.ios_build.outputs.build_id }}
+      device_identifier: iPhone 16 Pro Max
       flow_path:
         [".maestro/preview-smoke.yaml", ".maestro/make-fluffy-pancakes.yaml"]
       record_screen: true
