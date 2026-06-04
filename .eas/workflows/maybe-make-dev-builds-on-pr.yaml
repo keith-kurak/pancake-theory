@@ -51,3 +51,12 @@ jobs:
     params:
       platform: ios
       profile: development
+  comment_on_pr:
+    name: Post Results to PR
+    after:
+      [
+        android_development_build,
+        ios_simulator_development_build,
+        ios_device_development_build,
+      ]
+    type: github-comment
