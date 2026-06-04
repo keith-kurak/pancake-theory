@@ -19,14 +19,38 @@ appId: com.keithkurak.pancaketheorypreview
 # Verify the recipe is now in active mode
 - assertVisible: "Cancel Recipe"
 
-# Check off all 9 ingredients
+# Check off all 9 ingredients (scroll each into view for smaller screens)
+- scrollUntilVisible:
+    element: ".*All-purpose flour.*"
+    direction: DOWN
 - tapOn: ".*All-purpose flour.*"
+- scrollUntilVisible:
+    element: ".*sugar.*"
+    direction: DOWN
 - tapOn: ".*sugar.*"
+- scrollUntilVisible:
+    element: ".*Baking powder.*"
+    direction: DOWN
 - tapOn: ".*Baking powder.*"
+- scrollUntilVisible:
+    element: ".*Baking soda.*"
+    direction: DOWN
 - tapOn: ".*Baking soda.*"
+- scrollUntilVisible:
+    element: ".*Salt.*"
+    direction: DOWN
 - tapOn: ".*Salt.*"
+- scrollUntilVisible:
+    element: ".*Milk.*"
+    direction: DOWN
 - tapOn: ".*Milk.*"
+- scrollUntilVisible:
+    element: ".*Butter.*"
+    direction: DOWN
 - tapOn: ".*Butter.*"
+- scrollUntilVisible:
+    element: ".*Vanilla extract.*"
+    direction: DOWN
 - tapOn: ".*Vanilla extract.*"
 - scrollUntilVisible:
     element: ".*Egg.*"

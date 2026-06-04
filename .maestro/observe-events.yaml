@@ -15,6 +15,9 @@ appId: com.keithkurak.pancaketheorypreview
 - assertVisible: '.*Pancakes.*'
 
 # 3. Tap into a recipe detail screen
+- scrollUntilVisible:
+    element: '.*Fluffy Pancakes.*'
+    direction: DOWN
 - tapOn: '.*Fluffy Pancakes.*'
 - assertVisible: "Make it now?"
 
