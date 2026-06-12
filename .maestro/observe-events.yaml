@@ -3,15 +3,16 @@ appId: com.keithkurak.pancaketheorypreview
 # Generate Expo Observe events by navigating through screens.
 # The expo-router integration logs route changes automatically,
 # and starting a recipe fires a custom recipe.started event.
-# Tab labels are hidden, so we use deep links to switch tabs.
+# Tab labels are hidden, so we use accessibility IDs to switch tabs.
 
 - launchApp
 
 # 1. Chooser tab (home) — loaded on launch
 - assertVisible: '.*Make it.*'
 
-# 2. Browse tab (via deep link — tab labels are hidden)
-- openLink: pancaketheory:///browse
+# 2. Browse tab
+- tapOn:
+    label: "Browse"
 - assertVisible: '.*Pancakes.*'
 
 # 3. Tap into a recipe detail screen
@@ -29,11 +30,13 @@ appId: com.keithkurak.pancaketheorypreview
 - back
 - assertVisible: '.*Pancakes.*'
 
-# 6. History tab (via deep link)
-- openLink: pancaketheory:///history
+# 6. History tab
+- tapOn:
+    label: "History"
 
-# 7. Back to Chooser tab (via deep link)
-- openLink: pancaketheory:///
+# 7. Back to Chooser tab
+- tapOn:
+    label: "Chooser"
 - assertVisible: '.*Make it.*'
 
 # Flush Observe events: backgrounding the app triggers auto-dispatch

@@ -19,7 +19,7 @@ export default function TabLayout() {
           <RecipeMiniPlayer recipe={pendingRecipe} />
         </NativeTabs.BottomAccessory>
       )}
-      <NativeTabs.Trigger name="index">
+      <NativeTabs.Trigger name="index" unstable_nativeProps={{ tabBarItemAccessibilityLabel: "Chooser" }}>
         {Platform.select({
           ios: <NativeTabs.Trigger.Icon sf="slider.horizontal.3" />,
           android: (
@@ -35,7 +35,7 @@ export default function TabLayout() {
         })}
         <NativeTabs.Trigger.Label hidden>Chooser</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="browse">
+      <NativeTabs.Trigger name="browse" unstable_nativeProps={{ tabBarItemAccessibilityLabel: "Browse" }}>
         {Platform.select({
           ios: <NativeTabs.Trigger.Icon sf="list.bullet" />,
           android: (
@@ -51,7 +51,7 @@ export default function TabLayout() {
         })}
         <NativeTabs.Trigger.Label hidden>Browse</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="history">
+      <NativeTabs.Trigger name="history" unstable_nativeProps={{ tabBarItemAccessibilityLabel: "History" }}>
         {Platform.select({
           ios: <NativeTabs.Trigger.Icon sf="clock.fill" />,
           android: (
