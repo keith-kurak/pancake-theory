@@ -57,7 +57,7 @@ export interface HistoryEntry {
   recipeId: string;
   recipeName: string;
   recipeType: BreakfastType;
-  timestamp: number;
+  timestamp: number; // Start time of the cooking session; end time is timestamp + total duration
   scaleFactor: number;
   cookingDuration?: number; // Total duration (for backwards compat)
   prepDuration?: number; // Time spent in prep phase
