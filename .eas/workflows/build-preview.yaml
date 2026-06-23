@@ -81,7 +81,3 @@ jobs:
     params:
       platform: android
       profile: preview
-
-  deploy_web:
-    after: [ios_repack, ios_build, android_repack, android_build]
-    type: deploy
