@@ -1,5 +1,10 @@
 name: Build or Repack, then Maestro
 
+on:
+  push:
+    branches:
+      - main
+
 jobs:
   fingerprint:
     environment: preview
