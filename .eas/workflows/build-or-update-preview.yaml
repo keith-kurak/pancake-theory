@@ -1,16 +1,43 @@
-name: Build Preview
+name: Build or update preview on main push
 
 on:
+  # Trigger on pushes to main branch
   push:
-    branches:
-      - main
+    branches: [main]
+
+concurrency:
+  cancel_in_progress: true
+  group: ${{ workflow.filename }}-${{ github.ref }}
 
 jobs:
   fingerprint:
     environment: preview
     type: fingerprint
 
-  # iOS device build
+  android_get_build:
+    needs: [fingerprint]
+    type: get-build
+    params:
+      fingerprint_hash: ${{ needs.fingerprint.outputs.android_fingerprint_hash }}
+      platform: android
+      profile: preview
+
+  android_update:
+    needs: [android_get_build]
+    if: ${{ needs.android_get_build.outputs.build_id }}
+    type: update
+    params:
+      channel: preview
+      platform: android
+
+  android_build:
+    needs: [android_get_build]
+    if: ${{ !needs.android_get_build.outputs.build_id }}
+    type: build
+    params:
+      platform: android
+      profile: preview
+
   ios_get_build:
     needs: [fingerprint]
     type: get-build
@@ -19,12 +46,13 @@ jobs:
       platform: ios
       profile: preview
 
-  ios_repack:
+  ios_update:
     needs: [ios_get_build]
     if: ${{ needs.ios_get_build.outputs.build_id }}
-    type: repack
+    type: update
     params:
-      build_id: ${{ needs.ios_get_build.outputs.build_id }}
+      channel: preview
+      platform: ios
 
   ios_build:
     needs: [ios_get_build]
@@ -34,7 +62,6 @@ jobs:
       platform: ios
       profile: preview
 
-  # iOS simulator build
   ios_simulator_get_build:
     needs: [fingerprint]
     type: get-build
@@ -43,12 +70,13 @@ jobs:
       platform: ios
       profile: preview-simulator
 
-  ios_simulator_repack:
+  ios_simulator_update:
     needs: [ios_simulator_get_build]
     if: ${{ needs.ios_simulator_get_build.outputs.build_id }}
-    type: repack
+    type: update
     params:
-      build_id: ${{ needs.ios_simulator_get_build.outputs.build_id }}
+      channel: preview
+      platform: ios
 
   ios_simulator_build:
     needs: [ios_simulator_get_build]
@@ -57,27 +85,3 @@ jobs:
     params:
       platform: ios
       profile: preview-simulator
-
-  # Android build
-  android_get_build:
-    needs: [fingerprint]
-    type: get-build
-    params:
-      fingerprint_hash: ${{ needs.fingerprint.outputs.android_fingerprint_hash }}
-      platform: android
-      profile: preview
-
-  android_repack:
-    needs: [android_get_build]
-    if: ${{ needs.android_get_build.outputs.build_id }}
-    type: repack
-    params:
-      build_id: ${{ needs.android_get_build.outputs.build_id }}
-
-  android_build:
-    needs: [android_get_build]
-    if: ${{ !needs.android_get_build.outputs.build_id }}
-    type: build
-    params:
-      platform: android
-      profile: preview

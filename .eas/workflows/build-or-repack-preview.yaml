@@ -1,33 +1,16 @@
-name: Build or repack preview
+name: Build Preview
+
+on:
+  push:
+    branches:
+      - main
 
 jobs:
   fingerprint:
     environment: preview
     type: fingerprint
 
-  android_get_build:
-    needs: [fingerprint]
-    type: get-build
-    params:
-      fingerprint_hash: ${{ needs.fingerprint.outputs.android_fingerprint_hash }}
-      platform: android
-      profile: preview
-
-  android_repack:
-    needs: [android_get_build]
-    if: ${{ needs.android_get_build.outputs.build_id }}
-    type: repack
-    params:
-      build_id: ${{ needs.android_get_build.outputs.build_id }}
-
-  android_build:
-    needs: [android_get_build]
-    if: ${{ !needs.android_get_build.outputs.build_id }}
-    type: build
-    params:
-      platform: android
-      profile: preview
-  
+  # iOS device build
   ios_get_build:
     needs: [fingerprint]
     type: get-build
@@ -49,4 +32,52 @@ jobs:
     type: build
     params:
       platform: ios
+      profile: preview
+
+  # iOS simulator build
+  ios_simulator_get_build:
+    needs: [fingerprint]
+    type: get-build
+    params:
+      fingerprint_hash: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
+      platform: ios
+      profile: preview-simulator
+
+  ios_simulator_repack:
+    needs: [ios_simulator_get_build]
+    if: ${{ needs.ios_simulator_get_build.outputs.build_id }}
+    type: repack
+    params:
+      build_id: ${{ needs.ios_simulator_get_build.outputs.build_id }}
+
+  ios_simulator_build:
+    needs: [ios_simulator_get_build]
+    if: ${{ !needs.ios_simulator_get_build.outputs.build_id }}
+    type: build
+    params:
+      platform: ios
+      profile: preview-simulator
+
+  # Android build
+  android_get_build:
+    needs: [fingerprint]
+    type: get-build
+    params:
+      fingerprint_hash: ${{ needs.fingerprint.outputs.android_fingerprint_hash }}
+      platform: android
+      profile: preview
+
+  android_repack:
+    needs: [android_get_build]
+    if: ${{ needs.android_get_build.outputs.build_id }}
+    type: repack
+    params:
+      build_id: ${{ needs.android_get_build.outputs.build_id }}
+
+  android_build:
+    needs: [android_get_build]
+    if: ${{ !needs.android_get_build.outputs.build_id }}
+    type: build
+    params:
+      platform: android
       profile: preview

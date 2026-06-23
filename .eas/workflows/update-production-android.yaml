@@ -1,9 +1,0 @@
-name: Update Production - Android
-
-jobs:
-  update_production:
-    name: Update Production Channel - Android
-    type: update
-    params:
-      channel: production
-      platform: android
