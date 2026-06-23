@@ -101,6 +101,10 @@ export default function RootLayout() {
                 name="modal"
                 options={{ presentation: "modal", title: "Modal" }}
               />
+              <Stack.Screen
+                name="info"
+                options={{ title: "Info" }}
+              />
             </Stack>
             <StatusBar style="auto" />
             <ExpoOtaUpdateMonitor />

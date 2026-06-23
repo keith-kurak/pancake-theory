@@ -1,24 +1,22 @@
 import { useThemeColor } from "@/hooks/use-theme-color";
+import { useUpdateMonitor } from "@/hooks/use-update-monitor";
 import Ionicons from "@expo/vector-icons/build/Ionicons";
-import { useEffect, useState } from "react";
-import { AppState } from "react-native";
+import { useState } from "react";
 
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemedText } from "./themed-text";
 import { ThemedView } from "./themed-view";
+import { CriticalUpdateOverlay } from "./critical-update-overlay";
 import { PressableWithOpacity } from "./ui/PressableWithOpacity";
-
-// const for testing update visuals
-const OVERRIDE_OVERLAY_VISIBLE = false;
-
-function getUpdates() {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  return require("expo-updates") as typeof import("expo-updates");
-}
+import { reloadAsync } from "expo-updates";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 function ExpoOtaUpdateMonitor() {
-  const Updates = getUpdates();
-  const { isUpdateAvailable, isUpdatePending } = Updates.useUpdates();
+  const {
+    pendingNonCritical,
+    downloadingCritical,
+    criticalReloadPending,
+    dismissUpdate,
+  } = useUpdateMonitor();
   const { top } = useSafeAreaInsets();
   const [visible, setVisible] = useState(true);
 
@@ -32,97 +30,82 @@ function ExpoOtaUpdateMonitor() {
     "background",
   );
 
-  // check for update when app is brought back to foreground
-  useEffect(() => {
-    const subscription = AppState.addEventListener("change", (nextAppState) => {
-      if (nextAppState === "active") {
-        Updates.checkForUpdateAsync();
-      }
-    });
-
-    return () => {
-      subscription.remove();
-    };
-  }, []);
-
-  // download update if available (either found on cold start or after foregrounding)
-  useEffect(() => {
-    (async function doAsync() {
-      if (isUpdateAvailable) {
-        await Updates.fetchUpdateAsync();
-      }
-    })();
-  }, [isUpdateAvailable]);
-
-  if (!visible) return null;
-
-  if (isUpdatePending || OVERRIDE_OVERLAY_VISIBLE) {
-    return (
-      <ThemedView
-        style={[
-          {
-            position: "absolute",
-            left: 0,
-            right: 0,
-            top: 0,
-            paddingTop: top,
-            backgroundColor,
-          },
-        ]}
-      >
+  return (
+    <>
+      {pendingNonCritical && visible && (
         <ThemedView
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            backgroundColor,
-          }}
+          style={[
+            {
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top: 0,
+              paddingTop: top,
+              backgroundColor,
+            },
+          ]}
         >
-          <PressableWithOpacity
+          <ThemedView
             style={{
-              flex: 1,
-              justifyContent: "center",
-              paddingLeft: 8,
-              paddingVertical: 16,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              backgroundColor,
             }}
-            onPress={async () => {
-              await Updates.reloadAsync({
-                reloadScreenOptions: {
-                  backgroundColor,
-                  spinner: {
-                    color: textColor,
-                    size: "medium",
+          >
+            <PressableWithOpacity
+              style={{
+                flex: 1,
+                justifyContent: "center",
+                paddingLeft: 8,
+                paddingVertical: 16,
+              }}
+              onPress={async () => {
+                await reloadAsync({
+                  reloadScreenOptions: {
+                    backgroundColor,
+                    spinner: {
+                      color: textColor,
+                      size: "medium",
+                    },
                   },
-                },
-              });
-            }}
-          >
-            <ThemedText
-              style={[
-                {
-                  flex: 1,
-                  textAlign: "left",
-                },
-              ]}
+                });
+              }}
             >
-              An update is available. Tap here to update.
-            </ThemedText>
-          </PressableWithOpacity>
-          <PressableWithOpacity
-            onPress={() => setVisible(false)}
-            style={{
-              paddingRight: 8,
-              paddingVertical: 8,
-            }}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            accessibilityLabel="Close update notification"
-          >
-            <Ionicons color={textColor} size={30} name="close-outline" />
-          </PressableWithOpacity>
+              <ThemedText
+                style={[
+                  {
+                    flex: 1,
+                    textAlign: "left",
+                  },
+                ]}
+              >
+                An update is available. Tap here to update.
+              </ThemedText>
+            </PressableWithOpacity>
+            <PressableWithOpacity
+              onPress={() => {
+                setVisible(false);
+                dismissUpdate();
+              }}
+              style={{
+                paddingRight: 8,
+                paddingVertical: 8,
+              }}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityLabel="Close update notification"
+            >
+              <Ionicons color={textColor} size={30} name="close-outline" />
+            </PressableWithOpacity>
+          </ThemedView>
         </ThemedView>
-      </ThemedView>
-    );
-  }
+      )}
+      <CriticalUpdateOverlay
+        visible={downloadingCritical}
+        reloadPending={criticalReloadPending}
+      />
+    </>
+  );
 }
 
 export default function OtaUpdateOverlayOuter() {
