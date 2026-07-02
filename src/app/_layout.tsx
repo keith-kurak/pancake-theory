@@ -103,7 +103,14 @@ export default function RootLayout() {
               />
               <Stack.Screen
                 name="info"
-                options={{ title: "Info" }}
+                options={{ title: "Info", headerBackButtonDisplayMode: "minimal" }}
+              />
+              <Stack.Screen
+                name="channel-surf"
+                options={{
+                  title: "Channel Surfing",
+                  headerBackButtonDisplayMode: "minimal",
+                }}
               />
             </Stack>
             <StatusBar style="auto" />

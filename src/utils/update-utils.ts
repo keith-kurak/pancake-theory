@@ -1,11 +1,8 @@
 import Constants from "expo-constants";
 import type { CurrentlyRunningInfo, UseUpdatesReturnType } from "expo-updates";
-import { ExpoConfig, ExpoUpdatesManifest } from "expo/config";
+import { ExpoUpdatesManifest } from "expo/config";
 
-const expoConfig: ExpoConfig = require("../app.json")
-  .expo as unknown as ExpoConfig;
-
-export const updateUrl: string = expoConfig.updates?.url ?? "";
+export const updateUrl: string = Constants.expoConfig?.updates?.url ?? "";
 
 export function getCriticalIndex(manifest: any): number {
   const fromManifest = (manifest as ExpoUpdatesManifest)?.extra?.expoClient
