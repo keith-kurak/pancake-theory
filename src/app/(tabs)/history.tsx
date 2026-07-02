@@ -5,7 +5,7 @@ import { ThemedView } from "@/components/themed-view";
 import { useMarkRouteInteractive } from "@/hooks/use-mark-route-interactive";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { breakfastStore$ } from "@/store/breakfast-store";
-import Ionicons from "@expo/vector-icons/Ionicons";
+import { IconSymbol } from "@/components/ui/icon-symbol";
 import { observer, useValue } from "@legendapp/state/react";
 import { Link } from "expo-router";
 import { useMemo, useState } from "react";
@@ -71,7 +71,7 @@ function HistoryScreen() {
             History
           </ThemedText>
           <Link href="/info" style={styles.headerSpacer} accessibilityLabel="Info">
-            <Ionicons name="information-circle-outline" size={26} color={iconColor} />
+            <IconSymbol name="info.circle" size={28} color={iconColor} />
           </Link>
         </ThemedView>
         {history.length > 0 && (
