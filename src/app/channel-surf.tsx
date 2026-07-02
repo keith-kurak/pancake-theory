@@ -24,22 +24,16 @@ export default function ChannelSurfScreen() {
     const Updates = getUpdates();
     setSwitching(true);
     try {
-      setStatus("Setting channel…");
-      await Updates.setExtraParamAsync("channel", channel.trim());
+      setStatus("Switching channel…");
+      Updates.setUpdateRequestHeadersOverride({
+        "expo-channel-name": channel.trim(),
+      });
 
-      setStatus("Checking for update…");
-      const checkResult = await Updates.checkForUpdateAsync();
+      setStatus("Fetching update…");
+      await Updates.fetchUpdateAsync();
 
-      if (checkResult.isAvailable) {
-        setStatus("Downloading update…");
-        await Updates.fetchUpdateAsync();
-
-        setStatus("Reloading…");
-        await Updates.reloadAsync();
-      } else {
-        setStatus("No update available on this channel.");
-        setSwitching(false);
-      }
+      setStatus("Reloading…");
+      await Updates.reloadAsync();
     } catch (e: any) {
       setStatus(`Error: ${e.message}`);
       setSwitching(false);
