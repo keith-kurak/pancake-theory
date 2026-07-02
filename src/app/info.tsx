@@ -1,9 +1,9 @@
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { getCriticalIndex } from "@/utils/update-utils";
 import Constants from "expo-constants";
 import * as Application from "expo-application";
 import { useUpdates } from "expo-updates";
-import type { ExpoUpdatesManifest } from "expo-manifests";
 import { ScrollView, StyleSheet } from "react-native";
 
 function InfoRow({ label, value }: { label: string; value: string | undefined | null }) {
@@ -13,17 +13,6 @@ function InfoRow({ label, value }: { label: string; value: string | undefined | 
       <ThemedText style={styles.value}>{value ?? "—"}</ThemedText>
     </ThemedView>
   );
-}
-
-function getCriticalIndex(manifest: any): number {
-  const fromManifest = (manifest as ExpoUpdatesManifest)?.extra?.expoClient
-    ?.extra?.criticalIndex;
-  if (typeof fromManifest === "number") return fromManifest;
-
-  const fromConstants = Constants.expoConfig?.extra?.criticalIndex;
-  if (typeof fromConstants === "number") return fromConstants;
-
-  return 0;
 }
 
 export default function InfoScreen() {

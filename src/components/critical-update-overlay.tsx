@@ -1,8 +1,12 @@
-import { reloadAsync } from "expo-updates";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 
 import { ThemedText } from "./themed-text";
+
+function getUpdates() {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  return require("expo-updates") as typeof import("expo-updates");
+}
 
 type CriticalUpdateOverlayProps = {
   visible: boolean;
@@ -26,7 +30,7 @@ export function CriticalUpdateOverlay({
       setCountdown((prev) => {
         if (prev === null || prev <= 1) {
           clearInterval(interval);
-          reloadAsync().catch(() => {});
+          getUpdates().reloadAsync().catch(() => {});
           return 0;
         }
         return prev - 1;

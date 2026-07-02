@@ -1,24 +1,40 @@
 import { useThemeColor } from "@/hooks/use-theme-color";
-import { useUpdateMonitor } from "@/hooks/use-update-monitor";
+import { isCriticalUpdate } from "@/utils/update-utils";
 import Ionicons from "@expo/vector-icons/build/Ionicons";
-import { useState } from "react";
-
-import { ThemedText } from "./themed-text";
-import { ThemedView } from "./themed-view";
-import { CriticalUpdateOverlay } from "./critical-update-overlay";
-import { PressableWithOpacity } from "./ui/PressableWithOpacity";
-import { reloadAsync } from "expo-updates";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { AppState } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { CriticalUpdateOverlay } from "./critical-update-overlay";
+import { ThemedText } from "./themed-text";
+import { ThemedView } from "./themed-view";
+import { PressableWithOpacity } from "./ui/PressableWithOpacity";
+
+function getUpdates() {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  return require("expo-updates") as typeof import("expo-updates");
+}
+
 function ExpoOtaUpdateMonitor() {
+  const Updates = getUpdates();
   const {
-    pendingNonCritical,
-    downloadingCritical,
-    criticalReloadPending,
-    dismissUpdate,
-  } = useUpdateMonitor();
+    currentlyRunning,
+    isUpdateAvailable,
+    isUpdatePending,
+    availableUpdate,
+  } = Updates.useUpdates();
   const { top } = useSafeAreaInsets();
   const [visible, setVisible] = useState(true);
+  const isHandling = useRef(false);
+
+  const isCritical = isCriticalUpdate(
+    currentlyRunning.manifest,
+    availableUpdate?.manifest,
+  );
+
+  // Derive critical overlay states from update status
+  const downloadingCritical = isCritical && isUpdateAvailable && !isUpdatePending;
+  const criticalReloadPending = isCritical && isUpdatePending;
 
   const textColor = useThemeColor(
     { light: "#e0e0e0", dark: "#404040" },
@@ -30,9 +46,40 @@ function ExpoOtaUpdateMonitor() {
     "background",
   );
 
+  // Check for updates on foreground
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active") {
+        Updates.checkForUpdateAsync().catch(() => {});
+      }
+    });
+    return () => subscription.remove();
+  }, [Updates]);
+
+  // Also check once on mount
+  useEffect(() => {
+    Updates.checkForUpdateAsync().catch(() => {});
+  }, [Updates]);
+
+  // Download update when available (critical or non-critical)
+  useEffect(() => {
+    if (!isUpdateAvailable || isHandling.current) return;
+    isHandling.current = true;
+    Updates.fetchUpdateAsync().catch(() => {
+      isHandling.current = false;
+    });
+  }, [isUpdateAvailable, Updates]);
+
+  const dismissUpdate = useCallback(() => {
+    setVisible(false);
+  }, []);
+
+  // Show non-critical banner when update is pending and not critical
+  const showNonCriticalBanner = isUpdatePending && !isCritical && visible;
+
   return (
     <>
-      {pendingNonCritical && visible && (
+      {showNonCriticalBanner && (
         <ThemedView
           style={[
             {
@@ -61,7 +108,7 @@ function ExpoOtaUpdateMonitor() {
                 paddingVertical: 16,
               }}
               onPress={async () => {
-                await reloadAsync({
+                await Updates.reloadAsync({
                   reloadScreenOptions: {
                     backgroundColor,
                     spinner: {
@@ -84,10 +131,7 @@ function ExpoOtaUpdateMonitor() {
               </ThemedText>
             </PressableWithOpacity>
             <PressableWithOpacity
-              onPress={() => {
-                setVisible(false);
-                dismissUpdate();
-              }}
+              onPress={dismissUpdate}
               style={{
                 paddingRight: 8,
                 paddingVertical: 8,
