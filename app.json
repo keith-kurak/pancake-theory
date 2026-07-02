@@ -2,7 +2,7 @@
   "expo": {
     "name": "Pancake Theory",
     "slug": "pancake-theory",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "orientation": "portrait",
     "icon": "./assets/build/ios-light.png",
     "scheme": "pancaketheory",
@@ -83,7 +83,7 @@
     },
     "extra": {
       "router": {},
-      "criticalIndex": 0,
+      "criticalIndex": 5,
       "eas": {
         "projectId": "1de013cf-b8b2-4ac3-9e4d-dd70bfd4892e"
       }

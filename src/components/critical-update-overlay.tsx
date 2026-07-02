@@ -30,7 +30,14 @@ export function CriticalUpdateOverlay({
       setCountdown((prev) => {
         if (prev === null || prev <= 1) {
           clearInterval(interval);
-          getUpdates().reloadAsync().catch(() => {});
+          getUpdates()
+            .reloadAsync({
+              reloadScreenOptions: {
+                backgroundColor: "rgba(0, 0, 0, 0.85)",
+                spinner: { color: "#ffffff", size: "large" },
+              },
+            })
+            .catch(() => {});
           return 0;
         }
         return prev - 1;
