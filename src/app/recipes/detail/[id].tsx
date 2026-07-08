@@ -9,9 +9,9 @@ import { useMarkRouteInteractive } from "@/hooks/use-mark-route-interactive";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { breakfastActions, breakfastStore$ } from "@/store/breakfast-store";
 import { showConfirmDialog } from "@/utils/confirm-dialog";
-import { Observe } from "expo-observe";
 import { useValue } from "@legendapp/state/react";
 import * as Haptics from "expo-haptics";
+import { Observe } from "expo-observe";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet } from "react-native";
@@ -135,11 +135,15 @@ export default function RecipeDetailScreen() {
       scaleFactor,
     );
 
-    Observe.logEvent("recipe.started", {
-      attributes: {
-        recipeName: recipe.name,
-      },
-    });
+    try {
+      Observe.logEvent("recipe.started", {
+        attributes: {
+          recipeName: recipe.name,
+        },
+      });
+    } catch (error) {
+      console.error("Failed to log recipe started event:", error);
+    }
   };
 
   const handleCancelRecipe = async () => {

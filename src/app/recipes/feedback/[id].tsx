@@ -54,12 +54,16 @@ export default function FeedbackScreen() {
   const handleDone = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     Keyboard.dismiss();
-    AppMetrics.logEvent("recipe.completed", {
-      attributes: {
-        recipeName: pendingRecipe.recipeName,
-        feedbackProvided: true,
-      },
-    });
+    try {
+      AppMetrics.logEvent("recipe.completed", {
+        attributes: {
+          recipeName: pendingRecipe.recipeName,
+          feedbackProvided: true,
+        },
+      });
+    } catch (error) {
+      console.error("Failed to log recipe completed event:", error);
+    }
     breakfastActions.completePendingRecipe({
       rating,
       note: note.trim() || undefined,
