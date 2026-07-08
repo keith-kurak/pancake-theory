@@ -15,6 +15,7 @@
     "eas-build-pre-install": "node ./scripts/configure-autolinking.js"
   },
   "dependencies": {
+    "@expo/material-symbols": "^0.1.1",
     "@expo/ui": "~56.0.15",
     "@expo/vector-icons": "^15.0.3",
     "@legendapp/state": "^3.0.0-beta.38",
@@ -24,6 +25,7 @@
     "expo-application": "~56.0.3",
     "expo-background-task": "~56.0.16",
     "expo-blur": "~56.0.3",
+    "expo-build-properties": "~56.0.20",
     "expo-constants": "~56.0.16",
     "expo-crypto": "~56.0.4",
     "expo-dev-client": "~56.0.18",

@@ -3,8 +3,11 @@ import { PendingRecipeCard } from "@/components/pending-recipe-card";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { useMarkRouteInteractive } from "@/hooks/use-mark-route-interactive";
+import { useThemeColor } from "@/hooks/use-theme-color";
 import { breakfastStore$ } from "@/store/breakfast-store";
+import { IconSymbol } from "@/components/ui/icon-symbol";
 import { observer, useValue } from "@legendapp/state/react";
+import { Link } from "expo-router";
 import { useMemo, useState } from "react";
 import { FlatList, RefreshControl, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -13,6 +16,7 @@ function HistoryScreen() {
   useMarkRouteInteractive();
   const insets = useSafeAreaInsets();
   const [refreshing, setRefreshing] = useState(false);
+  const iconColor = useThemeColor({}, "text");
 
   // Get the history and pending recipe from the store
   const history = useValue(breakfastStore$.history);
@@ -61,9 +65,15 @@ function HistoryScreen() {
   return (
     <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
       <ThemedView style={styles.header}>
-        <ThemedText type="title" style={styles.title}>
-          History
-        </ThemedText>
+        <ThemedView style={styles.headerRow}>
+          <ThemedView style={styles.headerSpacer} />
+          <ThemedText type="title" style={styles.title}>
+            History
+          </ThemedText>
+          <Link href="/info" style={styles.headerSpacer} accessibilityLabel="Info">
+            <IconSymbol name="info.circle" size={28} color={iconColor} />
+          </Link>
+        </ThemedView>
         {history.length > 0 && (
           <ThemedText style={styles.subtitle}>
             {history.length} recipe{history.length !== 1 ? "s" : ""} made
@@ -101,6 +111,16 @@ const styles = StyleSheet.create({
   header: {
     padding: 16,
     paddingBottom: 8,
+    alignItems: "center",
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+  },
+  headerSpacer: {
+    width: 26,
     alignItems: "center",
   },
   title: {

@@ -24,6 +24,7 @@ const MAPPING = {
   'flame': 'local-fire-department',
   'plus': 'add',
   'trash': 'delete',
+  'info.circle': 'info-outline',
 } as IconMapping;
 
 /**

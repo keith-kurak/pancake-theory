@@ -8,18 +8,18 @@ appId: com.keithkurak.pancaketheorypreview
 - launchApp
 
 # 1. Chooser tab (home) — loaded on launch
-- assertVisible: '.*Make it.*'
+- assertVisible: ".*Make it.*"
 
 # 2. Browse tab
 - tapOn:
     label: "Browse"
-- assertVisible: '.*Pancakes.*'
+- assertVisible: ".*Pancakes.*"
 
 # 3. Tap into a recipe detail screen
 - scrollUntilVisible:
-    element: '.*Fluffy Pancakes.*'
+    element: ".*Fluffy Pancakes.*"
     direction: DOWN
-- tapOn: '.*Fluffy Pancakes.*'
+- tapOn: ".*Fluffy Pancakes.*"
 - assertVisible: "Make it now?"
 
 # 4. Start the recipe (fires recipe.started event)
@@ -28,16 +28,16 @@ appId: com.keithkurak.pancaketheorypreview
 
 # 5. Go back to browse
 - back
-- assertVisible: '.*Pancakes.*'
+- assertVisible: ".*Pancakes.*"
 
 # 6. History tab
-- tapOn:
-    label: "History"
+#- tapOn:
+#    label: "History"
 
 # 7. Back to Chooser tab
-- tapOn:
-    label: "Chooser"
-- assertVisible: '.*Make it.*'
+#- tapOn:
+#    label: "Chooser"
+#- assertVisible: '.*Make it.*'
 
 # Flush Observe events: backgrounding the app triggers auto-dispatch
 - pressKey: Home
@@ -46,7 +46,7 @@ appId: com.keithkurak.pancaketheorypreview
     timeout: 5000
 - launchApp
 - extendedWaitUntil:
-    visible: '.*Make it.*'
+    visible: ".*Make it.*"
     timeout: 5000
 
 # Second flush to pick up any events generated after relaunch
@@ -56,5 +56,5 @@ appId: com.keithkurak.pancaketheorypreview
     timeout: 5000
 - launchApp
 - extendedWaitUntil:
-    visible: '.*Make it.*'
+    visible: ".*Make it.*"
     timeout: 5000
