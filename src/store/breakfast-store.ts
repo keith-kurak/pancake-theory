@@ -96,11 +96,13 @@ function getUserRecipeData(recipeId: string): Observable<UserRecipeData> {
 
 // Actions for managing history, recipe notes, and pending recipes
 export const breakfastActions = {
-  addToHistory: (entry: Omit<HistoryEntry, "id" | "timestamp">): string => {
+  addToHistory: (
+    entry: Omit<HistoryEntry, "id" | "timestamp"> & { timestamp?: number },
+  ): string => {
     const newEntry: HistoryEntry = {
       ...entry,
       id: Crypto.randomUUID(),
-      timestamp: Date.now(),
+      timestamp: entry.timestamp ?? Date.now(),
     };
     breakfastStore$.history.unshift(newEntry);
     return newEntry.id;
@@ -218,6 +220,7 @@ export const breakfastActions = {
         recipeName: pending.recipeName,
         recipeType: pending.recipeType,
         scaleFactor: pending.scaleFactor,
+        timestamp: pending.startTime,
         cookingDuration: totalDuration,
         prepDuration,
         cookDuration,
@@ -256,6 +259,7 @@ export const breakfastActions = {
   updateHistoryEntry: (
     id: string,
     updates: {
+      timestamp?: number;
       prepDuration?: number;
       cookDuration?: number;
       rating?: number | null;
@@ -264,6 +268,9 @@ export const breakfastActions = {
     const currentHistory = breakfastStore$.history.peek();
     const index = currentHistory.findIndex((entry) => entry.id === id);
     if (index !== -1) {
+      if (updates.timestamp !== undefined) {
+        breakfastStore$.history[index].timestamp.set(updates.timestamp);
+      }
       if (updates.prepDuration !== undefined) {
         breakfastStore$.history[index].prepDuration.set(updates.prepDuration);
       }
