@@ -14,7 +14,7 @@ module.exports = ({ config }) => {
   if (process.env.APP_VARIANT) {
     bundleIdSuffix += process.env.APP_VARIANT.toLowerCase();
   }
-
+// a comment that creates a change
   const plugins = config.plugins || [];
   plugins.push([
     "expo-dev-client",
