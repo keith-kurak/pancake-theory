@@ -1,4 +1,4 @@
-name: Build and Submit Production and Deploy website
+name: Build and Submit Production
 
 jobs:
   build_ios:
