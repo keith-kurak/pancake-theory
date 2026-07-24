@@ -5,7 +5,7 @@ import { useThemeColor } from "@/hooks/use-theme-color";
 import { breakfastActions, breakfastStore$ } from "@/store/breakfast-store";
 import { useValue } from "@legendapp/state/react";
 import * as Haptics from "expo-haptics";
-import { AppMetrics } from "expo-observe";
+import { Observe } from "expo-observe";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import {
@@ -54,7 +54,7 @@ export default function FeedbackScreen() {
   const handleDone = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     Keyboard.dismiss();
-    AppMetrics.logEvent("recipe.completed", {
+    Observe.logEvent("recipe.completed", {
       attributes: {
         recipeName: pendingRecipe.recipeName,
         feedbackProvided: true,
@@ -70,7 +70,7 @@ export default function FeedbackScreen() {
 
   const handleSkip = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    AppMetrics.logEvent("recipe.completed", {
+    Observe.logEvent("recipe.completed", {
       attributes: {
         recipeName: pendingRecipe.recipeName,
         feedbackProvided: false,
