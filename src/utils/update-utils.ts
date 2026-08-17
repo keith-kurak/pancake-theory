@@ -1,41 +1,35 @@
 import Constants from "expo-constants";
 import type { CurrentlyRunningInfo, UseUpdatesReturnType } from "expo-updates";
-import { ExpoConfig, ExpoUpdatesManifest } from "expo/config";
+import { ExpoUpdatesManifest } from "expo/config";
 
-const expoConfig: ExpoConfig = require("../app.json")
-  .expo as unknown as ExpoConfig;
+export const updateUrl: string = Constants.expoConfig?.updates?.url ?? "";
 
-export const updateUrl: string = expoConfig.updates?.url ?? "";
+export function getCriticalIndex(manifest: any): number {
+  const fromManifest = (manifest as ExpoUpdatesManifest)?.extra?.expoClient
+    ?.extra?.criticalIndex;
+  if (typeof fromManifest === "number") return fromManifest;
+
+  const fromConstants = Constants.expoConfig?.extra?.criticalIndex;
+  if (typeof fromConstants === "number") return fromConstants;
+
+  return 0;
+}
+
+export function isCriticalUpdate(
+  currentManifest: any,
+  availableManifest: any,
+): boolean {
+  if (!availableManifest) return false;
+  return (
+    getCriticalIndex(availableManifest) > getCriticalIndex(currentManifest)
+  );
+}
 
 const isAvailableUpdateCritical = (updatesSystem: UseUpdatesReturnType) => {
-  const { currentlyRunning, availableUpdate } = updatesSystem;
-  const criticalIndexCurrent =
-    (currentlyRunning.manifest as ExpoUpdatesManifest)?.extra?.expoClient?.extra
-      ?.criticalIndex ??
-    Constants?.expoConfig?.extra?.criticalIndex ??
-    0;
-
-  const criticalIndexUpdate =
-    (availableUpdate?.manifest as ExpoUpdatesManifest)?.extra?.expoClient?.extra
-      ?.criticalIndex ?? 0;
-
-  return criticalIndexUpdate > criticalIndexCurrent;
-};
-
-//test
-const isAvailableUpdateCritical_nonhook = (
-  availableUpdate: ExpoUpdatesManifest,
-) => {
-  const currentManifest = Constants.expoConfig;
-  const criticalIndexCurrent =
-    currentManifest?.extra?.expoClient?.extra?.criticalIndex ??
-    Constants?.expoConfig?.extra?.criticalIndex ??
-    0;
-
-  const criticalIndexUpdate =
-    availableUpdate.extra?.expoClient?.extra?.criticalIndex ?? 0;
-
-  return criticalIndexUpdate > criticalIndexCurrent;
+  return isCriticalUpdate(
+    updatesSystem.currentlyRunning.manifest,
+    updatesSystem.availableUpdate?.manifest,
+  );
 };
 
 const manifestMessage = (manifest: any) => {
@@ -114,7 +108,5 @@ export {
   currentlyRunningTitle,
   errorDescription,
   isAvailableUpdateCritical,
-  isAvailableUpdateCritical_nonhook,
-  manifestMessage
+  manifestMessage,
 };
-
