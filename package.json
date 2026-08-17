@@ -12,7 +12,8 @@
     "lint": "expo lint",
     "test": "npx bun test",
     "test-maestro": "maestro test .maestro/preview-smoke.yaml",
-    "eas-build-pre-install": "node ./scripts/configure-autolinking.js"
+    "eas-build-pre-install": "node ./scripts/configure-autolinking.js",
+    "e2e": "eas workflow:run build-or-repack-then-maestro.yaml"
   },
   "dependencies": {
     "@expo/material-symbols": "^0.1.1",
