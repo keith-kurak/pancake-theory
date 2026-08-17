@@ -101,6 +101,17 @@ export default function RootLayout() {
                 name="modal"
                 options={{ presentation: "modal", title: "Modal" }}
               />
+              <Stack.Screen
+                name="info"
+                options={{ title: "Info", headerBackButtonDisplayMode: "minimal" }}
+              />
+              <Stack.Screen
+                name="channel-surf"
+                options={{
+                  title: "Channel Surfing",
+                  headerBackButtonDisplayMode: "minimal",
+                }}
+              />
             </Stack>
             <StatusBar style="auto" />
             <ExpoOtaUpdateMonitor />
