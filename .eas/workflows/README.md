@@ -4,7 +4,8 @@ Automation for this app, all of it in EAS — there is no GitHub Actions setup.
 
 | Workflow | Trigger | What it does |
 |---|---|---|
-| `agent-pr.yaml` | `agent` label on a draft PR | Implements `PR-TODO.md`, validates on a simulator, commits, flips the PR to ready |
+| `agent-start.yaml` | `agent-start` label on a draft PR | Implements `PR-TODO.md`, validates on a simulator, commits, flips the PR to ready |
+| `agent-revise.yaml` | `agent-revise` label on any PR | Applies `/agent` review comments, re-validates, commits |
 | `update-on-pr.yaml` | Any PR | Unit tests, then publishes a preview update and comments on the PR |
 | `maybe-make-dev-builds-on-pr.yaml` | Any PR | Builds development clients when the fingerprint changed |
 | `build-or-update-preview.yaml` | Push to `main` | Publishes an update, or builds when the fingerprint changed |
@@ -16,7 +17,7 @@ Automation for this app, all of it in EAS — there is no GitHub Actions setup.
 
 ---
 
-# Agent PR
+# Agent Start
 
 Describe a feature or fix once, in a file. Get back a validated PR.
 
@@ -25,7 +26,7 @@ Describe a feature or fix once, in a file. Get back a validated PR.
 1. Branch, and add a `PR-TODO.md` at the repository root. Copy
    [`PR-TODO.template.md`](../../PR-TODO.template.md) and fill it in.
 2. Open a **draft** pull request.
-3. Add the **`agent`** label.
+3. Add the **`agent-start`** label.
 
 The run takes up to 30 minutes. Watch it on the EAS dashboard.
 
@@ -34,17 +35,85 @@ results block, and the PR is flipped to *ready for review*.
 
 **Failing run** — the code is still committed, the results block explains what went
 wrong, a comment lists the blockers, and the PR **stays in draft**. Fix the task
-description or the code, then re-apply the label to run again. The results block is
-replaced, not appended, so repeat runs stay readable.
+description, then apply the label again. The results block is replaced, not appended,
+so repeat runs stay readable.
 
-Re-labelling a PR that is already out of draft does nothing. That guard exists so a
-run cannot rewrite a branch under a reviewer.
+Labelling a PR that is already out of draft does nothing. That guard exists so a run
+cannot rewrite a branch under a reviewer — to change an open PR, use **Agent Revise**
+below.
 
-## What the run actually does
+---
+
+# Agent Revise
+
+Ask for changes in review. Get them applied and re-validated.
+
+## How to use it
+
+1. Comment on the PR, starting the comment with **`/agent`**:
+
+   ```
+   /agent the Flour label should be bold, and it should read "Flour (cups)"
+   ```
+
+   Inline comments on a diff line work too, and are better when the request is about
+   specific code — the agent is told which file and line the comment was attached to.
+
+2. Add the **`agent-revise`** label.
+
+Leave as many `/agent` comments as you like before labelling. They are applied together,
+oldest first.
+
+**Passing run** — the changes are committed, the results block is updated, and the PR
+stays open for review with a short comment.
+
+**Failing run** — the changes are still committed, and the PR is moved **back to draft**.
+"Ready for review" should always mean "validated", so an open PR is never left showing
+unvalidated code.
+
+## Why a label and not just a comment
+
+EAS Workflows has no comment trigger. The complete list is `workflow_dispatch`, `push`,
+`ref_delete`, `pull_request`, `pull_request_labeled`, `app_store_connect`, and
+`schedule`. A comment cannot start a run, so the two roles are split: **the comment is
+the payload, the label is the trigger.**
+
+That split earns its keep anyway. You can discuss freely in the same thread and only the
+`/agent` comments are treated as instructions, and you decide when a batch of feedback is
+complete rather than firing a run per comment.
+
+**Both workflows remove their own label when they finish.** GitHub only fires `labeled`
+on an absent-to-present transition, so without that, re-applying a label already on the
+PR would silently do nothing.
+
+## Which comments count
+
+A comment is picked up only when all three hold:
+
+| Filter | Why |
+|---|---|
+| Starts with `/agent` | Ordinary discussion in the thread is not an instruction |
+| Author is OWNER, MEMBER, or COLLABORATOR | This repository is public and anyone can comment. Without this filter, a stranger's comment would become agent instructions |
+| Newer than the last commit on the branch | Anything older was already acted on, or predates the code now on the branch |
+
+The requests a run acted on are listed by author in the results block, so it is never
+ambiguous which comments were picked up and which were ignored.
+
+The revise prompt is deliberately narrower than the build prompt: do what was asked and
+nothing else, apply the later of two conflicting requests, and leave a vague request
+alone rather than guessing. A wrong change costs a reviewer more than no change.
+
+---
+
+## What a run actually does
+
+Both workflows share `scripts/agent/run-agent-pr.sh`, switched by `AGENT_MODE`. Only the
+source of the task and the prompt differ; the checks, the fingerprint gate, the simulator
+validation, and the publish step are identical.
 
 | Phase | Budget | Detail |
 |---|---|---|
-| 0. Preflight | ~1 min | Check secrets, read `PR-TODO.md`, record the iOS fingerprint |
+| 0. Preflight | ~1 min | Check secrets, read the task, record the iOS fingerprint |
 | 1. Implement | 15 min | Claude writes the code, then lint and `npx bun test` |
 | 2. Gate | seconds | Recompute the fingerprint |
 | 3. Validate | 10 min | Publish Metro over a tunnel, start a remote EAS Simulator on it, drive the app |
@@ -154,9 +223,17 @@ Clearing draft state uses the GraphQL `markPullRequestReadyForReview` mutation. 
 `PATCH /pulls/{n}` silently ignores a `draft` field, so a token without GraphQL access
 to pull requests will update the description and then quietly fail to un-draft.
 
-### 2. GitHub label
+### 2. GitHub labels
 
-Create a label named exactly `agent` on the repository.
+Create two labels on the repository, named exactly:
+
+```bash
+gh label create agent-start  --description "Build PR-TODO.md on a draft PR"
+gh label create agent-revise --description "Apply /agent review comments"
+```
+
+Applying a label needs **Triage** permission or higher, so this is the authorisation
+boundary for both workflows. See [Who can start a run](#who-can-start-a-run).
 
 ### 3. A current development build
 
@@ -180,9 +257,13 @@ GH_REPO=keith-kurak/pancake-theory \
 PR_NUMBER=123 \
 PR_HEAD_REF=my-branch \
 CLAUDE_CODE_OAUTH_TOKEN=... \
+AGENT_MODE=build \
 AGENT_TOTAL_BUDGET_SECONDS=600 \
   npm run agent:local
 ```
+
+Set `AGENT_MODE=revise` to exercise the comment path instead. Leave `AGENT_LABEL` unset
+locally so the script does not strip a label off a real PR.
 
 It will commit and push to `PR_HEAD_REF` and edit that PR. Point it at a throwaway PR.
 
@@ -190,22 +271,28 @@ It will commit and push to `PR_HEAD_REF` and edit that PR. Point it at a throwaw
 
 | Path | Purpose |
 |---|---|
-| `.eas/workflows/agent-pr.yaml` | Trigger, worker, and environment. Thin by design. |
-| `scripts/agent/run-agent-pr.sh` | The run: phases, budget, publish. |
+| `.eas/workflows/agent-start.yaml` | Build trigger, worker, environment. Thin by design. |
+| `.eas/workflows/agent-revise.yaml` | Revise trigger. Same job, `AGENT_MODE=revise`. |
+| `scripts/agent/run-agent-pr.sh` | The run: phases, budget, publish. Both modes. |
 | `scripts/agent/lib/budget.sh` | Wall-clock watchdog; signals the whole process group. |
 | `scripts/agent/lib/gh.sh` | GitHub REST and GraphQL over `curl`. |
 | `scripts/agent/lib/sim.sh` | Tunnelled Metro, remote session, Argent, startup dialogs. |
 | `scripts/remote-sim.sh` | Session lifecycle. Shared with local work, called by the job. |
-| `scripts/agent/prompts/implement.md` | Implement-phase prompt. |
-| `scripts/agent/prompts/validate.md` | Validate-phase prompt. |
+| `scripts/agent/prompts/implement.md` | Build-mode prompt. |
+| `scripts/agent/prompts/revise.md` | Revise-mode prompt. Narrower on purpose. |
+| `scripts/agent/prompts/validate.md` | Validate-phase prompt, shared by both. |
 | `scripts/lib/resolve-sim-build.sh` | Shared build resolver, also used by `remote-sim.sh`. |
 
 ## Security notes
 
-`PR-TODO.md` and the PR body are written by whoever opened the PR. Neither is
-interpolated into the workflow YAML or into a shell command. The body is fetched through
-the API; the task file is read from disk by Claude, which is told to treat it as a task
-description and not as instructions about its own behaviour.
+`PR-TODO.md`, the PR body, and every `/agent` comment are user-written. None is
+interpolated into the workflow YAML or into a shell command. Bodies and comments are
+fetched through the API and written to files; Claude reads them as files and is told to
+treat them as task descriptions, not as instructions about its own behaviour.
+
+Comments carry the extra risk that anyone can leave one on a public repository, so
+`gh_collect_requests` drops any whose `author_association` is not OWNER, MEMBER, or
+COLLABORATOR before they ever reach the prompt.
 
 Claude runs with `--permission-mode bypassPermissions`. That is deliberate and it is only
 safe because the worker is ephemeral and thrown away at the end of the run. Do not reuse
@@ -213,10 +300,11 @@ these scripts anywhere persistent without revisiting that flag.
 
 ### Who can start a run
 
-The `agent` label is the authorisation boundary. Applying a label needs **Triage**
-permission or higher, so read-only collaborators cannot trigger a run, and neither can an
-outside contributor on their own PR. This repository is public but has no triage-only
-collaborators today — only accounts that already have push access can label.
+The `agent-start` and `agent-revise` labels are the authorisation boundary. Applying a label
+needs **Triage** permission or higher, so read-only collaborators cannot trigger a run,
+and neither can an outside contributor on their own PR. This repository is public but has
+no triage-only collaborators today — only accounts that already have push access can
+label.
 
 Worth knowing if that changes: **Triage can label but cannot push.** Granting someone
 triage would hand them an indirect write path, because the run pushes on their behalf
@@ -224,7 +312,7 @@ using `GH_TOKEN`.
 
 ### Fork pull requests never run
 
-The job requires `head.repo.full_name == github.repository`. A fork PR is skipped even if
+Both jobs require `head.repo.full_name == github.repository`. A fork PR is skipped even if
 it is labelled, because the run would otherwise execute that fork's source and its
 `PR-TODO.md` on a worker holding all three secrets. `head.ref` also names a branch that
 exists only in the fork, so the push would create a stray branch here instead of updating

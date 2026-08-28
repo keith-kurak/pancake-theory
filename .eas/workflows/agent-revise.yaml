@@ -1,0 +1,69 @@
+name: Agent Revise
+
+# Ask for changes to an open PR by commenting `/agent <what to change>`, then
+# applying the `agent-revise` label.
+#
+# EAS Workflows has no comment trigger — the full list is workflow_dispatch,
+# push, ref_delete, pull_request, pull_request_labeled, app_store_connect, and
+# schedule. So the comment carries the request and the label starts the run. The
+# job removes the label when it finishes, so the next request is one click.
+#
+# See .eas/workflows/README.md.
+
+on:
+  pull_request_labeled:
+    labels:
+      - agent-revise
+
+concurrency:
+  cancel_in_progress: true
+  group: ${{ workflow.filename }}-${{ github.ref }}
+
+defaults:
+  tools:
+    bun: 1.3.10
+
+jobs:
+  revise:
+    name: Apply review comments, validate, publish
+    # Unlike agent-start, this runs on an open PR as well as a draft one — asking
+    # for changes is what a reviewer does. The same-repo gate still applies:
+    # this repository is public, and a fork PR must never run with these secrets.
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+    # The simulator runs on EAS, not here, so this job needs no Mac and no
+    # nested virtualisation. It only runs Metro, the eas CLI, and Claude.
+    runs_on: linux-medium
+    environment: development
+    env:
+      AGENT_MODE: revise
+      AGENT_LABEL: agent-revise
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+      GH_REPO: ${{ github.repository }}
+      RUN_URL: ${{ workflow.url }}
+      AGENT_TOTAL_BUDGET_SECONDS: '1800'
+    steps:
+      - uses: eas/checkout
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - uses: eas/install_node_modules
+
+      # remote-sim.sh requires the argent CLI on PATH, and `argent link` must be
+      # the same install the MCP server later reads.
+      - name: Install argent
+        run: npm install --global @swmansion/argent@latest
+
+      # Comment bodies are user-written text and are never interpolated into
+      # this file. The script fetches them through the API and filters them by
+      # author_association, so only collaborators can instruct the agent.
+      - name: Run agent
+        run: ./scripts/agent/run-agent-pr.sh
+
+      - uses: eas/upload_artifact
+        if: ${{ always() }}
+        with:
+          type: other
+          name: agent-run
+          path: |
+            agent-out/**/*

@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 #
-# Agent PR runner — the body of .eas/workflows/agent-pr.yaml.
+# Agent PR runner — the body of both agent-start.yaml and agent-revise.yaml.
 #
-# Given a draft PR that carries a PR-TODO.md task file and the `agent` label:
+# In build mode, given a draft PR carrying a PR-TODO.md and the `agent-start`
+# label (in revise mode, the `/agent` comments gathered from the PR):
 #
 #   0. Preflight   — check secrets, read the task, record the iOS fingerprint.
 #   1. Implement   — Claude writes the code, then lint and unit tests run.
@@ -47,12 +48,21 @@ mkdir -p "$AGENT_OUT"
 : "${PUBLISH_RESERVE_SECONDS:=240}"
 : "${RUN_URL:=}"
 
+# build  — implement PR-TODO.md on a draft PR, then mark it ready.
+# revise — apply the reviewer's /agent comments to an open PR.
+: "${AGENT_MODE:=build}"
+# The label that triggered this run. Removed on the way out so the next request
+# is one click: GitHub only fires `labeled` on an absent-to-present transition.
+: "${AGENT_LABEL:=}"
+: "${REQUEST_MARKER:=/agent}"
+
 # Phase results, read by finish().
 STATUS_IMPLEMENT="not reached"
 STATUS_CHECKS="not reached"
 STATUS_VALIDATE="not reached"
 VERDICT="fail"
 BLOCKERS=""
+WAS_DRAFT=""
 
 log()  { printf '\n\033[36m==> %s\033[0m\n' "$*"; }
 warn() { printf '\033[33mwarn:\033[0m %s\n' "$*" >&2; }
@@ -77,20 +87,18 @@ preflight() {
     exit 1
   fi
 
-  if [ ! -f "$PROJECT_ROOT/PR-TODO.md" ]; then
-    fail "no PR-TODO.md at the repository root"
-    gh_comment "$(cat <<'EOF'
-The `agent` label is set, but there is no `PR-TODO.md` at the repository root.
+  # publish() re-reads the PR rather than trusting this snapshot, because draft
+  # state and body can change while the run is in flight.
+  local pr_json
+  pr_json="$(gh_pr_json)" || { fail "could not read PR #$PR_NUMBER"; exit 1; }
+  WAS_DRAFT="$(printf '%s' "$pr_json" | gh_field draft)"
+  log "Mode: $AGENT_MODE (PR #$PR_NUMBER, draft=$WAS_DRAFT)"
 
-Add one describing the feature or fix, push it, then re-apply the label.
-Start from `PR-TODO.template.md`.
-EOF
-)" || warn "could not post the comment"
-    exit 1
-  fi
-
-  log "Task:"
-  sed 's/^/    /' "$PROJECT_ROOT/PR-TODO.md" | head -n 40
+  case "$AGENT_MODE" in
+    build)   preflight_build ;;
+    revise)  preflight_revise ;;
+    *) fail "unknown AGENT_MODE '$AGENT_MODE'; expected build or revise"; exit 1 ;;
+  esac
 
   BASELINE_FINGERPRINT="$(ios_fingerprint)"
   log "Baseline iOS fingerprint: ${BASELINE_FINGERPRINT:-<unavailable>}"
@@ -100,6 +108,42 @@ EOF
   # baseline and compare against it later.
   lint_counts > "$AGENT_OUT/lint-baseline.txt"
   log "Baseline lint errors: $(awk '{ n += $1 } END { print n + 0 }' "$AGENT_OUT/lint-baseline.txt")"
+}
+
+preflight_build() {
+  if [ ! -f "$PROJECT_ROOT/PR-TODO.md" ]; then
+    fail "no PR-TODO.md at the repository root"
+    gh_comment "$(printf 'The `%s` label was applied, but there is no `PR-TODO.md` at the repository root.\n\nAdd one describing the feature or fix, push it, then apply the label again.\nStart from `PR-TODO.template.md`.\n' \
+      "${AGENT_LABEL:-agent-start}")" || warn "could not post the comment"
+    gh_remove_label "$AGENT_LABEL"
+    exit 1
+  fi
+
+  log "Task:"
+  sed 's/^/    /' "$PROJECT_ROOT/PR-TODO.md" | head -n 40
+}
+
+# Change requests are the comments left since the branch's last commit. That
+# timestamp is the natural boundary: anything older was either already acted on
+# or predates the code now on the branch. No state file needed.
+preflight_revise() {
+  local since
+  since="$(git log -1 --format=%cI 2>/dev/null || echo "")"
+  log "Collecting '$REQUEST_MARKER' comments newer than ${since:-<all time>}"
+
+  gh_collect_requests "$since" "$REQUEST_MARKER" > "$AGENT_OUT/change-requests.md"
+
+  if [ ! -s "$AGENT_OUT/change-requests.md" ]; then
+    fail "no change requests found"
+    gh_comment "$(printf 'The `%s` label was applied, but I found no new `%s` comments on this PR.\n\nLeave a comment that starts with `%s` describing what to change, then apply the label again. Only comments from repository collaborators, newer than the last commit on this branch, are picked up.\n' \
+      "$AGENT_LABEL" "$REQUEST_MARKER" "$REQUEST_MARKER")" \
+      || warn "could not post the comment"
+    gh_remove_label "$AGENT_LABEL"
+    exit 1
+  fi
+
+  log "Change requests:"
+  sed 's/^/    /' "$AGENT_OUT/change-requests.md" | head -n 40
 }
 
 # One line per file+rule, as "<count> <path> <rule>". Counts, not line numbers,
@@ -154,8 +198,11 @@ implement() {
   slice="$(budget_for "$IMPLEMENT_BUDGET_SECONDS" \
     $(( VALIDATE_BUDGET_SECONDS + PUBLISH_RESERVE_SECONDS )))"
 
+  local prompt="$PROJECT_ROOT/scripts/agent/prompts/implement.md"
+  [ "$AGENT_MODE" = revise ] && prompt="$PROJECT_ROOT/scripts/agent/prompts/revise.md"
+
   run_with_budget "$slice" implement \
-    claude_run "$PROJECT_ROOT/scripts/agent/prompts/implement.md" \
+    claude_run "$prompt" \
     > "$AGENT_OUT/implement.jsonl" 2>&1
   local rc=$?
 
@@ -172,7 +219,11 @@ implement() {
 
   if git diff --quiet && git diff --cached --quiet; then
     STATUS_IMPLEMENT="made no changes"
-    note_blocker "The implement phase finished without changing any files. The task in \`PR-TODO.md\` may be unclear."
+    if [ "$AGENT_MODE" = revise ]; then
+      note_blocker "The revise phase finished without changing any files. The change requests may be unclear, or may describe work that is already done."
+    else
+      note_blocker "The implement phase finished without changing any files. The task in \`PR-TODO.md\` may be unclear."
+    fi
     return 1
   fi
 
@@ -362,10 +413,20 @@ commit_and_push() {
   # the .gitignore entry is missing on an older branch.
   git add --all -- ':!agent-out'
 
-  git commit --message "$(cat <<EOF
-Agent: $(head -n 1 PR-TODO.md | sed 's/^#* *//')
+  local subject source
+  if [ "$AGENT_MODE" = revise ]; then
+    subject="$(grep -m1 -v '^\(#\|<!--\|$\)' "$AGENT_OUT/change-requests.md" | cut -c1-60)"
+    subject="Agent: ${subject:-apply review feedback}"
+    source="Applied review comments from PR #$PR_NUMBER."
+  else
+    subject="Agent: $(head -n 1 PR-TODO.md | sed 's/^#* *//')"
+    source="Implemented from PR-TODO.md."
+  fi
 
-Implemented from PR-TODO.md by the EAS Workflows agent.
+  git commit --message "$(cat <<EOF
+$subject
+
+$source Written by the EAS Workflows agent.
 Validation: $STATUS_VALIDATE
 EOF
 )" >/dev/null
@@ -375,14 +436,23 @@ EOF
 }
 
 results_markdown() {
-  local icon
-  case "$VERDICT" in
-    pass) icon="✅ Ready for review" ;;
-    *)    icon="🚧 Still in draft" ;;
-  esac
+  local icon source
+  if [ "$VERDICT" = pass ]; then
+    icon="✅ Ready for review"
+  elif [ "$AGENT_MODE" = revise ]; then
+    icon="🚧 Moved back to draft"
+  else
+    icon="🚧 Still in draft"
+  fi
+
+  if [ "$AGENT_MODE" = revise ]; then
+    source="review comments"
+  else
+    source='`PR-TODO.md`'
+  fi
 
   printf '## %s\n\n' "$icon"
-  printf '_Produced by the Agent PR workflow from `PR-TODO.md`. Setup notes: `.eas/workflows/README.md`._\n\n'
+  printf '_Produced by the Agent workflow from %s. Setup notes: `.eas/workflows/README.md`._\n\n' "$source"
 
   printf '| Phase | Result |\n|---|---|\n'
   printf '| Implement | %s |\n' "$STATUS_IMPLEMENT"
@@ -391,6 +461,13 @@ results_markdown() {
 
   if [ -f "$AGENT_OUT/implement-summary.md" ]; then
     printf '### What changed\n\n%s\n\n' "$(cat "$AGENT_OUT/implement-summary.md")"
+  fi
+
+  # Name the requests that were acted on, so it is never ambiguous which
+  # comments a run picked up and which it ignored.
+  if [ "$AGENT_MODE" = revise ] && [ -s "$AGENT_OUT/change-requests.md" ]; then
+    printf '### Requests applied\n\n%s\n\n' \
+      "$(grep '^### @' "$AGENT_OUT/change-requests.md" | sed 's/^### /- /')"
   fi
 
   if [ -f "$AGENT_OUT/validation.json" ]; then
@@ -429,26 +506,49 @@ if errors:
 }
 
 publish() {
-  local results body merged
+  local results body merged pr_json node_id is_draft
   results="$(results_markdown)"
 
-  local pr_json node_id
   pr_json="$(gh_pr_json)" || { fail "could not read the PR"; return 1; }
   body="$(printf '%s' "$pr_json" | gh_field body)"
   node_id="$(printf '%s' "$pr_json" | gh_field node_id)"
+  is_draft="$(printf '%s' "$pr_json" | gh_field draft)"
 
   merged="$(gh_merge_results_block "$body" "$results")"
   gh_set_body "$merged" || warn "could not update the PR description"
 
   if [ "$VERDICT" = "pass" ]; then
-    log "Marking PR #$PR_NUMBER ready for review"
-    gh_mark_ready "$node_id" || warn "could not clear draft state"
+    if [ "$is_draft" = "true" ]; then
+      log "Marking PR #$PR_NUMBER ready for review"
+      gh_mark_ready "$node_id" || warn "could not clear draft state"
+    else
+      log "PR #$PR_NUMBER is already open for review"
+      gh_comment "$(printf 'Applied the requested changes and re-validated on a simulator. Details are in the PR description.\n')" \
+        || warn "could not post the comment"
+    fi
   else
-    log "Leaving PR #$PR_NUMBER in draft"
     local blockers="$BLOCKERS"
     [ -n "$blockers" ] || blockers="- No specific blocker was recorded."$'\n'
-    gh_comment "$(printf 'The agent run did not reach a passing state, so this PR stays in draft.\n\n%s\nFull results are in the PR description.\n' "$blockers")" \
-      || warn "could not post the comment"
+
+    # "Ready for review" should always mean "validated". A revise run that fails
+    # on an open PR moves it back to draft rather than leaving a reviewer
+    # looking at unvalidated code.
+    if [ "$is_draft" = "false" ]; then
+      log "Converting PR #$PR_NUMBER back to draft"
+      gh_convert_to_draft "$node_id" || warn "could not set draft state"
+      gh_comment "$(printf 'The changes are committed, but the run did not reach a passing state, so I moved this PR back to draft.\n\n%s\nFull results are in the PR description.\n' "$blockers")" \
+        || warn "could not post the comment"
+    else
+      log "Leaving PR #$PR_NUMBER in draft"
+      gh_comment "$(printf 'The agent run did not reach a passing state, so this PR stays in draft.\n\n%s\nFull results are in the PR description.\n' "$blockers")" \
+        || warn "could not post the comment"
+    fi
+  fi
+
+  # Last, so a failure above does not strand the label and block a retry.
+  if [ -n "$AGENT_LABEL" ]; then
+    log "Removing the '$AGENT_LABEL' label so it can be applied again"
+    gh_remove_label "$AGENT_LABEL"
   fi
 }
 

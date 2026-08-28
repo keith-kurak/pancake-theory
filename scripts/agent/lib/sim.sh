@@ -86,7 +86,7 @@ sim_start() {
       --metro-url "$METRO_URL" \
       --idle "$SIM_IDLE_MINUTES" \
       --max-duration "$SIM_MAX_DURATION_MINUTES" \
-      --name "Agent PR #${PR_NUMBER:-local}" \
+      --name "Agent run PR #${PR_NUMBER:-local}" \
       > "$AGENT_OUT/simulator-start.log" 2>&1; then
     echo "sim: remote-sim.sh start failed. Last lines:" >&2
     tail -n 30 "$AGENT_OUT/simulator-start.log" >&2

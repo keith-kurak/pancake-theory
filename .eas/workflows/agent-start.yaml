@@ -1,13 +1,14 @@
-name: Agent PR
+name: Agent Start
 
-# Label a draft PR that carries a PR-TODO.md task file with `agent`, and this
-# workflow implements it, proves it runs on a simulator, commits it, and flips
-# the PR to ready. See .eas/workflows/README.md for setup and behaviour.
+# Label a draft PR that carries a PR-TODO.md task file with `agent-start`, and
+# this workflow implements it, proves it runs on a simulator, commits it, and
+# flips the PR to ready. Pairs with agent-revise.yaml, which applies review
+# comments afterwards. See .eas/workflows/README.md for setup and behaviour.
 
 on:
   pull_request_labeled:
     labels:
-      - agent
+      - agent-start
 
 concurrency:
   cancel_in_progress: true
@@ -36,6 +37,8 @@ jobs:
     runs_on: linux-medium
     environment: development
     env:
+      AGENT_MODE: build
+      AGENT_LABEL: agent-start
       PR_NUMBER: ${{ github.event.pull_request.number }}
       PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
       GH_REPO: ${{ github.repository }}
