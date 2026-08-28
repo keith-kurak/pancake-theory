@@ -46,3 +46,5 @@ app-example
 .maestro/screenshots/
 temp.json
 .env.local
+
+.env.eas-simulator
