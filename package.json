@@ -5,7 +5,7 @@
   "scripts": {
     "start-go": "EXPO_UNSTABLE_MCP_SERVER=1 npx expo start --go",
     "start": "EXPO_UNSTABLE_MCP_SERVER=1 APP_VARIANT=DEV npx expo start",
-    "start-dev-sim": "EXPO_UNSTABLE_TUNNEL_V2=1 APP_VARIANT=DEV npx expo start --tunnel",
+    "start-dev-for-sim": "EXPO_UNSTABLE_TUNNEL_V2=1 APP_VARIANT=DEV npx expo start --tunnel",
     "start-sim": "./scripts/remote-sim.sh",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo run:android",
