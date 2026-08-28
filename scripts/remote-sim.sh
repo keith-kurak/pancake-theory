@@ -30,6 +30,9 @@ ENV_FILE="$PROJECT_ROOT/.env.eas-simulator"
 BUILD_PROFILE="development-simulator"
 SESSION_NAME="Pancake Theory sim session"
 IDLE_MINUTES="5"
+# Empty means "no cap". Unattended callers (the agent workflow) set one so a
+# wedged session cannot bill past the run.
+MAX_DURATION_MINUTES=""
 BUILD_ID=""
 OPEN_URL=""
 METRO_URL=""
@@ -67,6 +70,9 @@ Usage:
 Options (start):
   --build-id <id>   Use this EAS Build instead of resolving the latest one.
   --idle <minutes>  Idle timeout before EAS stops the session. Default: 5.
+  --max-duration <minutes>
+                    Hard cap on session length, whether or not it is idle.
+                    Default: no cap.
   --name <name>     Session name shown on expo.dev. Default:
                     "Pancake Theory sim session".
   --profile <name>  EAS Build profile to resolve from. Default:
@@ -95,94 +101,11 @@ EOF
 
 # --- resolve the newest usable simulator development build ------------------
 
-resolve_build_id() {
-  info "Looking up the latest finished '$BUILD_PROFILE' iOS simulator build..." >&2
-
-  # A dev build only runs JS built for its own runtime. Loading a bundle from a
-  # dev server with a different runtime version fails at startup (for example
-  # "ReferenceError: Property 'MessageQueue' doesn't exist"). Newest-by-date is
-  # NOT enough — an old-SDK branch build can finish after a current one.
-  local local_runtime
-  local_runtime="$(APP_VARIANT=DEV npx expo config --type public --json 2>/dev/null \
-    | python3 -c 'import json,sys; print(json.load(sys.stdin).get("runtimeVersion") or "")' 2>/dev/null || true)"
-  if [ -n "$local_runtime" ]; then
-    info "Local runtime version: $local_runtime" >&2
-  else
-    err "Could not read the local runtime version; falling back to newest build."
-  fi
-
-  local json
-  json="$($EAS build:list \
-    --platform ios \
-    --simulator \
-    --status finished \
-    --buildProfile "$BUILD_PROFILE" \
-    --limit 10 \
-    --json \
-    --non-interactive 2>/dev/null)" || {
-      err "eas build:list failed. Are you logged in? Try: $EAS whoami"
-      exit 1
-    }
-
-  # Keep unexpired builds only (EAS expires simulator artifacts after ~30 days),
-  # then prefer one whose runtime version matches this working copy.
-  python3 - "$json" "${local_runtime:-}" <<'PY'
-import json, sys
-from datetime import datetime, timezone
-
-builds = json.loads(sys.argv[1])
-want_runtime = sys.argv[2] if len(sys.argv) > 2 else ""
-now = datetime.now(timezone.utc)
-
-def parse(ts):
-    return datetime.fromisoformat(ts.replace("Z", "+00:00")) if ts else None
-
-def runtime_of(b):
-    return (b.get("runtime") or {}).get("version") or ""
-
-usable = [
-    b for b in builds
-    if not (parse(b.get("expirationDate")) and parse(b["expirationDate"]) <= now)
-]
-
-if not usable:
-    sys.stderr.write(
-        "No unexpired iOS simulator build found for this profile.\n"
-        "Build one with:\n"
-        "  npx eas-cli@latest build --platform ios --profile development-simulator\n"
-    )
-    sys.exit(1)
-
-usable.sort(key=lambda b: b.get("completedAt") or "", reverse=True)
-
-matching = [b for b in usable if runtime_of(b) == want_runtime] if want_runtime else []
-
-if want_runtime and not matching:
-    sys.stderr.write(
-        f"\nNo unexpired build matches local runtime {want_runtime}.\n"
-        "Available builds:\n"
-    )
-    for b in usable[:5]:
-        sys.stderr.write(
-            f"  {b['id']}  runtime {runtime_of(b) or '?'}  "
-            f"sdk {b.get('sdkVersion') or '?'}  completed {b.get('completedAt')}\n"
-        )
-    sys.stderr.write(
-        "\nA build with a different runtime will crash when it loads JS from your\n"
-        "dev server. Build a matching one with:\n"
-        "  npx eas-cli@latest build --platform ios --profile development-simulator\n"
-        "Or pass --build-id explicitly to override this check.\n"
-    )
-    sys.exit(1)
-
-best = (matching or usable)[0]
-sys.stderr.write(
-    f"  build {best['id']}  runtime {runtime_of(best) or '?'}  "
-    f"sdk {best.get('sdkVersion') or '?'}  completed {best.get('completedAt')}\n"
-)
-print(best["id"])
-PY
-}
+# resolve_build_id lives in a shared file because the EAS Workflows agent job
+# (scripts/agent/run-agent-pr.sh) needs the same runtime-match and expiry rules.
+# Sourced after info()/err() so it reuses this script's coloured output.
+# shellcheck source=scripts/lib/resolve-sim-build.sh
+. "$PROJECT_ROOT/scripts/lib/resolve-sim-build.sh"
 
 # --- commands ---------------------------------------------------------------
 
@@ -221,7 +144,11 @@ cmd_start() {
   local open_url_args=()
   [ -n "$OPEN_URL" ] && open_url_args=(--open-url "$OPEN_URL")
 
-  info "Starting remote EAS Simulator session (argent, idle timeout ${IDLE_MINUTES}m)..."
+  local max_duration_args=()
+  [ -n "$MAX_DURATION_MINUTES" ] && \
+    max_duration_args=(--max-duration-minutes "$MAX_DURATION_MINUTES")
+
+  info "Starting remote EAS Simulator session (argent, idle timeout ${IDLE_MINUTES}m${MAX_DURATION_MINUTES:+, max ${MAX_DURATION_MINUTES}m})..."
   local start_log
   start_log="$(mktemp -t remote-sim-start)"
   # Stream the CLI output live and keep a copy so the web preview URL can be
@@ -233,6 +160,7 @@ cmd_start() {
     --non-interactive \
     --build-id "$BUILD_ID" \
     --max-idle-time-minutes "$IDLE_MINUTES" \
+    ${max_duration_args[@]+"${max_duration_args[@]}"} \
     ${open_url_args[@]+"${open_url_args[@]}"} \
     --out-config-type dotenv 2>&1 | tee "$start_log"
 
@@ -364,6 +292,7 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --build-id)  BUILD_ID="${2:-}"; shift 2 ;;
     --idle)      IDLE_MINUTES="${2:-}"; shift 2 ;;
+    --max-duration) MAX_DURATION_MINUTES="${2:-}"; shift 2 ;;
     --name)      SESSION_NAME="${2:-}"; shift 2 ;;
     --profile)   BUILD_PROFILE="${2:-}"; shift 2 ;;
     --metro-url) METRO_URL="${2:-}"; shift 2 ;;
