@@ -5,6 +5,8 @@
   "scripts": {
     "start-go": "EXPO_UNSTABLE_MCP_SERVER=1 npx expo start --go",
     "start": "EXPO_UNSTABLE_MCP_SERVER=1 APP_VARIANT=DEV npx expo start",
+    "start-dev-sim": "EXPO_UNSTABLE_TUNNEL_V2=1 APP_VARIANT=DEV npx expo start --tunnel",
+    "start-sim": "./scripts/remote-sim.sh",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo run:android",
     "ios": "APP_VARIANT=DEV expo run:ios",
@@ -13,7 +15,10 @@
     "test": "npx bun test",
     "test-maestro": "maestro test .maestro/preview-smoke.yaml",
     "eas-build-pre-install": "node ./scripts/configure-autolinking.js",
-    "e2e": "eas workflow:run build-or-repack-then-maestro.yaml"
+    "e2e": "eas workflow:run build-or-repack-then-maestro.yaml",
+    "sim": "./scripts/remote-sim.sh start",
+    "sim:stop": "./scripts/remote-sim.sh stop",
+    "sim:status": "./scripts/remote-sim.sh status"
   },
   "dependencies": {
     "@expo/material-symbols": "^0.1.1",
