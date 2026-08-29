@@ -48,3 +48,8 @@ temp.json
 .env.local
 
 .env.eas-simulator
+
+# Agent PR run artifacts
+agent-out/
+# PR verification run artifacts
+evidence/

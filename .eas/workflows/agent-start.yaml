@@ -1,0 +1,74 @@
+name: Agent Start
+
+# Label a draft PR that carries a PR-TODO.md task file with `agent-start`, and
+# this workflow implements it, proves it runs on a simulator, commits it, and
+# flips the PR to ready. Pairs with agent-revise.yaml, which applies review
+# comments afterwards. See .eas/workflows/README.md for setup and behaviour.
+
+on:
+  pull_request_labeled:
+    labels:
+      - agent-start
+
+concurrency:
+  cancel_in_progress: true
+  group: ${{ workflow.filename }}-${{ github.ref }}
+
+defaults:
+  tools:
+    bun: 1.3.10
+
+jobs:
+  agent:
+    name: Implement, validate, publish
+    # Two gates, both required.
+    #
+    # draft — a PR already in review must not be rewritten under the reviewer,
+    #   so re-labelling one is a no-op.
+    #
+    # same-repo — this repository is public, so anyone can open a PR from a
+    #   fork. A fork PR must never run here: the job holds CLAUDE_CODE_OAUTH_TOKEN,
+    #   GH_TOKEN, and EXPO_TOKEN, and it would execute that fork's source and its
+    #   PR-TODO.md. `head.ref` also names a branch that exists only in the fork,
+    #   so the push would create a stray branch here rather than update the PR.
+    if: ${{ github.event.pull_request.draft && github.event.pull_request.head.repo.full_name == github.repository }}
+    # The simulator runs on EAS, not here, so this job needs no Mac and no
+    # nested virtualisation. It only runs Metro, the eas CLI, and Claude.
+    runs_on: linux-medium
+    environment: development
+    env:
+      AGENT_MODE: build
+      AGENT_LABEL: agent-start
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+      GH_REPO: ${{ github.repository }}
+      RUN_URL: ${{ workflow.url }}
+      AGENT_TOTAL_BUDGET_SECONDS: '1800'
+    steps:
+      # The default checkout lands on a detached HEAD at the PR's recorded
+      # commit. `ref` puts us on the branch itself, which is what the run needs
+      # in order to push its commit back to the PR.
+      - uses: eas/checkout
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - uses: eas/install_node_modules
+
+      # remote-sim.sh requires the argent CLI on PATH, and `argent link` must be
+      # the same install the MCP server later reads.
+      - name: Install argent
+        run: npm install --global @swmansion/argent@latest
+
+      # The PR body and PR-TODO.md are user-written text. Neither is
+      # interpolated into this file — the script reads them through the GitHub
+      # API and from disk, so they cannot reach the shell as code.
+      - name: Run agent
+        run: ./scripts/agent/run-agent-pr.sh
+
+      - uses: eas/upload_artifact
+        if: ${{ always() }}
+        with:
+          type: other
+          name: agent-run
+          path: |
+            agent-out/**/*
