@@ -439,6 +439,10 @@ commit_and_push() {
 
   git config user.name  "eas-agent[bot]"
   git config user.email "eas-agent[bot]@users.noreply.github.com"
+  # agent-out is both gitignored and excluded below, so git's "paths are
+  # ignored, use -f" advice is pure noise in the run log — and noise that looks
+  # like a failure when you are scanning for one.
+  git config advice.addIgnoredFile false
 
   # agent-out is a run artifact, not source. Keep it out of the commit even if
   # the .gitignore entry is missing on an older branch.
