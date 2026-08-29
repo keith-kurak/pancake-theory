@@ -222,7 +222,7 @@ else
   # The verdict file is the contract, not Claude's exit code. timeout is the
   # hard backstop: a hung agent is killed, leaves no verdict, and the run fails
   # closed rather than reporting a pass nobody proved.
-  timeout "$CLAUDE_TIMEOUT" npx --yes @anthropic-ai/claude-code@latest \
+  timeout "$CLAUDE_TIMEOUT" claude \
     --print "$(cat "$PROMPT")" \
     --permission-mode bypassPermissions \
     --mcp-config "$MCP_CONFIG" \

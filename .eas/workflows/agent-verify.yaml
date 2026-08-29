@@ -90,6 +90,12 @@ jobs:
 
       - uses: eas/install_node_modules
 
+      # Both must be on PATH before verify-pr.sh starts. npm rather than bun:
+      # global binary installs are the one case npm links more reliably on a CI
+      # worker. Project dependencies still come from bun.
+      - name: Install argent and Claude Code
+        run: npm install --global @swmansion/argent@latest @anthropic-ai/claude-code@latest
+
       # The verify script reads the /verify comment through the API and filters
       # it by author_association, so comment text never reaches this file or a
       # shell command.
