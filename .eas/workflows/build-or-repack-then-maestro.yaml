@@ -4,6 +4,15 @@ on:
   push:
     branches:
       - main
+    # App code only. A config, docs, or workflow change does not need a build,
+    # a repack, and an E2E run on two platforms.
+    #
+    # The flows are included deliberately: this workflow exists to run them, so
+    # editing one should exercise it. Drop that line if you would rather iterate
+    # on flows without triggering a full run.
+    paths:
+      - src/**
+      - .maestro/**
 
 jobs:
   fingerprint:

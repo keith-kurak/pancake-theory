@@ -218,5 +218,8 @@ jobs:
           PR_NUMBER: ${{ steps.pr.outputs.number }}
         run: |
           set -euo pipefail
-          gh issue comment "$ISSUE_NUMBER" \
-            --body "Started an agent run in #${PR_NUMBER}. Results will be posted on that PR."
+          # Same marker the EAS runners apply, for the same reason: until a
+          # machine user owns the token, this comment is authored by a person.
+          BODY="$(printf '> 🤖 **Automated** — written by the agent workflow, not by a human. · [view run](%s/actions/runs/%s)\n\nStarted an agent run in #%s. Results will be posted on that PR.\n' \
+            "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" "$PR_NUMBER")"
+          gh issue comment "$ISSUE_NUMBER" --body "$BODY"

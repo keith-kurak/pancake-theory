@@ -27,7 +27,7 @@ environment is used because the agent jobs build and run the *development* clien
 |---|---|---|
 | `CLAUDE_CODE_OAUTH_TOKEN` | Runs Claude on the worker | `claude setup-token` |
 | `GH_TOKEN` | Push commits, edit PRs, change draft state, comment | Fine-grained PAT — see below |
-| `EXPO_TOKEN` | `eas build:list`, `build:download`, `simulator:start` from inside a job | expo.dev → Account → Access tokens (a robot token is fine) |
+| `EXPO_TOKEN_SIMULATOR` | `eas simulator:start`, `build:list`, `build:download` | expo.dev → Account → Access tokens. Must be a **personal** token — see below |
 
 ```bash
 claude setup-token   # copy the output
@@ -37,8 +37,30 @@ npx eas-cli@latest env:create --environment development --visibility secret \
 npx eas-cli@latest env:create --environment development --visibility secret \
   --name GH_TOKEN --value 'github_pat_...'
 npx eas-cli@latest env:create --environment development --visibility secret \
-  --name EXPO_TOKEN --value '<robot token>'
+  --name EXPO_TOKEN_SIMULATOR --value '<personal access token>'
 ```
+
+> **This one cannot be a robot token, and cannot be named `EXPO_TOKEN`.**
+> Simulator sessions are **actor-gated**: the restricted `EXPO_TOKEN` that EAS injects
+> into every job cannot create one. And a secret named `EXPO_TOKEN` is shadowed by that
+> injected value, which is why it is passed under a different name and re-exported by
+> `scripts/agent/lib/sim.sh`.
+>
+> This is **not in Expo's public documentation** — it comes from Expo's internal
+> expo-bot verification workflow, which hit the same wall. Worth re-testing if the docs
+> ever cover CI simulator sessions.
+
+**Separately, the account needs EAS Simulator enabled.** It is a gated feature, and the
+failure looks nothing like a credentials problem:
+
+```
+EAS Simulator isn't available on <account> yet — it's coming soon.
+Join the waitlist to get access: https://expo.dev/services/simulators
+```
+
+That message is about the **account**, not the token. Adding credentials will not fix it,
+and a token problem surfaces as an authorization error instead. Two different failures
+that are easy to conflate.
 
 ### The GitHub PAT
 
@@ -55,9 +77,6 @@ Create a **fine-grained** token scoped to this repository only, with:
 > ignores a `draft` field. A token that cannot reach GraphQL for pull requests will update
 > the PR description and then quietly fail to un-draft, which looks like the run half
 > worked.
-
-The worker's own auto-injected `EXPO_TOKEN` is restricted-scope and cannot create
-simulator sessions, which is why an explicit one is required rather than inherited.
 
 ## 2. GitHub Actions secret
 

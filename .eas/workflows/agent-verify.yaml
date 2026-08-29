@@ -114,4 +114,7 @@ jobs:
             evidence/*.png
             evidence/*.md
             evidence/*.txt
+            evidence/*.json
             evidence/*.jsonl
+            evidence/*.diff
+            evidence/*.log
