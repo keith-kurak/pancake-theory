@@ -37,14 +37,20 @@ jobs:
       AGENT_MODE: revise
       AGENT_LABEL: agent-revise
       PR_NUMBER: ${{ github.event.pull_request.number }}
-      PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
-      GH_REPO: ${{ github.repository }}
+      # head.ref is not in the documented context type either; ref_name is, and
+      # for a labelled PR it is the head branch. The runner falls back to the
+      # API if both come through empty.
+      PR_HEAD_REF: ${{ github.event.pull_request.head.ref || github.ref_name }}
+      # github.repository is optional in EAS's context and is empty for
+      # pull_request_labeled, which fails env validation (values must be a
+      # string or number). Same fallback idiom as update-on-pr.yaml.
+      GH_REPO: ${{ github.repository || 'keith-kurak/pancake-theory' }}
       RUN_URL: ${{ workflow.url }}
       AGENT_TOTAL_BUDGET_SECONDS: '1800'
     steps:
       - uses: eas/checkout
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
+          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
 
       - uses: eas/install_node_modules
 
