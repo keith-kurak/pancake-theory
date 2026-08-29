@@ -40,7 +40,7 @@ services, or work outside this repository.
 
 ## When you are done
 
-1. Run `npm run lint` and `npx bun test`.
+1. Run `bun run lint` and `bun test`.
    - All 24 unit tests must pass.
    - This repository already has lint errors in `src/` that predate you. Only the ones
      **you** introduced count. Do not fix the others.

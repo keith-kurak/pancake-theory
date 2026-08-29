@@ -27,7 +27,7 @@ jobs:
     steps:
       - uses: eas/checkout
       - uses: eas/install_node_modules
-      - run: npx bun test
+      - run: bun test
 
   publish_preview_update:
     name: Publish update to PR branch

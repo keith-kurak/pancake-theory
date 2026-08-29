@@ -273,7 +273,7 @@ Verify is a separate script — it has no implement phase and never touches the 
 | Phase | Budget | Detail |
 |---|---|---|
 | 0. Preflight | ~1 min | Check secrets, read the task, record the iOS fingerprint |
-| 1. Implement | 15 min | Claude writes the code, then lint and `npx bun test` |
+| 1. Implement | 15 min | Claude writes the code, then lint and `bun test` |
 | 2. Gate | seconds | Recompute the fingerprint |
 | 3. Validate | 10 min | Publish Metro over a tunnel, start a remote EAS Simulator on it, drive the app |
 | 4. Publish | 4 min | Commit, push, rewrite the PR description, flip to ready or comment |
@@ -294,7 +294,7 @@ still reports, and still tears the simulator down.
 ### Lint is measured against a baseline
 
 `src/` currently has nine lint errors that predate this workflow, mostly React
-Compiler `react-hooks/*` rules. Blocking on `npm run lint`'s exit code would fail every
+Compiler `react-hooks/*` rules. Blocking on `bun run lint`'s exit code would fail every
 run on faults the agent did not cause, so phase 0 records a per-file, per-rule count and
 phase 1 compares against it. Only an *increase* is a blocker.
 
@@ -357,105 +357,13 @@ reported as a pass.
 
 ## One-time setup
 
-### 1. Secrets
-
-Add these to the EAS **`development`** environment, all as **secret**:
-
-| Name | Value |
-|---|---|
-| `CLAUDE_CODE_OAUTH_TOKEN` | Output of `claude setup-token` |
-| `GH_TOKEN` | Fine-grained GitHub PAT, scoped to this repo |
-| `EXPO_TOKEN` | Robot access token, so `eas build:list` and `build:download` work on the worker |
-
-```bash
-claude setup-token          # then paste into the EAS dashboard
-npx eas-cli@latest env:create --environment development --visibility secret
-```
-
-The `GH_TOKEN` PAT needs these repository permissions:
-
-- **Contents** — read and write (push the commit)
-- **Pull requests** — read and write (update the description, clear draft state)
-- **Issues** — read and write (post the blocker comment)
-
-Clearing draft state uses the GraphQL `markPullRequestReadyForReview` mutation. REST's
-`PATCH /pulls/{n}` silently ignores a `draft` field, so a token without GraphQL access
-to pull requests will update the description and then quietly fail to un-draft.
-
-### 2. A GitHub Actions secret
-
-The issue-to-PR Action needs the same PAT as `GH_TOKEN`, stored on the **repository**
-rather than in EAS, because Actions cannot read EAS environment variables:
-
-```bash
-gh secret set AGENT_GH_TOKEN --body 'github_pat_...'
-```
-
-Only this one Action uses it. The three EAS workflows read `GH_TOKEN` from the EAS
-`development` environment as before.
-
-### 3. GitHub labels
-
-Create two labels on the repository, named exactly:
-
-```bash
-gh label create agent-start  --description "Build PR-TODO.md on a draft PR"
-gh label create agent-revise --description "Apply /agent review comments"
-gh label create agent-verify --description "Prove this PR works on a cloud simulator"
-```
-
-Applying a label needs **Triage** permission or higher, so this is the authorisation
-boundary for both workflows. See [Who can start a run](#who-can-start-a-run).
-
-### 4. EAS Hosting activated
-
-The evidence site is **not** a separate project — it deploys to this project's Hosting
-section, and `pr-<N>-verify` is an alias on it. So the URL is
-`https://<subdomain>--pr-42-verify.expo.app`.
-
-What does need doing once is choosing the project's globally-unique **preview
-subdomain**. EAS normally prompts for it on the first deployment, and the verify job runs
-`--non-interactive`, where it cannot be asked. Set it on expo.dev under **Hosting**, or by
-running one deploy interactively.
-
-**Already done for this project** — `pancaketheory.expo.app` serves the web build, so
-verify runs can deploy straight away.
-
-If it were missing, a run would still produce a verdict and comment; it would just lose
-the evidence link. The script recognises that specific failure and says so in the logs
-rather than leaving you guessing.
-
-### 5. A current development build
-
-Keep one unexpired `development-simulator` build on the current runtime. Without it
-every run skips validation.
-
-```bash
-npx eas-cli@latest build --platform ios --profile development-simulator
-```
-
-EAS expires simulator artifacts after about 30 days.
+Secrets, labels, EAS Hosting, and the simulator build prerequisite all live in
+**[SETUP.md](SETUP.md)**. Nothing here runs until those are in place.
 
 ## Trying it locally
 
-The runner works outside EAS against a real PR, which is the fastest way to exercise the
-budget and draft paths:
-
-```bash
-GH_TOKEN=ghp_... \
-GH_REPO=keith-kurak/pancake-theory \
-PR_NUMBER=123 \
-PR_HEAD_REF=my-branch \
-CLAUDE_CODE_OAUTH_TOKEN=... \
-AGENT_MODE=build \
-AGENT_TOTAL_BUDGET_SECONDS=600 \
-  npm run agent:local
-```
-
-Set `AGENT_MODE=revise` to exercise the comment path instead. Leave `AGENT_LABEL` unset
-locally so the script does not strip a label off a real PR.
-
-It will commit and push to `PR_HEAD_REF` and edit that PR. Point it at a throwaway PR.
+The runner works outside EAS against a real PR — see
+[Running it locally](SETUP.md#running-it-locally).
 
 ## Files
 

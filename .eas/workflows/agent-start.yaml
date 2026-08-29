@@ -55,7 +55,9 @@ jobs:
       - uses: eas/install_node_modules
 
       # remote-sim.sh requires the argent CLI on PATH, and `argent link` must be
-      # the same install the MCP server later reads.
+      # the same install the MCP server later reads. npm rather than bun here:
+      # this is a global binary install, which is the one case npm links more
+      # reliably on a CI worker. Project dependencies still come from bun.
       - name: Install argent
         run: npm install --global @swmansion/argent@latest
 

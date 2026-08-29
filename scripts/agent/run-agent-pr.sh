@@ -234,7 +234,7 @@ run_checks() {
   log "Phase 1b: lint and unit tests"
 
   lint_counts > "$AGENT_OUT/lint-after.txt"
-  npm run lint > "$AGENT_OUT/lint.log" 2>&1 || true
+  bun run lint > "$AGENT_OUT/lint.log" 2>&1 || true
 
   local new_lint
   new_lint="$(python3 -c '
@@ -254,7 +254,7 @@ for key, n in sorted(after.items()):
 ' "$AGENT_OUT/lint-baseline.txt" "$AGENT_OUT/lint-after.txt")"
 
   local test_rc=0
-  npx bun test > "$AGENT_OUT/test.log" 2>&1 || test_rc=$?
+  bun test > "$AGENT_OUT/test.log" 2>&1 || test_rc=$?
 
   if [ -z "$new_lint" ] && [ "$test_rc" -eq 0 ]; then
     STATUS_CHECKS="no new lint errors, tests pass"
@@ -270,7 +270,7 @@ for key, n in sorted(after.items()):
   fi
   if [ "$test_rc" -ne 0 ]; then
     parts="$parts, tests exit $test_rc"
-    note_blocker "\`npx bun test\` failed. See \`test.log\` in the run artifacts."
+    note_blocker "\`bun test\` failed. See \`test.log\` in the run artifacts."
   else
     parts="$parts, tests pass"
   fi
