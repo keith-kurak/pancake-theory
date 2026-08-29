@@ -234,7 +234,13 @@ implement() {
   fi
   if [ "$rc" -ne 0 ]; then
     STATUS_IMPLEMENT="failed (exit $rc)"
-    note_blocker "The implement phase exited with code $rc. See the run log for details."
+    # The phase's whole output is redirected to a file, so without this the
+    # actual cause is only visible by downloading the run artifact. Put the tail
+    # on the console where someone reading the failed run will see it.
+    fail "the implement phase exited with code $rc. Last lines:"
+    tail -n 20 "$AGENT_OUT/implement.jsonl" >&2
+    note_blocker "$(printf 'The implement phase exited with code %s:\n\n```\n%s\n```\n' \
+      "$rc" "$(tail -n 5 "$AGENT_OUT/implement.jsonl")")"
     return 1
   fi
 
@@ -397,6 +403,10 @@ validate() {
 
   if [ ! -f "$AGENT_OUT/validation.json" ]; then
     STATUS_VALIDATE="no verdict written"
+    # Same reasoning as the implement phase: surface the cause on the console
+    # rather than only in the downloadable artifact.
+    fail "validation wrote no verdict. Last lines:"
+    tail -n 20 "$AGENT_OUT/validate.jsonl" >&2
     note_blocker "Validation finished without writing \`validation.json\`, so the result is unknown."
     return 1
   fi
