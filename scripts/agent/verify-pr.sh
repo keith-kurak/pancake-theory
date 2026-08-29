@@ -31,7 +31,7 @@ cd "$PROJECT_ROOT" || exit 1
 
 EVIDENCE_DIR="$PROJECT_ROOT/evidence"
 VERDICT_FILE="$PROJECT_ROOT/evidence/verdict.md"
-: "${VERIFY_LABEL:=verify}"
+: "${VERIFY_LABEL:=agent-verify}"
 : "${VERIFY_MARKER:=/verify}"
 : "${CLAUDE_TIMEOUT:=20m}"
 : "${SESSION_MAX_MINUTES:=30}"

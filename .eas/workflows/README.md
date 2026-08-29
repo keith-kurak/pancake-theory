@@ -11,7 +11,7 @@ issue  --/build-->  draft PR + PR-TODO.md  --agent-start-->  built & validated
                               |                                     v
                        /agent + agent-revise  <-----------  ready for review
                                                                     |
-                                                          /verify + verify
+                                                     /verify + agent-verify
                                                                     v
                                                       verdict + evidence site
 ```
@@ -21,7 +21,7 @@ issue  --/build-->  draft PR + PR-TODO.md  --agent-start-->  built & validated
 | `.github/.../agent-start-from-issue.yml` | `/build` comment or `agent-start` label **on an issue** | Opens a draft PR carrying `PR-TODO.md`, then labels it to hand off to EAS |
 | `agent-start.yaml` | `agent-start` label on a draft PR | Implements `PR-TODO.md`, validates on a simulator, commits, flips the PR to ready |
 | `agent-revise.yaml` | `agent-revise` label on any PR | Applies `/agent` review comments, re-validates, commits |
-| `agent-verify.yaml` | `verify` label on any PR | Proves a PR works on a cloud simulator and publishes a screenshot evidence site. Writes no code |
+| `agent-verify.yaml` | `agent-verify` label on any PR | Proves a PR works on a cloud simulator and publishes a screenshot evidence site. Writes no code |
 | `update-on-pr.yaml` | Any **non-draft** PR | Unit tests, then publishes a preview update and comments on the PR |
 | `maybe-make-dev-builds-on-pr.yaml` | Any **non-draft** PR | Builds development clients when the fingerprint changed |
 | `build-or-update-preview.yaml` | Push to `main` | Publishes an update, or builds when the fingerprint changed |
@@ -196,7 +196,7 @@ and reports, so it is safe to point at a PR a human wrote.
    /verify check that the Eggs slider still snaps to whole numbers
    ```
 
-2. Add the **`verify`** label.
+2. Add the **`agent-verify`** label.
 
 You get a PR comment with a verdict — `PASS`, `FAIL`, or `INCONCLUSIVE` — a link to a
 published evidence page of screenshots, and a collapsible full report. A `FAIL` or
@@ -401,7 +401,7 @@ Create two labels on the repository, named exactly:
 ```bash
 gh label create agent-start  --description "Build PR-TODO.md on a draft PR"
 gh label create agent-revise --description "Apply /agent review comments"
-gh label create verify       --description "Prove this PR works on a cloud simulator"
+gh label create agent-verify --description "Prove this PR works on a cloud simulator"
 ```
 
 Applying a label needs **Triage** permission or higher, so this is the authorisation
@@ -476,7 +476,7 @@ these scripts anywhere persistent without revisiting that flag.
 
 ### Who can start a run
 
-The `agent-start`, `agent-revise`, and `verify` labels are the authorisation boundary.
+The `agent-start`, `agent-revise`, and `agent-verify` labels are the authorisation boundary.
 Applying a label
 needs **Triage** permission or higher, so read-only collaborators cannot trigger a run,
 and neither can an outside contributor on their own PR. This repository is public but has

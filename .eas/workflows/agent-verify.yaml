@@ -1,7 +1,7 @@
 name: Agent Verify
 
 # Ask for a PR to be proven on a real device by commenting `/verify <optional
-# guidance>`, then applying the `verify` label.
+# guidance>`, then applying the `agent-verify` label.
 #
 # EAS Workflows has no comment trigger, so the comment carries the guidance and
 # the label starts the run. The job removes the label when it finishes.
@@ -15,7 +15,7 @@ name: Agent Verify
 on:
   pull_request_labeled:
     labels:
-      - verify
+      - agent-verify
 
 concurrency:
   cancel_in_progress: true
@@ -80,7 +80,7 @@ jobs:
       PR_NUMBER: ${{ github.event.pull_request.number }}
       GH_REPO: ${{ github.repository }}
       RUN_URL: ${{ workflow.url }}
-      VERIFY_LABEL: verify
+      VERIFY_LABEL: agent-verify
     steps:
       - uses: eas/checkout
         with:
