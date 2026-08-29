@@ -18,16 +18,12 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-function msToHMS(ms: number) {
-  const totalSeconds = Math.round(ms / 1000);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  return { hours, minutes, seconds };
+function msToMinutes(ms: number) {
+  return Math.round(ms / 60000);
 }
 
-function hmsToMs(hours: number, minutes: number, seconds: number) {
-  return (hours * 3600 + minutes * 60 + seconds) * 1000;
+function minutesToMs(minutes: number) {
+  return minutes * 60000;
 }
 
 export default function EditHistoryEntryScreen() {
@@ -36,15 +32,15 @@ export default function EditHistoryEntryScreen() {
   const history = useValue(breakfastStore$.history);
   const entry = useMemo(() => history.find((e) => e.id === id), [history, id]);
 
-  const initialPrep = useMemo(() => {
-    if (!entry) return { hours: 0, minutes: 0, seconds: 0 };
-    return msToHMS(entry.prepDuration ?? 0);
+  const initialPrepMinutes = useMemo(() => {
+    if (!entry) return 0;
+    return msToMinutes(entry.prepDuration ?? 0);
   }, [entry]);
 
-  const initialCook = useMemo(() => {
-    if (!entry) return { hours: 0, minutes: 0, seconds: 0 };
+  const initialCookMinutes = useMemo(() => {
+    if (!entry) return 0;
     const cookMs = entry.cookDuration ?? entry.cookingDuration ?? 0;
-    return msToHMS(cookMs);
+    return msToMinutes(cookMs);
   }, [entry]);
 
   const initialStart = useMemo(() => {
@@ -68,13 +64,8 @@ export default function EditHistoryEntryScreen() {
     String(initialStart.minutes).padStart(2, "0"),
   );
 
-  const [prepHours, setPrepHours] = useState(String(initialPrep.hours));
-  const [prepMinutes, setPrepMinutes] = useState(String(initialPrep.minutes));
-  const [prepSeconds, setPrepSeconds] = useState(String(initialPrep.seconds));
-
-  const [cookHours, setCookHours] = useState(String(initialCook.hours));
-  const [cookMinutes, setCookMinutes] = useState(String(initialCook.minutes));
-  const [cookSeconds, setCookSeconds] = useState(String(initialCook.seconds));
+  const [prepMinutes, setPrepMinutes] = useState(String(initialPrepMinutes));
+  const [cookMinutes, setCookMinutes] = useState(String(initialCookMinutes));
 
   const [rating, setRating] = useState<number | undefined>(entry?.rating);
 
@@ -105,16 +96,8 @@ export default function EditHistoryEntryScreen() {
 
   const handleSave = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const prepMs = hmsToMs(
-      parseInt(prepHours, 10) || 0,
-      parseInt(prepMinutes, 10) || 0,
-      parseInt(prepSeconds, 10) || 0,
-    );
-    const cookMs = hmsToMs(
-      parseInt(cookHours, 10) || 0,
-      parseInt(cookMinutes, 10) || 0,
-      parseInt(cookSeconds, 10) || 0,
-    );
+    const prepMs = minutesToMs(parseInt(prepMinutes, 10) || 0);
+    const cookMs = minutesToMs(parseInt(cookMinutes, 10) || 0);
     // Preserve the original seconds/milliseconds so editing only the
     // displayed fields doesn't silently shift the start time.
     const original = new Date(entry.timestamp);
@@ -252,50 +235,24 @@ export default function EditHistoryEntryScreen() {
           <ThemedText style={styles.sectionTitle}>Prep Time</ThemedText>
           <View style={styles.timeRow}>
             <TimeField
-              label="h"
-              value={prepHours}
-              onChangeText={setPrepHours}
-              inputBg={inputBg}
-              textColor={inputTextColor}
-            />
-            <TimeField
-              label="m"
+              label="min"
               value={prepMinutes}
               onChangeText={setPrepMinutes}
               inputBg={inputBg}
               textColor={inputTextColor}
-            />
-            <TimeField
-              label="s"
-              value={prepSeconds}
-              onChangeText={setPrepSeconds}
-              inputBg={inputBg}
-              textColor={inputTextColor}
+              testID="prep-minutes-input"
             />
           </View>
 
           <ThemedText style={styles.sectionTitle}>Cook Time</ThemedText>
           <View style={styles.timeRow}>
             <TimeField
-              label="h"
-              value={cookHours}
-              onChangeText={setCookHours}
-              inputBg={inputBg}
-              textColor={inputTextColor}
-            />
-            <TimeField
-              label="m"
+              label="min"
               value={cookMinutes}
               onChangeText={setCookMinutes}
               inputBg={inputBg}
               textColor={inputTextColor}
-            />
-            <TimeField
-              label="s"
-              value={cookSeconds}
-              onChangeText={setCookSeconds}
-              inputBg={inputBg}
-              textColor={inputTextColor}
+              testID="cook-minutes-input"
             />
           </View>
         </ScrollView>
@@ -330,6 +287,7 @@ function TimeField({
   textColor,
   maxLength = 3,
   width,
+  testID,
 }: {
   label: string;
   value: string;
@@ -338,6 +296,7 @@ function TimeField({
   textColor: string;
   maxLength?: number;
   width?: number;
+  testID?: string;
 }) {
   return (
     <View style={styles.timeField}>
@@ -352,6 +311,7 @@ function TimeField({
         keyboardType="number-pad"
         maxLength={maxLength}
         selectTextOnFocus
+        testID={testID}
       />
       <ThemedText style={styles.timeLabel}>{label}</ThemedText>
     </View>
