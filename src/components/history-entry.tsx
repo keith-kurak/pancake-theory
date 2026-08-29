@@ -58,7 +58,7 @@ export const HistoryEntry = observer(function HistoryEntry({
   };
 
   const formatDuration = (milliseconds: number) => {
-    const minutes = Math.floor(milliseconds / 60000);
+    const minutes = Math.round(milliseconds / 60000);
     if (minutes < 60) return `${minutes} min`;
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
