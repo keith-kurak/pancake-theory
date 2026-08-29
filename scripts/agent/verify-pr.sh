@@ -15,7 +15,7 @@
 # not from a dev server.
 #
 # Required: BUILD_ID, UPDATE_GROUP_ID, PR_NUMBER, GH_REPO, GH_TOKEN,
-#           EXPO_TOKEN, CLAUDE_CODE_OAUTH_TOKEN
+#           EXPO_TOKEN_SIMULATOR, CLAUDE_CODE_OAUTH_TOKEN
 # Optional: VERIFY_INSTRUCTION (guidance from the /verify comment; looked up
 #           from the PR when unset)
 
@@ -80,12 +80,12 @@ cleanup() {
 # ---------------------------------------------------------------------------
 
 missing=""
-for var in BUILD_ID UPDATE_GROUP_ID PR_NUMBER GH_REPO GH_TOKEN EXPO_TOKEN CLAUDE_CODE_OAUTH_TOKEN; do
+for var in BUILD_ID UPDATE_GROUP_ID PR_NUMBER GH_REPO GH_TOKEN EXPO_TOKEN_SIMULATOR CLAUDE_CODE_OAUTH_TOKEN; do
   [ -n "${!var:-}" ] || missing="$missing $var"
 done
 if [ -n "$missing" ]; then
   fail "missing required variables:$missing"
-  fail "see .eas/workflows/README.md for the one-time setup"
+  fail "see .eas/workflows/SETUP.md for the one-time setup"
   exit 1
 fi
 
@@ -93,6 +93,10 @@ trap cleanup EXIT INT TERM
 
 rm -rf "$EVIDENCE_DIR"
 mkdir -p "$EVIDENCE_DIR"
+# upload_artifact errors with "no paths specified to add to archive" when
+# nothing matches its globs, which turns one failure into two and loses the
+# logs. Guarantee a match from the very first line.
+printf 'Verification run for PR #%s\n' "${PR_NUMBER:-?}" > "$EVIDENCE_DIR/run.txt"
 
 log "Verifying PR #$PR_NUMBER"
 PR_JSON="$(gh_pr_json)" || { fail "could not read PR #$PR_NUMBER"; exit 1; }

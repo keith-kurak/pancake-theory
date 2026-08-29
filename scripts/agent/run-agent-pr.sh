@@ -335,6 +335,12 @@ native_changed() {
 validate() {
   log "Phase 3: validate on a remote simulator"
 
+  if ! sim_require_token; then
+    STATUS_VALIDATE="skipped — no simulator access token"
+    note_blocker "\`EXPO_TOKEN_SIMULATOR\` is not set, so no simulator session could be started and the change was not exercised on a device. Simulator sessions are actor-gated and the worker's own token cannot create one. See \`.eas/workflows/SETUP.md\`."
+    return 1
+  fi
+
   # Fail fast on a missing build. remote-sim.sh would resolve it again anyway,
   # but checking here turns a session-start failure into a clear explanation.
   BUILD_PROFILE=development-simulator

@@ -22,6 +22,30 @@ METRO_URL=""
 SIM_UDID=""
 SIM_STARTED=0
 
+# Simulator sessions are actor-gated: the restricted EXPO_TOKEN that EAS injects
+# into every job cannot create one, so a personal access token is passed under a
+# different name and re-exported over it. A secret named EXPO_TOKEN would simply
+# be shadowed by the injected one.
+#
+# Provenance: this is not in Expo's public documentation. It comes from Expo's
+# internal expo-bot verification workflow, which hit the same wall. Keep the
+# override until the docs say otherwise.
+if [ -n "${EXPO_TOKEN_SIMULATOR:-}" ]; then
+  export EXPO_TOKEN="$EXPO_TOKEN_SIMULATOR"
+  echo "sim: using EXPO_TOKEN_SIMULATOR for eas commands" >&2
+fi
+
+# sim_require_token — fail early and explain, rather than letting eas-cli report
+# a waitlist message that reads like the account lacks access.
+sim_require_token() {
+  [ -n "${EXPO_TOKEN_SIMULATOR:-}" ] && return 0
+  echo "sim: EXPO_TOKEN_SIMULATOR is not set." >&2
+  echo "sim: Simulator sessions are actor-gated, so the worker's own EXPO_TOKEN" >&2
+  echo "sim: cannot create one. Add a personal access token as" >&2
+  echo "sim: EXPO_TOKEN_SIMULATOR. See .eas/workflows/SETUP.md." >&2
+  return 1
+}
+
 _argent() { npx --yes @swmansion/argent@latest "$@"; }
 
 # --- metro ------------------------------------------------------------------
