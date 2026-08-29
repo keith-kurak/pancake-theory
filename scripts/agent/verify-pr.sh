@@ -61,10 +61,10 @@ cleanup() {
 
   if [ "$code" -ne 0 ] && [ -z "$COMMENT_POSTED" ]; then
     if [ -s "$VERDICT_FILE" ]; then
-      gh_comment "$(printf '## 🤖 PR verification\n\n**Verdict:** %s\n\n⚠️ A later step failed after the verdict was reached. Full logs are on the %s.\n' \
+      gh_comment "$(printf '## PR verification\n\n**Verdict:** %s\n\n⚠️ A later step failed after the verdict was reached. Full logs are on the %s.\n' \
         "$(head -n 1 "$VERDICT_FILE")" "${RUN_URL:+[workflow run]($RUN_URL)}")" || true
     else
-      gh_comment "$(printf '## 🤖 PR verification\n\n⚠️ **Verification errored before reaching a verdict.** Logs are on the %s.\n' \
+      gh_comment "$(printf '## PR verification\n\n⚠️ **Verification errored before reaching a verdict.** Logs are on the %s.\n' \
         "${RUN_URL:-workflow run}")" || true
     fi
   fi
@@ -295,7 +295,7 @@ fi
 
 REPORT="$(tail -n +2 "$VERDICT_FILE")"
 gh_comment "$(cat <<EOF
-## 🤖 PR verification
+## PR verification
 
 **Verdict:** ${VERDICT_LINE}
 $([ -n "$EVIDENCE_URL" ] && printf '\n🖼️ [Evidence](%s) — screenshots from the run\n' "$EVIDENCE_URL")

@@ -56,8 +56,29 @@ gh_pr_json() {
   _gh_curl GET "/repos/$GH_REPO/pulls/$PR_NUMBER"
 }
 
+# Until a machine user owns the token, every comment is authored by a real
+# person's account and looks hand-written. This marker is the only thing
+# distinguishing them, so it is applied here rather than at each call site,
+# where one would eventually be missed.
+#
+# Set AGENT_SIGNATURE="" to drop it — worth doing once the bot posts under its
+# own account, since the avatar and username then say the same thing.
+: "${AGENT_SIGNATURE:=🤖 **Automated** — written by the agent workflow, not by a human.}"
+
+_gh_signed_body() {
+  local body="$1"
+  [ -n "${AGENT_SIGNATURE:-}" ] || { printf '%s' "$body"; return; }
+
+  local suffix=""
+  [ -n "${RUN_URL:-}" ] && suffix=" · [view run](${RUN_URL})"
+  # A blockquote so it reads as a banner above the message rather than part of
+  # it, and stays legible whatever the comment body happens to start with.
+  printf '> %s%s\n\n%s' "$AGENT_SIGNATURE" "$suffix" "$body"
+}
+
 gh_comment() {
-  _gh_curl POST "/repos/$GH_REPO/issues/$PR_NUMBER/comments" "$(gh_json body "$1")" >/dev/null
+  _gh_curl POST "/repos/$GH_REPO/issues/$PR_NUMBER/comments" \
+    "$(gh_json body "$(_gh_signed_body "$1")")" >/dev/null
 }
 
 # gh_set_body <markdown>
