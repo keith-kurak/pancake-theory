@@ -47,27 +47,6 @@ export default function EditHistoryEntryScreen() {
     return msToHMS(cookMs);
   }, [entry]);
 
-  const initialStart = useMemo(() => {
-    const date = new Date(entry?.timestamp ?? 0);
-    return {
-      month: date.getMonth() + 1,
-      day: date.getDate(),
-      year: date.getFullYear(),
-      hours: date.getHours(),
-      minutes: date.getMinutes(),
-    };
-  }, [entry]);
-
-  const [startMonth, setStartMonth] = useState(String(initialStart.month));
-  const [startDay, setStartDay] = useState(String(initialStart.day));
-  const [startYear, setStartYear] = useState(String(initialStart.year));
-  const [startHours, setStartHours] = useState(
-    String(initialStart.hours).padStart(2, "0"),
-  );
-  const [startMinutes, setStartMinutes] = useState(
-    String(initialStart.minutes).padStart(2, "0"),
-  );
-
   const [prepHours, setPrepHours] = useState(String(initialPrep.hours));
   const [prepMinutes, setPrepMinutes] = useState(String(initialPrep.minutes));
   const [prepSeconds, setPrepSeconds] = useState(String(initialPrep.seconds));
@@ -115,20 +94,7 @@ export default function EditHistoryEntryScreen() {
       parseInt(cookMinutes, 10) || 0,
       parseInt(cookSeconds, 10) || 0,
     );
-    // Preserve the original seconds/milliseconds so editing only the
-    // displayed fields doesn't silently shift the start time.
-    const original = new Date(entry.timestamp);
-    const startDate = new Date(
-      parseInt(startYear, 10) || initialStart.year,
-      (parseInt(startMonth, 10) || initialStart.month) - 1,
-      parseInt(startDay, 10) || initialStart.day,
-      parseInt(startHours, 10) || 0,
-      parseInt(startMinutes, 10) || 0,
-      original.getSeconds(),
-      original.getMilliseconds(),
-    );
     breakfastActions.updateHistoryEntry(id, {
-      timestamp: startDate.getTime(),
       prepDuration: prepMs,
       cookDuration: cookMs,
       rating: rating === undefined ? null : rating,
@@ -158,7 +124,11 @@ export default function EditHistoryEntryScreen() {
         options={{
           title: entry.recipeName,
           headerRight: () => (
-            <Pressable onPress={handleDelete} hitSlop={8}>
+            <Pressable
+              onPress={handleDelete}
+              hitSlop={8}
+              testID="delete-entry-button"
+            >
               <IconSymbol name="trash" size={20} color="#dc3545" />
             </Pressable>
           ),
@@ -176,6 +146,7 @@ export default function EditHistoryEntryScreen() {
                 key={star}
                 onPress={() => handleStarPress(star)}
                 style={styles.starButton}
+                testID={`rating-star-${star}`}
               >
                 <ThemedText
                   style={[
@@ -199,56 +170,6 @@ export default function EditHistoryEntryScreen() {
               : "Tap to rate (optional)"}
           </ThemedText>
 
-          <ThemedText style={styles.sectionTitle}>Start Time</ThemedText>
-          <View style={styles.timeRow}>
-            <TimeField
-              label="m"
-              value={startMonth}
-              onChangeText={setStartMonth}
-              inputBg={inputBg}
-              textColor={inputTextColor}
-              maxLength={2}
-            />
-            <TimeField
-              label="d"
-              value={startDay}
-              onChangeText={setStartDay}
-              inputBg={inputBg}
-              textColor={inputTextColor}
-              maxLength={2}
-            />
-            <TimeField
-              label="y"
-              value={startYear}
-              onChangeText={setStartYear}
-              inputBg={inputBg}
-              textColor={inputTextColor}
-              maxLength={4}
-              width={72}
-            />
-          </View>
-          <View style={styles.timeRow}>
-            <TimeField
-              label="hr"
-              value={startHours}
-              onChangeText={setStartHours}
-              inputBg={inputBg}
-              textColor={inputTextColor}
-              maxLength={2}
-            />
-            <TimeField
-              label="min"
-              value={startMinutes}
-              onChangeText={setStartMinutes}
-              inputBg={inputBg}
-              textColor={inputTextColor}
-              maxLength={2}
-            />
-          </View>
-          <ThemedText style={styles.ratingHint}>
-            24-hour time (e.g. 14:30 for 2:30 PM)
-          </ThemedText>
-
           <ThemedText style={styles.sectionTitle}>Prep Time</ThemedText>
           <View style={styles.timeRow}>
             <TimeField
@@ -257,6 +178,7 @@ export default function EditHistoryEntryScreen() {
               onChangeText={setPrepHours}
               inputBg={inputBg}
               textColor={inputTextColor}
+              testID="prep-hours-input"
             />
             <TimeField
               label="m"
@@ -264,6 +186,7 @@ export default function EditHistoryEntryScreen() {
               onChangeText={setPrepMinutes}
               inputBg={inputBg}
               textColor={inputTextColor}
+              testID="prep-minutes-input"
             />
             <TimeField
               label="s"
@@ -271,6 +194,7 @@ export default function EditHistoryEntryScreen() {
               onChangeText={setPrepSeconds}
               inputBg={inputBg}
               textColor={inputTextColor}
+              testID="prep-seconds-input"
             />
           </View>
 
@@ -282,6 +206,7 @@ export default function EditHistoryEntryScreen() {
               onChangeText={setCookHours}
               inputBg={inputBg}
               textColor={inputTextColor}
+              testID="cook-hours-input"
             />
             <TimeField
               label="m"
@@ -289,6 +214,7 @@ export default function EditHistoryEntryScreen() {
               onChangeText={setCookMinutes}
               inputBg={inputBg}
               textColor={inputTextColor}
+              testID="cook-minutes-input"
             />
             <TimeField
               label="s"
@@ -296,6 +222,7 @@ export default function EditHistoryEntryScreen() {
               onChangeText={setCookSeconds}
               inputBg={inputBg}
               textColor={inputTextColor}
+              testID="cook-seconds-input"
             />
           </View>
         </ScrollView>
@@ -313,6 +240,7 @@ export default function EditHistoryEntryScreen() {
               { backgroundColor: tintColor },
               pressed && styles.saveButtonPressed,
             ]}
+            testID="save-button"
           >
             <ThemedText style={styles.saveButtonText}>Save</ThemedText>
           </Pressable>
@@ -328,16 +256,14 @@ function TimeField({
   onChangeText,
   inputBg,
   textColor,
-  maxLength = 3,
-  width,
+  testID,
 }: {
   label: string;
   value: string;
   onChangeText: (text: string) => void;
   inputBg: string;
   textColor: string;
-  maxLength?: number;
-  width?: number;
+  testID?: string;
 }) {
   return (
     <View style={styles.timeField}>
@@ -345,13 +271,13 @@ function TimeField({
         style={[
           styles.timeInput,
           { backgroundColor: inputBg, color: textColor },
-          width !== undefined && { width },
         ]}
         value={value}
         onChangeText={onChangeText}
         keyboardType="number-pad"
-        maxLength={maxLength}
+        maxLength={3}
         selectTextOnFocus
+        testID={testID}
       />
       <ThemedText style={styles.timeLabel}>{label}</ThemedText>
     </View>
