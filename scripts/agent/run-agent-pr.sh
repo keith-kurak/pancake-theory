@@ -77,13 +77,17 @@ note_blocker() { BLOCKERS="${BLOCKERS}- $1"$'\n'; }
 preflight() {
   log "Phase 0: preflight"
 
+  # PR_HEAD_REF is deliberately not required here — it is recovered from the API
+  # below. EAS's github context marks several fields optional and does not
+  # populate them for every event, so anything derivable is derived rather than
+  # trusted.
   local missing=""
-  for var in CLAUDE_CODE_OAUTH_TOKEN GH_TOKEN GH_REPO PR_NUMBER PR_HEAD_REF; do
+  for var in CLAUDE_CODE_OAUTH_TOKEN GH_TOKEN GH_REPO PR_NUMBER; do
     [ -n "${!var:-}" ] || missing="$missing $var"
   done
   if [ -n "$missing" ]; then
     fail "missing required variables:$missing"
-    fail "see .eas/workflows/README.md for the one-time setup"
+    fail "see .eas/workflows/SETUP.md for the one-time setup"
     exit 1
   fi
 
@@ -92,6 +96,12 @@ preflight() {
   local pr_json
   pr_json="$(gh_pr_json)" || { fail "could not read PR #$PR_NUMBER"; exit 1; }
   WAS_DRAFT="$(printf '%s' "$pr_json" | gh_field draft)"
+
+  if [ -z "${PR_HEAD_REF:-}" ]; then
+    PR_HEAD_REF="$(printf '%s' "$pr_json" | gh_field head.ref)"
+    [ -n "$PR_HEAD_REF" ] || { fail "could not resolve the PR's head branch"; exit 1; }
+    log "Recovered head branch from the API: $PR_HEAD_REF"
+  fi
   log "Mode: $AGENT_MODE (PR #$PR_NUMBER, draft=$WAS_DRAFT)"
 
   case "$AGENT_MODE" in
@@ -111,6 +121,17 @@ preflight() {
 }
 
 preflight_build() {
+  # agent-start.yaml also gates on draft via the workflow context. Re-checking
+  # here against the API costs nothing and means a context quirk cannot silently
+  # let a build run rewrite a branch under a reviewer.
+  if [ "$WAS_DRAFT" != "true" ]; then
+    fail "PR #$PR_NUMBER is not a draft; refusing to rewrite it"
+    gh_comment "$(printf 'The `%s` label was applied, but this PR is already open for review, so I did not touch it.\n\nTo request changes on an open PR, comment `/agent <what to change>` and apply the `agent-revise` label instead.\n' \
+      "${AGENT_LABEL:-agent-start}")" || warn "could not post the comment"
+    gh_remove_label "$AGENT_LABEL"
+    exit 1
+  fi
+
   if [ ! -f "$PROJECT_ROOT/PR-TODO.md" ]; then
     fail "no PR-TODO.md at the repository root"
     gh_comment "$(printf 'The `%s` label was applied, but there is no `PR-TODO.md` at the repository root.\n\nAdd one describing the feature or fix, push it, then apply the label again.\nStart from `PR-TODO.template.md`.\n' \

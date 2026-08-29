@@ -427,12 +427,26 @@ permission check to the start of `run-agent-pr.sh` and `verify-pr.sh` using
 
 ### Fork pull requests never run
 
-All three workflows require `head.repo.full_name == github.repository`. A fork PR is
-skipped even if
-it is labelled, because the run would otherwise execute that fork's source and its
-`PR-TODO.md` on a worker holding all three secrets. `head.ref` also names a branch that
-exists only in the fork, so the push would create a stray branch here instead of updating
-the PR.
+**EAS enforces this, and these workflows do not.** The GitHub pull-request webhook
+handler compares `pull_request.head.repo.id` against the webhook's `repository.id` and
+returns without dispatching when they differ, so a fork PR never produces a run at all.
+That is the right layer: it stops before any worker exists, whereas anything written here
+could only react after one had already started.
 
-Do not relax that condition to "validate a contributor's PR". Anyone can open one on a
-public repository.
+> **Do not re-add a same-repo `if` to these workflows.** The obvious form,
+> `if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}`, is not
+> just redundant — it silently breaks everything. EAS's `github` context documents
+> `pull_request` with `number`, `title`, `body`, `state`, `draft`, and `merged`, but not
+> `head.repo`. The expression evaluates `undefined == "owner/repo"` → false, so *every*
+> run is skipped, legitimate ones included, and the only trace is "if condition not met"
+> with no worker to inspect. This repo shipped that bug; it is why the guard is gone
+> rather than merely simplified.
+
+`github.repository` and `github.repository_owner` cannot substitute: both describe the
+*base* repository and are identical for fork and same-repo PRs.
+
+One thing to revisit — EAS has follow-up work to let maintainers approve one-off
+workflows for fork PRs. If that lands, approving one here would run a fork's code on a
+worker holding all three secrets, and `head.ref` names a branch that exists only in the
+fork, so the push would create a stray branch rather than update the PR. Treat such an
+approval as a deliberate, considered act rather than a convenience.

@@ -30,7 +30,6 @@ jobs:
   # fingerprint-matched development build is reused across PRs, and only the
   # JavaScript changes per run.
   fingerprint:
-    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
     environment: development
     type: fingerprint
 
@@ -64,7 +63,7 @@ jobs:
     env:
       APP_VARIANT: DEV
     params:
-      branch: ${{ github.event.pull_request.head.ref }}
+      branch: ${{ github.event.pull_request.head.ref || github.ref_name }}
       message: 'Verify PR #${{ github.event.pull_request.number }}'
 
   verify:
@@ -78,13 +77,16 @@ jobs:
       BUILD_ID: ${{ needs.get_build.outputs.build_id || needs.build.outputs.build_id }}
       UPDATE_GROUP_ID: ${{ needs.publish_update.outputs.first_update_group_id }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
-      GH_REPO: ${{ github.repository }}
+      # github.repository is optional in EAS's context and is empty for
+      # pull_request_labeled, which fails env validation (values must be a
+      # string or number). Same fallback idiom as update-on-pr.yaml.
+      GH_REPO: ${{ github.repository || 'keith-kurak/pancake-theory' }}
       RUN_URL: ${{ workflow.url }}
       VERIFY_LABEL: agent-verify
     steps:
       - uses: eas/checkout
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
+          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
 
       - uses: eas/install_node_modules
 
