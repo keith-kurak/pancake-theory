@@ -30,7 +30,6 @@ jobs:
   # fingerprint-matched development build is reused across PRs, and only the
   # JavaScript changes per run.
   fingerprint:
-    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
     environment: development
     type: fingerprint
 

@@ -26,10 +26,9 @@ defaults:
 jobs:
   revise:
     name: Apply review comments, validate, publish
-    # Unlike agent-start, this runs on an open PR as well as a draft one — asking
-    # for changes is what a reviewer does. The same-repo gate still applies:
-    # this repository is public, and a fork PR must never run with these secrets.
-    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+    # No draft gate, unlike agent-start — asking for changes is what a reviewer
+    # does, on an open PR. No fork gate either: EAS blocks fork PRs in its
+    # webhook handler, before a run is dispatched.
     # The simulator runs on EAS, not here, so this job needs no Mac and no
     # nested virtualisation. It only runs Metro, the eas CLI, and Claude.
     runs_on: linux-medium

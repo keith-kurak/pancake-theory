@@ -111,6 +111,17 @@ preflight() {
 }
 
 preflight_build() {
+  # agent-start.yaml also gates on draft via the workflow context. Re-checking
+  # here against the API costs nothing and means a context quirk cannot silently
+  # let a build run rewrite a branch under a reviewer.
+  if [ "$WAS_DRAFT" != "true" ]; then
+    fail "PR #$PR_NUMBER is not a draft; refusing to rewrite it"
+    gh_comment "$(printf 'The `%s` label was applied, but this PR is already open for review, so I did not touch it.\n\nTo request changes on an open PR, comment `/agent <what to change>` and apply the `agent-revise` label instead.\n' \
+      "${AGENT_LABEL:-agent-start}")" || warn "could not post the comment"
+    gh_remove_label "$AGENT_LABEL"
+    exit 1
+  fi
+
   if [ ! -f "$PROJECT_ROOT/PR-TODO.md" ]; then
     fail "no PR-TODO.md at the repository root"
     gh_comment "$(printf 'The `%s` label was applied, but there is no `PR-TODO.md` at the repository root.\n\nAdd one describing the feature or fix, push it, then apply the label again.\nStart from `PR-TODO.template.md`.\n' \

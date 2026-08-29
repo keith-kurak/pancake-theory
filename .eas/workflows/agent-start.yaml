@@ -21,17 +21,13 @@ defaults:
 jobs:
   agent:
     name: Implement, validate, publish
-    # Two gates, both required.
+    # Draft only: a PR already in review must not be rewritten under the
+    # reviewer, so re-labelling one is a no-op. The runner re-checks this
+    # against the API too.
     #
-    # draft — a PR already in review must not be rewritten under the reviewer,
-    #   so re-labelling one is a no-op.
-    #
-    # same-repo — this repository is public, so anyone can open a PR from a
-    #   fork. A fork PR must never run here: the job holds CLAUDE_CODE_OAUTH_TOKEN,
-    #   GH_TOKEN, and EXPO_TOKEN, and it would execute that fork's source and its
-    #   PR-TODO.md. `head.ref` also names a branch that exists only in the fork,
-    #   so the push would create a stray branch here rather than update the PR.
-    if: ${{ github.event.pull_request.draft && github.event.pull_request.head.repo.full_name == github.repository }}
+    # There is no fork check. EAS blocks fork PRs in its webhook handler, before
+    # a run is ever dispatched — see the note in README.md.
+    if: ${{ github.event.pull_request.draft }}
     # The simulator runs on EAS, not here, so this job needs no Mac and no
     # nested virtualisation. It only runs Metro, the eas CLI, and Claude.
     runs_on: linux-medium
