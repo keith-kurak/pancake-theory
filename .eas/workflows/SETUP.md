@@ -62,9 +62,33 @@ That message is about the **account**, not the token. Adding credentials will no
 and a token problem surfaces as an authorization error instead. Two different failures
 that are easy to conflate.
 
+### Which account posts
+
+Everything the agent writes — comments, the PR description, and the commits — is
+attributed to **whoever owns `GH_TOKEN`**. A comment's author *is* the token holder;
+there is no display-name override.
+
+So use a **machine user**. Create a GitHub account (`llamabot`), add it to the repository
+as a collaborator with **write** access, and generate the PAT from that account. Nothing
+in the code names it — both runners call `GET /user` and derive the identity, so changing
+bots later means swapping the secret and nothing else.
+
+Commits use GitHub's `<id>+<login>@users.noreply.github.com` address, which is the form
+that links a commit back to a profile. A bare name with an unmatched noreply address
+renders as plain text with no avatar.
+
+Use the **same** PAT for `AGENT_GH_TOKEN` (step 2), so the issue-to-PR Action posts under
+the same name.
+
+> **The bot is a collaborator, so it can instruct itself.** Its comments pass the
+> `author_association` filter like any other collaborator's. Both comment readers
+> therefore skip anything authored by the token's own account, so an agent comment
+> starting with `/agent` can never be read back as a change request.
+
 ### The GitHub PAT
 
-Create a **fine-grained** token scoped to this repository only, with:
+Create a **fine-grained** token scoped to this repository only, owned by the machine
+user, with:
 
 | Permission | Access | Needed for |
 |---|---|---|

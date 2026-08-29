@@ -56,6 +56,24 @@ gh_pr_json() {
   _gh_curl GET "/repos/$GH_REPO/pulls/$PR_NUMBER"
 }
 
+# gh_authenticated_user — prints "<login> <id>" for whoever owns GH_TOKEN.
+#
+# Everything the agent does is attributed to this account: comments, the PR
+# description, and the commits. Deriving it rather than hardcoding a name means
+# changing the bot is only ever a matter of swapping the token.
+gh_authenticated_user() {
+  _gh_curl GET "/user" 2>/dev/null | python3 -c '
+import json, sys
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+login, uid = d.get("login"), d.get("id")
+if login and uid:
+    print(login, uid)
+'
+}
+
 gh_comment() {
   _gh_curl POST "/repos/$GH_REPO/issues/$PR_NUMBER/comments" "$(gh_json body "$1")" >/dev/null
 }
@@ -134,9 +152,10 @@ gh_collect_requests() {
   review_json="$(_gh_curl GET "/repos/$GH_REPO/pulls/$PR_NUMBER/comments?per_page=100" || echo '[]')"
 
   python3 -c '
-import json, sys
+import json, os, sys
 
 since, marker = sys.argv[1], sys.argv[2]
+self_login = os.environ.get("GH_SELF_LOGIN", "")
 TRUSTED = {"OWNER", "MEMBER", "COLLABORATOR"}
 
 def load(raw):
@@ -148,6 +167,10 @@ def load(raw):
 
 def wanted(c):
     if c.get("author_association") not in TRUSTED:
+        return False
+    # The agent posts as a collaborator too, so its own comments would
+    # otherwise pass every filter and it could act on itself.
+    if self_login and (c.get("user") or {}).get("login") == self_login:
         return False
     if since and (c.get("created_at") or "") <= since:
         return False
@@ -200,15 +223,17 @@ gh_latest_request() {
   local marker="$1" json
   json="$(_gh_curl GET "/repos/$GH_REPO/issues/$PR_NUMBER/comments?per_page=100" || echo '[]')"
   printf '%s' "$json" | python3 -c '
-import json, sys
+import json, os, sys
 marker = sys.argv[1]
 TRUSTED = {"OWNER", "MEMBER", "COLLABORATOR"}
 try:
     comments = json.load(sys.stdin)
 except Exception:
     comments = []
+self_login = os.environ.get("GH_SELF_LOGIN", "")
 hits = [c for c in comments
         if c.get("author_association") in TRUSTED
+        and (c.get("user") or {}).get("login") != self_login
         and (c.get("body") or "").lstrip().startswith(marker)]
 if hits:
     hits.sort(key=lambda c: c.get("created_at") or "")

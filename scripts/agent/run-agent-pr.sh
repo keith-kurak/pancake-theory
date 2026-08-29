@@ -91,6 +91,18 @@ preflight() {
     exit 1
   fi
 
+  # Everything the agent writes is attributed to this account. Exported so the
+  # comment readers can skip the agent's own output — it posts as a collaborator,
+  # so nothing else would stop it acting on itself.
+  local self_login self_id
+  read -r self_login self_id <<< "$(gh_authenticated_user)"
+  if [ -n "${self_login:-}" ]; then
+    export GH_SELF_LOGIN="$self_login"
+    log "Acting as @$self_login"
+  else
+    warn "could not resolve the account behind GH_TOKEN"
+  fi
+
   # publish() re-reads the PR rather than trusting this snapshot, because draft
   # state and body can change while the run is in flight.
   local pr_json
@@ -443,8 +455,21 @@ commit_and_push() {
 
   log "Phase 4: commit and push to $PR_HEAD_REF"
 
-  git config user.name  "eas-agent[bot]"
-  git config user.email "eas-agent[bot]@users.noreply.github.com"
+  # Attribute the commit to the account behind GH_TOKEN, using GitHub's
+  # <id>+<login>@users.noreply.github.com form. That is the form GitHub links
+  # back to a profile — a bare name with an unmatched noreply address renders as
+  # plain text with no avatar.
+  local self_login self_id
+  read -r self_login self_id <<< "$(gh_authenticated_user)"
+  if [ -n "${self_login:-}" ] && [ -n "${self_id:-}" ]; then
+    git config user.name  "$self_login"
+    git config user.email "${self_id}+${self_login}@users.noreply.github.com"
+    log "Committing as @$self_login"
+  else
+    warn "could not resolve the token's account; committing under a generic identity"
+    git config user.name  "agent"
+    git config user.email "agent@users.noreply.github.com"
+  fi
   # agent-out is both gitignored and excluded below, so git's "paths are
   # ignored, use -f" advice is pure noise in the run log — and noise that looks
   # like a failure when you are scanning for one.

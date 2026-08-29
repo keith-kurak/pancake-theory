@@ -145,12 +145,26 @@ jobs:
       - name: Push the branch
         id: push
         env:
+          GH_TOKEN: ${{ secrets.AGENT_GH_TOKEN }}
           BRANCH: ${{ steps.task.outputs.branch }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
           set -euo pipefail
-          git config user.name  "eas-agent[bot]"
-          git config user.email "eas-agent[bot]@users.noreply.github.com"
+          # Attribute to whoever owns AGENT_GH_TOKEN, in GitHub's
+          # <id>+<login>@users.noreply.github.com form — the form that links a
+          # commit back to a profile. Derived, so changing the bot means
+          # swapping the secret and nothing else.
+          BOT_JSON="$(gh api user)"
+          BOT_LOGIN="$(printf '%s' "$BOT_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("login",""))')"
+          BOT_ID="$(printf '%s' "$BOT_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("id",""))')"
+          if [ -n "$BOT_LOGIN" ] && [ -n "$BOT_ID" ]; then
+            echo "Committing as @$BOT_LOGIN"
+            git config user.name  "$BOT_LOGIN"
+            git config user.email "${BOT_ID}+${BOT_LOGIN}@users.noreply.github.com"
+          else
+            git config user.name  "agent"
+            git config user.email "agent@users.noreply.github.com"
+          fi
 
           if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
             echo "::notice::$BRANCH already exists; reusing it."

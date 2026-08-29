@@ -98,6 +98,12 @@ mkdir -p "$EVIDENCE_DIR"
 # logs. Guarantee a match from the very first line.
 printf 'Verification run for PR #%s\n' "${PR_NUMBER:-?}" > "$EVIDENCE_DIR/run.txt"
 
+# Exported so gh_latest_request skips the agent's own comments; it posts as a
+# collaborator, so nothing else would stop it reading its own output back.
+GH_SELF_LOGIN="$(gh_authenticated_user | cut -d' ' -f1)"
+export GH_SELF_LOGIN
+[ -n "$GH_SELF_LOGIN" ] && log "Acting as @$GH_SELF_LOGIN"
+
 log "Verifying PR #$PR_NUMBER"
 PR_JSON="$(gh_pr_json)" || { fail "could not read PR #$PR_NUMBER"; exit 1; }
 PR_TITLE="$(printf '%s' "$PR_JSON" | gh_field title)"
