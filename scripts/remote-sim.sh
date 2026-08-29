@@ -150,7 +150,10 @@ cmd_start() {
 
   info "Starting remote EAS Simulator session (argent, idle timeout ${IDLE_MINUTES}m${MAX_DURATION_MINUTES:+, max ${MAX_DURATION_MINUTES}m})..."
   local start_log
-  start_log="$(mktemp -t remote-sim-start)"
+  # An explicit template, not `mktemp -t PREFIX`: BSD mktemp appends its own
+  # suffix to a bare prefix, but GNU coreutils rejects it with "too few X's in
+  # template". This script runs on macOS locally and on a Linux worker in CI.
+  start_log="$(mktemp "${TMPDIR:-/tmp}/remote-sim-start.XXXXXX")"
   # Stream the CLI output live and keep a copy so the web preview URL can be
   # repeated in the summary below.
   $EAS simulator:start \
