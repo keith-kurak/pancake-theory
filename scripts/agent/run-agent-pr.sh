@@ -40,6 +40,8 @@ mkdir -p "$AGENT_OUT"
 . "$PROJECT_ROOT/scripts/agent/lib/gh.sh"
 # shellcheck source=scripts/agent/lib/sim.sh
 . "$PROJECT_ROOT/scripts/agent/lib/sim.sh"
+# shellcheck source=scripts/agent/lib/evidence.sh
+. "$PROJECT_ROOT/scripts/agent/lib/evidence.sh"
 # shellcheck source=scripts/lib/resolve-sim-build.sh
 . "$PROJECT_ROOT/scripts/lib/resolve-sim-build.sh"
 
@@ -63,6 +65,7 @@ STATUS_VALIDATE="not reached"
 VERDICT="fail"
 BLOCKERS=""
 WAS_DRAFT=""
+EVIDENCE_URL=""
 
 log()  { printf '\n\033[36m==> %s\033[0m\n' "$*"; }
 warn() { printf '\033[33mwarn:\033[0m %s\n' "$*" >&2; }
@@ -537,7 +540,20 @@ if errors:
     printf '### Blockers\n\n%s\n' "$BLOCKERS"
   fi
 
-  printf 'Screenshots, Metro logs, and the full transcript are attached to the '
+  if [ -n "$EVIDENCE_URL" ]; then
+    printf '🖼️ **[Screenshots from the run](%s)**\n\n' "$EVIDENCE_URL"
+  fi
+
+  # The validation above ran against a dev bundle over Metro. `/verify` re-tests
+  # the published update on a fingerprint-matched build, which is closer to what
+  # a user installs. Suggested rather than chained: it is a reviewer's check, it
+  # costs another ~15 minutes, and a failing one would flip this PR straight back
+  # to draft moments after the run marked it ready.
+  if [ "$VERDICT" = pass ]; then
+    printf 'For an independent check on a production-shaped build, comment `/verify` and add the `agent-verify` label.\n\n'
+  fi
+
+  printf 'Metro logs and the full transcript are attached to the '
   if [ -n "$RUN_URL" ]; then
     printf '[workflow run](%s).\n' "$RUN_URL"
   else
@@ -548,6 +564,15 @@ if errors:
 
 publish() {
   local results body merged pr_json node_id is_draft
+
+  # The validate phase already drove the app and captured screenshots. Left
+  # alone they are only reachable by downloading the run's tarball, so publish
+  # them the same way the verify workflow does. Non-fatal: losing the pictures
+  # must not lose the verdict.
+  EVIDENCE_URL="$(publish_evidence "$AGENT_OUT" "PR #${PR_NUMBER}" \
+    "$STATUS_VALIDATE" "pr-${PR_NUMBER}-agent")"
+  [ -n "$EVIDENCE_URL" ] && log "Evidence: $EVIDENCE_URL"
+
   results="$(results_markdown)"
 
   pr_json="$(gh_pr_json)" || { fail "could not read the PR"; return 1; }

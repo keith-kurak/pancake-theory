@@ -28,6 +28,8 @@ cd "$PROJECT_ROOT" || exit 1
 . "$PROJECT_ROOT/scripts/agent/lib/gh.sh"
 # shellcheck source=scripts/agent/lib/sim.sh
 . "$PROJECT_ROOT/scripts/agent/lib/sim.sh"
+# shellcheck source=scripts/agent/lib/evidence.sh
+. "$PROJECT_ROOT/scripts/agent/lib/evidence.sh"
 
 EVIDENCE_DIR="$PROJECT_ROOT/evidence"
 VERDICT_FILE="$PROJECT_ROOT/evidence/verdict.md"
@@ -248,45 +250,12 @@ npx --yes eas-cli@latest simulator:stop --non-interactive >/dev/null 2>&1 || tru
 # Publish the evidence
 # ---------------------------------------------------------------------------
 
-log "Building the evidence site"
-node scripts/agent/build-evidence-site.mjs "$EVIDENCE_DIR" "PR #${PR_NUMBER}" "$VERDICT_LINE"
-
-# eas deploy joins --export-dir onto the project directory, so an absolute path
-# gets doubled and reported as "not found". It must be relative to the root.
-log "Deploying the evidence site"
-DEPLOY_ERR="$EVIDENCE_DIR/deploy.log"
-DEPLOY_JSON="$(npx --yes eas-cli@latest deploy \
-  --export-dir "evidence/site" \
-  --alias "pr-${PR_NUMBER}-verify" \
-  --non-interactive --json 2>"$DEPLOY_ERR" || echo "")"
-
-EVIDENCE_URL="$(printf '%s' "$DEPLOY_JSON" | python3 -c '
-import json, sys
-raw = sys.stdin.read()
-start = raw.find("{")
-if start < 0:
-    print(""); raise SystemExit
-try:
-    d = json.loads(raw[start:])
-except Exception:
-    print(""); raise SystemExit
-aliases = d.get("aliases") or []
-print((aliases[0].get("url") if aliases else None) or d.get("url") or "")
-' 2>/dev/null || echo "")"
-
+log "Publishing the evidence site"
+EVIDENCE_URL="$(publish_evidence "$EVIDENCE_DIR" "PR #${PR_NUMBER}" "$VERDICT_LINE" "pr-${PR_NUMBER}-verify")"
 if [ -n "$EVIDENCE_URL" ]; then
   log "Evidence: $EVIDENCE_URL"
 else
-  warn "the evidence site did not deploy; the comment will omit the link"
-  # The likeliest first-run cause, and the least obvious one: EAS Hosting needs
-  # a globally-unique preview subdomain before it will accept a deployment, and
-  # the CLI normally asks for one interactively. It cannot ask here.
-  if grep -qiE 'dev.?domain|subdomain|non-interactive' "$DEPLOY_ERR" 2>/dev/null; then
-    warn "EAS Hosting looks unactivated for this project. Choose a preview"
-    warn "subdomain once — on expo.dev under Hosting, or by running a deploy"
-    warn "interactively — then re-apply the label. See .eas/workflows/README.md."
-  fi
-  [ -s "$DEPLOY_ERR" ] && tail -n 15 "$DEPLOY_ERR" >&2
+  warn "the evidence site did not publish; the comment will omit the link"
 fi
 
 # ---------------------------------------------------------------------------
@@ -294,11 +263,21 @@ fi
 # ---------------------------------------------------------------------------
 
 REPORT="$(tail -n +2 "$VERDICT_FILE")"
+
+# Built before the heredoc, not inside it. bash 3.2 — still the system bash on
+# macOS — mis-parses a command substitution nested in a heredoc that is itself
+# inside a command substitution, and then chokes on the next apostrophe. bash 5
+# on the Linux worker handles it, so this only broke local runs.
+EVIDENCE_LINE=""
+if [ -n "$EVIDENCE_URL" ]; then
+  EVIDENCE_LINE="$(printf '\n🖼️ [Evidence](%s) — screenshots from the run\n' "$EVIDENCE_URL")"
+fi
+
 gh_comment "$(cat <<EOF
 ## PR verification
 
 **Verdict:** ${VERDICT_LINE}
-$([ -n "$EVIDENCE_URL" ] && printf '\n🖼️ [Evidence](%s) — screenshots from the run\n' "$EVIDENCE_URL")
+${EVIDENCE_LINE}
 <details>
 <summary>Full report</summary>
 
@@ -306,7 +285,7 @@ ${REPORT}
 
 </details>
 
-_EAS cloud simulator · build \`${BUILD_ID}\` · this PR's JS as update group \`${UPDATE_GROUP_ID}\`_
+_EAS cloud simulator · build \`${BUILD_ID}\` · JS from update group \`${UPDATE_GROUP_ID}\`_
 EOF
 )" && COMMENT_POSTED=1 || warn "could not post the comment"
 
