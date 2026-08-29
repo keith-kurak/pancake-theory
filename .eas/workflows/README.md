@@ -1,14 +1,29 @@
 # EAS Workflows
 
-Automation for this app, all of it in EAS — there is no GitHub Actions setup.
+Automation for this app. Everything runs on EAS except one small GitHub Action, which
+exists because EAS has no issue or comment trigger — see [From an issue](#from-an-issue).
+
+## The agent chain
+
+```
+issue  --/build-->  draft PR + PR-TODO.md  --agent-start-->  built & validated
+                              ^                                     |
+                              |                                     v
+                       /agent + agent-revise  <-----------  ready for review
+                                                                    |
+                                                          /verify + verify
+                                                                    v
+                                                      verdict + evidence site
+```
 
 | Workflow | Trigger | What it does |
 |---|---|---|
+| `.github/.../agent-start-from-issue.yml` | `/build` comment or `agent-start` label **on an issue** | Opens a draft PR carrying `PR-TODO.md`, then labels it to hand off to EAS |
 | `agent-start.yaml` | `agent-start` label on a draft PR | Implements `PR-TODO.md`, validates on a simulator, commits, flips the PR to ready |
 | `agent-revise.yaml` | `agent-revise` label on any PR | Applies `/agent` review comments, re-validates, commits |
 | `agent-verify.yaml` | `verify` label on any PR | Proves a PR works on a cloud simulator and publishes a screenshot evidence site. Writes no code |
-| `update-on-pr.yaml` | Any PR | Unit tests, then publishes a preview update and comments on the PR |
-| `maybe-make-dev-builds-on-pr.yaml` | Any PR | Builds development clients when the fingerprint changed |
+| `update-on-pr.yaml` | Any **non-draft** PR | Unit tests, then publishes a preview update and comments on the PR |
+| `maybe-make-dev-builds-on-pr.yaml` | Any **non-draft** PR | Builds development clients when the fingerprint changed |
 | `build-or-update-preview.yaml` | Push to `main` | Publishes an update, or builds when the fingerprint changed |
 | `build-or-repack-preview.yaml` | Push to `main` | Builds or repacks preview binaries |
 | `build-or-repack-then-maestro.yaml` | Push to `main` | The above, then Maestro E2E on iOS and Android |
@@ -22,7 +37,67 @@ Automation for this app, all of it in EAS — there is no GitHub Actions setup.
 
 Describe a feature or fix once, in a file. Get back a validated PR.
 
-## How to use it
+## From an issue
+
+The usual way in. On any issue, comment:
+
+```
+/build focus on the Ratios tab only
+```
+
+Or apply the **`agent-start`** label to the issue. Either opens a draft PR whose
+`PR-TODO.md` is built from the issue title and body, plus anything you wrote after
+`/build`, and labels that PR so the EAS run starts.
+
+This one step is a **GitHub Action**
+([`.github/workflows/agent-start-from-issue.yml`](../../.github/workflows/agent-start-from-issue.yml)),
+not an EAS workflow, and it has to be: EAS has no issue trigger and no comment trigger.
+Actions has both — which is why `/build` works directly here while `/agent` and `/verify`
+still need a label to fire.
+
+Three details in that Action are load-bearing:
+
+- **Write access is required**, checked against
+  `GET /repos/{repo}/collaborators/{user}/permission`. On a *public* repository this
+  endpoint returns `read` for any GitHub user rather than 404, so the check matches on
+  the permission **value** — `admin`, `maintain`, or `write`. Anything else, including an
+  error body or an empty response, falls through to a refusal.
+- **The label is applied after the PR is created**, never at creation time. A PR opened
+  with labels already attached emits `opened` with the labels set and *no* separate
+  `labeled` event, so EAS would never see the trigger it listens for.
+- **It pushes with a PAT, not `GITHUB_TOKEN`.** Events made by `GITHUB_TOKEN` are
+  documented not to start new *Actions workflow runs*; GitHub Apps such as EAS are not
+  covered by that wording, so it would probably work. "Probably" is a poor foundation for
+  the whole chain, and GitHub recommends a PAT for exactly this case.
+
+Issue text never reaches a shell command — it is passed through the environment into
+Python, which writes the file. A title containing `` $(whoami) `` lands in `PR-TODO.md`
+as literal text.
+
+### Draft PRs cost one workflow, not three
+
+Opening a PR also fires `update-on-pr.yaml` and `maybe-make-dev-builds-on-pr.yaml` —
+including for draft PRs, which is what an agent run starts as. That meant one `/build`
+kicked off three EAS workflows, one of which could be a full native build on a branch
+whose only content was a markdown file.
+
+Both are now gated with `if: ${{ !github.event.pull_request.draft }}`, so they hold until
+the PR is genuinely ready for review — which is also when their output starts being
+useful.
+
+That guard needs a matching trigger change, or it would silently do too much. `types`
+defaults to `opened, reopened, synchronize`, and **`ready_for_review` is not in that
+set**. With the guard but not the extra type, a PR opened as a draft would never run them
+at all — not even after being marked ready — because no event would fire once the guard
+started passing. Both files now list `ready_for_review` explicitly.
+
+In `maybe-make-dev-builds-on-pr.yaml` only the root `fingerprint` job carries the guard.
+Every other job reaches it through `needs`, and a skipped job stops its dependents, so the
+three build jobs keep their own unrelated `if` conditions untouched.
+
+## By hand
+
+If you would rather skip the issue:
 
 1. Branch, and add a `PR-TODO.md` at the repository root. Copy
    [`PR-TODO.template.md`](../../PR-TODO.template.md) and fill it in.
@@ -307,7 +382,19 @@ Clearing draft state uses the GraphQL `markPullRequestReadyForReview` mutation. 
 `PATCH /pulls/{n}` silently ignores a `draft` field, so a token without GraphQL access
 to pull requests will update the description and then quietly fail to un-draft.
 
-### 2. GitHub labels
+### 2. A GitHub Actions secret
+
+The issue-to-PR Action needs the same PAT as `GH_TOKEN`, stored on the **repository**
+rather than in EAS, because Actions cannot read EAS environment variables:
+
+```bash
+gh secret set AGENT_GH_TOKEN --body 'github_pat_...'
+```
+
+Only this one Action uses it. The three EAS workflows read `GH_TOKEN` from the EAS
+`development` environment as before.
+
+### 3. GitHub labels
 
 Create two labels on the repository, named exactly:
 
@@ -320,7 +407,7 @@ gh label create verify       --description "Prove this PR works on a cloud simul
 Applying a label needs **Triage** permission or higher, so this is the authorisation
 boundary for both workflows. See [Who can start a run](#who-can-start-a-run).
 
-### 3. A current development build
+### 4. A current development build
 
 Keep one unexpired `development-simulator` build on the current runtime. Without it
 every run skips validation.
@@ -399,6 +486,18 @@ label.
 Worth knowing if that changes: **Triage can label but cannot push.** Granting someone
 triage would hand them an indirect write path, because the run pushes on their behalf
 using `GH_TOKEN`.
+
+The two entry points are not gated identically, which matters only once a triage-only
+collaborator exists:
+
+| Entry point | Requires |
+|---|---|
+| `/build` or `agent-start` on an **issue** | `write`, `maintain`, or `admin` |
+| Any label on a **PR** | Triage or higher, since that is what labelling needs |
+
+The Action is the stricter of the two. To make the label path match, add the same
+permission check to the start of `run-agent-pr.sh` and `verify-pr.sh` using
+`github.triggering_actor`.
 
 ### Fork pull requests never run
 

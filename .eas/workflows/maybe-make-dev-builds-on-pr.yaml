@@ -3,13 +3,22 @@ name: Create development builds if needed
 on:
   pull_request:
     branches: ["*"]
+    # ready_for_review is NOT in the default set (opened, reopened,
+    # synchronize). Without it, the draft guard below would mean a PR opened as
+    # a draft never gets dev builds at all — not even once it is marked ready.
+    # That is the normal path for agent PRs, which start in draft.
+    types: [opened, reopened, synchronize, ready_for_review]
 
 concurrency:
   cancel_in_progress: true
   group: ${{ workflow.filename }}-${{ github.ref }}
 
 jobs:
+  # Native builds are the expensive thing in this repo, and a draft PR does not
+  # need one yet. Guarding the root job is enough: every other job here reaches
+  # it through `needs`, and a skipped job stops its dependents.
   fingerprint:
+    if: ${{ !github.event.pull_request.draft }}
     environment: development
     type: fingerprint
 

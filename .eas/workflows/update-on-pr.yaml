@@ -7,14 +7,23 @@ defaults:
 on:
   pull_request:
     branches: ["*"]
+    # ready_for_review is NOT in the default set (opened, reopened,
+    # synchronize). Without it, the draft guard below would mean a PR opened as
+    # a draft never publishes an update at all — not even once it is marked
+    # ready. That is the normal path for agent PRs, which start in draft.
+    types: [opened, reopened, synchronize, ready_for_review]
 
 concurrency:
   cancel_in_progress: true
   group: ${{ workflow.filename }}-${{ github.ref }}
 
 jobs:
+  # A draft PR is work in progress; publishing a preview update and commenting
+  # on every push to one is noise, and it costs a run each time. The guard is on
+  # every job because `after:` runs even when its upstream is skipped.
   run_unit_tests:
     name: Run unit tests
+    if: ${{ !github.event.pull_request.draft }}
     steps:
       - uses: eas/checkout
       - uses: eas/install_node_modules
@@ -22,10 +31,12 @@ jobs:
 
   publish_preview_update:
     name: Publish update to PR branch
+    if: ${{ !github.event.pull_request.draft }}
     type: update
     params:
       branch: ${{ github.ref_name || 'test' }}
   comment_on_pr:
     name: Post Results to PR
+    if: ${{ !github.event.pull_request.draft }}
     after: [publish_preview_update]
     type: github-comment
