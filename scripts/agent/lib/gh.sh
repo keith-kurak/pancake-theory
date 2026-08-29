@@ -178,6 +178,44 @@ for created, user, path, line, body, url in items:
 ' "$since" "$marker" "$issue_json" "$review_json"
 }
 
+# gh_pr_diff — the PR's unified diff, for prompts that need to see the change.
+gh_pr_diff() {
+  curl --silent --show-error --fail-with-body \
+    --header "Authorization: Bearer $GH_TOKEN" \
+    --header "Accept: application/vnd.github.v3.diff" \
+    --header "X-GitHub-Api-Version: 2022-11-28" \
+    "$GH_API/repos/$GH_REPO/pulls/$PR_NUMBER"
+}
+
+# gh_latest_request <marker>
+#
+# The text of the most recent trusted comment starting with <marker>, with the
+# marker stripped. Used for one-shot guidance ("/verify check the slider"),
+# where only the newest instruction is meaningful — unlike gh_collect_requests,
+# which batches every outstanding request.
+#
+# Same author_association filter, and for the same reason: this repository is
+# public, so an untrusted comment must never become agent input.
+gh_latest_request() {
+  local marker="$1" json
+  json="$(_gh_curl GET "/repos/$GH_REPO/issues/$PR_NUMBER/comments?per_page=100" || echo '[]')"
+  printf '%s' "$json" | python3 -c '
+import json, sys
+marker = sys.argv[1]
+TRUSTED = {"OWNER", "MEMBER", "COLLABORATOR"}
+try:
+    comments = json.load(sys.stdin)
+except Exception:
+    comments = []
+hits = [c for c in comments
+        if c.get("author_association") in TRUSTED
+        and (c.get("body") or "").lstrip().startswith(marker)]
+if hits:
+    hits.sort(key=lambda c: c.get("created_at") or "")
+    print((hits[-1]["body"] or "").lstrip()[len(marker):].strip())
+' "$marker"
+}
+
 # gh_merge_results_block <existing_body> <results_markdown>
 #
 # Replaces the region between the agent markers, or appends it when absent, so

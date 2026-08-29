@@ -51,3 +51,5 @@ temp.json
 
 # Agent PR run artifacts
 agent-out/
+# PR verification run artifacts
+evidence/

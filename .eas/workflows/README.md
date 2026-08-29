@@ -6,6 +6,7 @@ Automation for this app, all of it in EAS — there is no GitHub Actions setup.
 |---|---|---|
 | `agent-start.yaml` | `agent-start` label on a draft PR | Implements `PR-TODO.md`, validates on a simulator, commits, flips the PR to ready |
 | `agent-revise.yaml` | `agent-revise` label on any PR | Applies `/agent` review comments, re-validates, commits |
+| `agent-verify.yaml` | `verify` label on any PR | Proves a PR works on a cloud simulator and publishes a screenshot evidence site. Writes no code |
 | `update-on-pr.yaml` | Any PR | Unit tests, then publishes a preview update and comments on the PR |
 | `maybe-make-dev-builds-on-pr.yaml` | Any PR | Builds development clients when the fingerprint changed |
 | `build-or-update-preview.yaml` | Push to `main` | Publishes an update, or builds when the fingerprint changed |
@@ -105,11 +106,94 @@ alone rather than guessing. A wrong change costs a reviewer more than no change.
 
 ---
 
-## What a run actually does
+# Agent Verify
 
-Both workflows share `scripts/agent/run-agent-pr.sh`, switched by `AGENT_MODE`. Only the
-source of the task and the prompt differ; the checks, the fingerprint gate, the simulator
-validation, and the publish step are identical.
+Prove a PR works on a real device, and get a link to the screenshots.
+
+This one **writes no code and pushes no commits**. It answers "does this actually work?"
+and reports, so it is safe to point at a PR a human wrote.
+
+## How to use it
+
+1. Comment on the PR, starting with **`/verify`**. Guidance is optional but helps:
+
+   ```
+   /verify check that the Eggs slider still snaps to whole numbers
+   ```
+
+2. Add the **`verify`** label.
+
+You get a PR comment with a verdict — `PASS`, `FAIL`, or `INCONCLUSIVE` — a link to a
+published evidence page of screenshots, and a collapsible full report. A `FAIL` or
+`INCONCLUSIVE` verdict fails the job, so the check goes red on the PR.
+
+Only the **most recent** `/verify` comment is used as guidance, unlike Agent Revise which
+batches every outstanding request. A verification is one question, asked now.
+
+## Screenshots without bloating the repo
+
+The evidence page is deployed to **EAS Hosting** under a per-PR alias
+(`pr-<N>-verify`), and the comment links to it.
+
+That solves a problem worth naming: GitHub markdown only renders images from
+publicly-reachable URLs, and EAS **artifact** links sit behind expo.dev auth, so they
+render as broken images. The alternative — committing PNGs so a raw URL exists — puts
+binaries in your diffs and in the repo's object store permanently. Hosting the page
+instead costs nothing per run and keeps git clean.
+
+`build-evidence-site.mjs` copies **only media** into `site/`. The prompt, the diff, the
+transcript, and the argent config stay behind — that config holds a session bearer token
+and the site is public. Every string that reaches the page is HTML-escaped, because the
+verdict text is written by a model that has just read an untrusted PR diff.
+
+Screenshot filenames drive the page: `2-ratios-adjusted.png` becomes item 2, captioned
+"Ratios adjusted".
+
+## How the PR's code reaches the simulator
+
+This is the part that differs most from the other two workflows, and it is why this one
+is faster: **no Metro and no tunnel.**
+
+| Piece | Where it comes from |
+|---|---|
+| The binary | A fingerprint-matched `development-simulator` build, reused across PRs. Built only when no build matches |
+| The JavaScript | An EAS Update published from the PR branch, per run |
+
+The job then deep-links the build at that one update group:
+
+```
+pancaketheory://expo-development-client/?url=https://u.expo.dev/<project-id>/group/<group-id>
+```
+
+That URL is the mechanism that makes this work. `update-on-pr.yaml` publishes to a branch
+named after the PR branch, which a `preview`-channel build would never resolve to — and
+pointing the shared `preview` channel at a PR branch would break previews for everyone
+else. The deep link sidesteps both: it loads exactly that update and nothing else.
+
+A native change means no build matches the fingerprint, so a fresh
+`development-simulator` build runs first. That makes the run long rather than making it
+lie.
+
+## Failure behaviour
+
+The session bills until stopped, and a run that dies before commenting would leave the PR
+silent. An `EXIT` trap covers both, and it reports honestly: a verdict that was reached is
+posted even if a later step (deploy, comment) failed.
+
+Two backstops sit under the verifier. A **deterministic floor** — if the app produced no
+accessibility tree at launch, the run fails without asking Claude, because the update
+clearly did not load. And a **hard timeout**: the verdict file is the contract, not
+Claude's exit code, so a hung agent is killed, leaves no verdict, and the run fails
+closed rather than reporting a pass nobody proved.
+
+---
+
+## What a build or revise run actually does
+
+Agent Start and Agent Revise share `scripts/agent/run-agent-pr.sh`, switched by
+`AGENT_MODE`. Only the source of the task and the prompt differ; the checks, the
+fingerprint gate, the simulator validation, and the publish step are identical. Agent
+Verify is a separate script — it has no implement phase and never touches the branch.
 
 | Phase | Budget | Detail |
 |---|---|---|
@@ -230,6 +314,7 @@ Create two labels on the repository, named exactly:
 ```bash
 gh label create agent-start  --description "Build PR-TODO.md on a draft PR"
 gh label create agent-revise --description "Apply /agent review comments"
+gh label create verify       --description "Prove this PR works on a cloud simulator"
 ```
 
 Applying a label needs **Triage** permission or higher, so this is the authorisation
@@ -278,9 +363,13 @@ It will commit and push to `PR_HEAD_REF` and edit that PR. Point it at a throwaw
 | `scripts/agent/lib/gh.sh` | GitHub REST and GraphQL over `curl`. |
 | `scripts/agent/lib/sim.sh` | Tunnelled Metro, remote session, Argent, startup dialogs. |
 | `scripts/remote-sim.sh` | Session lifecycle. Shared with local work, called by the job. |
+| `.eas/workflows/agent-verify.yaml` | Verify trigger, plus the build and update jobs it needs. |
+| `scripts/agent/verify-pr.sh` | The verification run. Separate: no implement phase. |
+| `scripts/agent/build-evidence-site.mjs` | Screenshots to a static page for EAS Hosting. |
 | `scripts/agent/prompts/implement.md` | Build-mode prompt. |
 | `scripts/agent/prompts/revise.md` | Revise-mode prompt. Narrower on purpose. |
-| `scripts/agent/prompts/validate.md` | Validate-phase prompt, shared by both. |
+| `scripts/agent/prompts/validate.md` | Validate-phase prompt, shared by build and revise. |
+| `scripts/agent/prompts/verify.md` | Verifier prompt. Judges, never edits. |
 | `scripts/lib/resolve-sim-build.sh` | Shared build resolver, also used by `remote-sim.sh`. |
 
 ## Security notes
@@ -300,7 +389,8 @@ these scripts anywhere persistent without revisiting that flag.
 
 ### Who can start a run
 
-The `agent-start` and `agent-revise` labels are the authorisation boundary. Applying a label
+The `agent-start`, `agent-revise`, and `verify` labels are the authorisation boundary.
+Applying a label
 needs **Triage** permission or higher, so read-only collaborators cannot trigger a run,
 and neither can an outside contributor on their own PR. This repository is public but has
 no triage-only collaborators today — only accounts that already have push access can
@@ -312,7 +402,8 @@ using `GH_TOKEN`.
 
 ### Fork pull requests never run
 
-Both jobs require `head.repo.full_name == github.repository`. A fork PR is skipped even if
+All three workflows require `head.repo.full_name == github.repository`. A fork PR is
+skipped even if
 it is labelled, because the run would otherwise execute that fork's source and its
 `PR-TODO.md` on a worker holding all three secrets. `head.ref` also names a branch that
 exists only in the fork, so the push would create a stray branch here instead of updating
