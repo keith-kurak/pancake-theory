@@ -250,10 +250,11 @@ node scripts/agent/build-evidence-site.mjs "$EVIDENCE_DIR" "PR #${PR_NUMBER}" "$
 # eas deploy joins --export-dir onto the project directory, so an absolute path
 # gets doubled and reported as "not found". It must be relative to the root.
 log "Deploying the evidence site"
+DEPLOY_ERR="$EVIDENCE_DIR/deploy.log"
 DEPLOY_JSON="$(npx --yes eas-cli@latest deploy \
   --export-dir "evidence/site" \
   --alias "pr-${PR_NUMBER}-verify" \
-  --non-interactive --json 2>/dev/null || echo "")"
+  --non-interactive --json 2>"$DEPLOY_ERR" || echo "")"
 
 EVIDENCE_URL="$(printf '%s' "$DEPLOY_JSON" | python3 -c '
 import json, sys
@@ -273,6 +274,15 @@ if [ -n "$EVIDENCE_URL" ]; then
   log "Evidence: $EVIDENCE_URL"
 else
   warn "the evidence site did not deploy; the comment will omit the link"
+  # The likeliest first-run cause, and the least obvious one: EAS Hosting needs
+  # a globally-unique preview subdomain before it will accept a deployment, and
+  # the CLI normally asks for one interactively. It cannot ask here.
+  if grep -qiE 'dev.?domain|subdomain|non-interactive' "$DEPLOY_ERR" 2>/dev/null; then
+    warn "EAS Hosting looks unactivated for this project. Choose a preview"
+    warn "subdomain once — on expo.dev under Hosting, or by running a deploy"
+    warn "interactively — then re-apply the label. See .eas/workflows/README.md."
+  fi
+  [ -s "$DEPLOY_ERR" ] && tail -n 15 "$DEPLOY_ERR" >&2
 fi
 
 # ---------------------------------------------------------------------------

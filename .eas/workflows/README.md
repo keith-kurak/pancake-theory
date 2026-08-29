@@ -407,7 +407,25 @@ gh label create agent-verify --description "Prove this PR works on a cloud simul
 Applying a label needs **Triage** permission or higher, so this is the authorisation
 boundary for both workflows. See [Who can start a run](#who-can-start-a-run).
 
-### 4. A current development build
+### 4. EAS Hosting activated
+
+The evidence site is **not** a separate project — it deploys to this project's Hosting
+section, and `pr-<N>-verify` is an alias on it. So the URL is
+`https://<subdomain>--pr-42-verify.expo.app`.
+
+What does need doing once is choosing the project's globally-unique **preview
+subdomain**. EAS normally prompts for it on the first deployment, and the verify job runs
+`--non-interactive`, where it cannot be asked. Set it on expo.dev under **Hosting**, or by
+running one deploy interactively.
+
+**Already done for this project** — `pancaketheory.expo.app` serves the web build, so
+verify runs can deploy straight away.
+
+If it were missing, a run would still produce a verdict and comment; it would just lose
+the evidence link. The script recognises that specific failure and says so in the logs
+rather than leaving you guessing.
+
+### 5. A current development build
 
 Keep one unexpired `development-simulator` build on the current runtime. Without it
 every run skips validation.
