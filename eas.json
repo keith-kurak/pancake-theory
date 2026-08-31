@@ -31,6 +31,13 @@
         "simulator": true
       }
     },
+    "preview-aab": {
+      "extends": "preview",
+      "distribution": "store",
+      "android": {
+        "buildType": "app-bundle"
+      }
+    },
     "production": {
       "autoIncrement": true,
       "channel": "production",

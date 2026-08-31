@@ -1,0 +1,65 @@
+name: Build AAB and generate APK
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  build_aab:
+    name: Build Android app bundle (preview-aab)
+    type: build
+    params:
+      platform: android
+      profile: preview-aab
+
+  aab_to_apk:
+    name: Generate universal APK from AAB
+    needs: [build_aab]
+    type: custom
+    image: latest # Linux image ships with JDK 17, Node, curl, unzip
+    env:
+      BUILD_ID: ${{ needs.build_aab.outputs.build_id }}
+      BUNDLETOOL_VERSION: "1.18.1"
+    steps:
+      # Bring the repo + eas.json so the EAS CLI can resolve the project.
+      - eas/checkout
+      - run:
+          name: Download AAB from the build
+          command: |
+            set -euo pipefail
+            echo "Resolving application archive URL for build $BUILD_ID"
+            AAB_URL=$(eas build:view "$BUILD_ID" --json | node -e "
+              let d = '';
+              process.stdin.on('data', (c) => (d += c)).on('end', () => {
+                const b = JSON.parse(d);
+                const a = b.artifacts || {};
+                const url = a.applicationArchiveUrl || a.buildUrl;
+                if (!url) {
+                  console.error('No application archive URL found on build');
+                  process.exit(1);
+                }
+                process.stdout.write(url);
+              });
+            ")
+            echo "Downloading AAB..."
+            curl -fsSL -o app.aab "$AAB_URL"
+            ls -lh app.aab
+      - run:
+          name: Generate universal APK with bundletool
+          command: |
+            set -euo pipefail
+            curl -fsSL -o bundletool.jar \
+              "https://github.com/google/bundletool/releases/download/${BUNDLETOOL_VERSION}/bundletool-all-${BUNDLETOOL_VERSION}.jar"
+            # No signing config provided -> bundletool signs the universal APK
+            # with a debug key, so the artifact is installable for testing.
+            java -jar bundletool.jar build-apks \
+              --bundle=app.aab \
+              --output=app.apks \
+              --mode=universal
+            unzip -o app.apks -d apks_out
+            mv apks_out/universal.apk app.apk
+            ls -lh app.apk
+      - eas/upload_artifact:
+          name: Upload universal APK
+          inputs:
+            type: build-artifact
+            path: app.apk
