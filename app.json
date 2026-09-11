@@ -73,7 +73,8 @@
       [
         "expo-build-properties",
         {
-          "usePrecompiledModules": true
+          "usePrecompiledModules": true,
+          "enableMinifyInReleaseBuilds": true
         }
       ]
     ],
