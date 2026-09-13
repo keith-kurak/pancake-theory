@@ -43,27 +43,6 @@ export default function EditHistoryEntryScreen() {
     return msToMinutes(cookMs);
   }, [entry]);
 
-  const initialStart = useMemo(() => {
-    const date = new Date(entry?.timestamp ?? 0);
-    return {
-      month: date.getMonth() + 1,
-      day: date.getDate(),
-      year: date.getFullYear(),
-      hours: date.getHours(),
-      minutes: date.getMinutes(),
-    };
-  }, [entry]);
-
-  const [startMonth, setStartMonth] = useState(String(initialStart.month));
-  const [startDay, setStartDay] = useState(String(initialStart.day));
-  const [startYear, setStartYear] = useState(String(initialStart.year));
-  const [startHours, setStartHours] = useState(
-    String(initialStart.hours).padStart(2, "0"),
-  );
-  const [startMinutes, setStartMinutes] = useState(
-    String(initialStart.minutes).padStart(2, "0"),
-  );
-
   const [prepMinutes, setPrepMinutes] = useState(String(initialPrepMinutes));
   const [cookMinutes, setCookMinutes] = useState(String(initialCookMinutes));
 
@@ -98,20 +77,7 @@ export default function EditHistoryEntryScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const prepMs = minutesToMs(parseInt(prepMinutes, 10) || 0);
     const cookMs = minutesToMs(parseInt(cookMinutes, 10) || 0);
-    // Preserve the original seconds/milliseconds so editing only the
-    // displayed fields doesn't silently shift the start time.
-    const original = new Date(entry.timestamp);
-    const startDate = new Date(
-      parseInt(startYear, 10) || initialStart.year,
-      (parseInt(startMonth, 10) || initialStart.month) - 1,
-      parseInt(startDay, 10) || initialStart.day,
-      parseInt(startHours, 10) || 0,
-      parseInt(startMinutes, 10) || 0,
-      original.getSeconds(),
-      original.getMilliseconds(),
-    );
     breakfastActions.updateHistoryEntry(id, {
-      timestamp: startDate.getTime(),
       prepDuration: prepMs,
       cookDuration: cookMs,
       rating: rating === undefined ? null : rating,
@@ -182,56 +148,6 @@ export default function EditHistoryEntryScreen() {
               : "Tap to rate (optional)"}
           </ThemedText>
 
-          <ThemedText style={styles.sectionTitle}>Start Time</ThemedText>
-          <View style={styles.timeRow}>
-            <TimeField
-              label="m"
-              value={startMonth}
-              onChangeText={setStartMonth}
-              inputBg={inputBg}
-              textColor={inputTextColor}
-              maxLength={2}
-            />
-            <TimeField
-              label="d"
-              value={startDay}
-              onChangeText={setStartDay}
-              inputBg={inputBg}
-              textColor={inputTextColor}
-              maxLength={2}
-            />
-            <TimeField
-              label="y"
-              value={startYear}
-              onChangeText={setStartYear}
-              inputBg={inputBg}
-              textColor={inputTextColor}
-              maxLength={4}
-              width={72}
-            />
-          </View>
-          <View style={styles.timeRow}>
-            <TimeField
-              label="hr"
-              value={startHours}
-              onChangeText={setStartHours}
-              inputBg={inputBg}
-              textColor={inputTextColor}
-              maxLength={2}
-            />
-            <TimeField
-              label="min"
-              value={startMinutes}
-              onChangeText={setStartMinutes}
-              inputBg={inputBg}
-              textColor={inputTextColor}
-              maxLength={2}
-            />
-          </View>
-          <ThemedText style={styles.ratingHint}>
-            24-hour time (e.g. 14:30 for 2:30 PM)
-          </ThemedText>
-
           <ThemedText style={styles.sectionTitle}>Prep Time</ThemedText>
           <View style={styles.timeRow}>
             <TimeField
@@ -285,8 +201,6 @@ function TimeField({
   onChangeText,
   inputBg,
   textColor,
-  maxLength = 3,
-  width,
   testID,
 }: {
   label: string;
@@ -294,22 +208,16 @@ function TimeField({
   onChangeText: (text: string) => void;
   inputBg: string;
   textColor: string;
-  maxLength?: number;
-  width?: number;
   testID?: string;
 }) {
   return (
     <View style={styles.timeField}>
       <TextInput
-        style={[
-          styles.timeInput,
-          { backgroundColor: inputBg, color: textColor },
-          width !== undefined && { width },
-        ]}
+        style={[styles.timeInput, { backgroundColor: inputBg, color: textColor }]}
         value={value}
         onChangeText={onChangeText}
         keyboardType="number-pad"
-        maxLength={maxLength}
+        maxLength={3}
         selectTextOnFocus
         testID={testID}
       />
