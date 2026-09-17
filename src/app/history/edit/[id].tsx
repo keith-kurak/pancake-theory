@@ -18,12 +18,15 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-function msToMinutes(ms: number) {
-  return Math.round(ms / 60000);
+function msToHM(ms: number) {
+  const totalMinutes = Math.round(ms / 60000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return { hours, minutes };
 }
 
-function minutesToMs(minutes: number) {
-  return minutes * 60000;
+function hmToMs(hours: number, minutes: number) {
+  return (hours * 60 + minutes) * 60000;
 }
 
 export default function EditHistoryEntryScreen() {
@@ -32,19 +35,22 @@ export default function EditHistoryEntryScreen() {
   const history = useValue(breakfastStore$.history);
   const entry = useMemo(() => history.find((e) => e.id === id), [history, id]);
 
-  const initialPrepMinutes = useMemo(() => {
-    if (!entry) return 0;
-    return msToMinutes(entry.prepDuration ?? 0);
+  const initialPrep = useMemo(() => {
+    if (!entry) return { hours: 0, minutes: 0 };
+    return msToHM(entry.prepDuration ?? 0);
   }, [entry]);
 
-  const initialCookMinutes = useMemo(() => {
-    if (!entry) return 0;
+  const initialCook = useMemo(() => {
+    if (!entry) return { hours: 0, minutes: 0 };
     const cookMs = entry.cookDuration ?? entry.cookingDuration ?? 0;
-    return msToMinutes(cookMs);
+    return msToHM(cookMs);
   }, [entry]);
 
-  const [prepMinutes, setPrepMinutes] = useState(String(initialPrepMinutes));
-  const [cookMinutes, setCookMinutes] = useState(String(initialCookMinutes));
+  const [prepHours, setPrepHours] = useState(String(initialPrep.hours));
+  const [prepMinutes, setPrepMinutes] = useState(String(initialPrep.minutes));
+
+  const [cookHours, setCookHours] = useState(String(initialCook.hours));
+  const [cookMinutes, setCookMinutes] = useState(String(initialCook.minutes));
 
   const [rating, setRating] = useState<number | undefined>(entry?.rating);
 
@@ -75,8 +81,14 @@ export default function EditHistoryEntryScreen() {
 
   const handleSave = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const prepMs = minutesToMs(parseInt(prepMinutes, 10) || 0);
-    const cookMs = minutesToMs(parseInt(cookMinutes, 10) || 0);
+    const prepMs = hmToMs(
+      parseInt(prepHours, 10) || 0,
+      parseInt(prepMinutes, 10) || 0,
+    );
+    const cookMs = hmToMs(
+      parseInt(cookHours, 10) || 0,
+      parseInt(cookMinutes, 10) || 0,
+    );
     breakfastActions.updateHistoryEntry(id, {
       prepDuration: prepMs,
       cookDuration: cookMs,
@@ -151,7 +163,15 @@ export default function EditHistoryEntryScreen() {
           <ThemedText style={styles.sectionTitle}>Prep Time</ThemedText>
           <View style={styles.timeRow}>
             <TimeField
-              label="min"
+              label="h"
+              value={prepHours}
+              onChangeText={setPrepHours}
+              inputBg={inputBg}
+              textColor={inputTextColor}
+              testID="prep-hours-input"
+            />
+            <TimeField
+              label="m"
               value={prepMinutes}
               onChangeText={setPrepMinutes}
               inputBg={inputBg}
@@ -163,7 +183,15 @@ export default function EditHistoryEntryScreen() {
           <ThemedText style={styles.sectionTitle}>Cook Time</ThemedText>
           <View style={styles.timeRow}>
             <TimeField
-              label="min"
+              label="h"
+              value={cookHours}
+              onChangeText={setCookHours}
+              inputBg={inputBg}
+              textColor={inputTextColor}
+              testID="cook-hours-input"
+            />
+            <TimeField
+              label="m"
               value={cookMinutes}
               onChangeText={setCookMinutes}
               inputBg={inputBg}
