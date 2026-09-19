@@ -207,6 +207,12 @@ batches every outstanding request. A verification is one question, asked now.
 
 ## Screenshots without bloating the repo
 
+All three workflows publish one. `agent-start` and `agent-revise` already drove the app
+and captured screenshots during their validate phase — those were previously only
+reachable by downloading the run's tarball. They now go to
+`pr-<N>-agent`, and verify's to `pr-<N>-verify`, so the two never clobber each other.
+
+
 The evidence page is deployed to **EAS Hosting** under a per-PR alias
 (`pr-<N>-verify`), and the comment links to it.
 
@@ -223,6 +229,23 @@ verdict text is written by a model that has just read an untrusted PR diff.
 
 Screenshot filenames drive the page: `2-ratios-adjusted.png` becomes item 2, captioned
 "Ratios adjusted".
+
+## Why nothing chains into verify automatically
+
+`agent-start` and `agent-revise` already validate on a simulator, so running verify
+straight afterwards is tempting. It is deliberately not wired up:
+
+- **It re-tests the same change, differently.** Their validation runs a dev bundle over
+  Metro; verify runs the published update on a fingerprint-matched build. That extra
+  fidelity is real but modest for a JavaScript change.
+- **It roughly doubles the cost.** Another simulator session, another Claude run, another
+  ~15 minutes — and a native change means a ~10 minute build on top.
+- **The states fight.** `agent-start` marks the PR ready on a pass. A chained verify that
+  failed would convert it straight back to draft, so a single run would flip the PR twice.
+
+They are different questions asked by different people: *"did I build it right"* before
+claiming done, versus *"prove it to me"* when a reviewer arrives. A passing run therefore
+ends by suggesting `/verify` rather than running it.
 
 ## How the PR's code reaches the simulator
 

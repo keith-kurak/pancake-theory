@@ -119,7 +119,11 @@ export default function EditHistoryEntryScreen() {
         options={{
           title: entry.recipeName,
           headerRight: () => (
-            <Pressable onPress={handleDelete} hitSlop={8}>
+            <Pressable
+              onPress={handleDelete}
+              hitSlop={8}
+              testID="delete-entry-button"
+            >
               <IconSymbol name="trash" size={20} color="#dc3545" />
             </Pressable>
           ),
@@ -137,6 +141,7 @@ export default function EditHistoryEntryScreen() {
                 key={star}
                 onPress={() => handleStarPress(star)}
                 style={styles.starButton}
+                testID={`rating-star-${star}`}
               >
                 <ThemedText
                   style={[
@@ -214,6 +219,7 @@ export default function EditHistoryEntryScreen() {
               { backgroundColor: tintColor },
               pressed && styles.saveButtonPressed,
             ]}
+            testID="save-button"
           >
             <ThemedText style={styles.saveButtonText}>Save</ThemedText>
           </Pressable>
