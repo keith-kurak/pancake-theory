@@ -18,16 +18,15 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-function msToHMS(ms: number) {
-  const totalSeconds = Math.round(ms / 1000);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  return { hours, minutes, seconds };
+function msToHM(ms: number) {
+  const totalMinutes = Math.round(ms / 60000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return { hours, minutes };
 }
 
-function hmsToMs(hours: number, minutes: number, seconds: number) {
-  return (hours * 3600 + minutes * 60 + seconds) * 1000;
+function hmToMs(hours: number, minutes: number) {
+  return (hours * 60 + minutes) * 60000;
 }
 
 export default function EditHistoryEntryScreen() {
@@ -37,23 +36,21 @@ export default function EditHistoryEntryScreen() {
   const entry = useMemo(() => history.find((e) => e.id === id), [history, id]);
 
   const initialPrep = useMemo(() => {
-    if (!entry) return { hours: 0, minutes: 0, seconds: 0 };
-    return msToHMS(entry.prepDuration ?? 0);
+    if (!entry) return { hours: 0, minutes: 0 };
+    return msToHM(entry.prepDuration ?? 0);
   }, [entry]);
 
   const initialCook = useMemo(() => {
-    if (!entry) return { hours: 0, minutes: 0, seconds: 0 };
+    if (!entry) return { hours: 0, minutes: 0 };
     const cookMs = entry.cookDuration ?? entry.cookingDuration ?? 0;
-    return msToHMS(cookMs);
+    return msToHM(cookMs);
   }, [entry]);
 
   const [prepHours, setPrepHours] = useState(String(initialPrep.hours));
   const [prepMinutes, setPrepMinutes] = useState(String(initialPrep.minutes));
-  const [prepSeconds, setPrepSeconds] = useState(String(initialPrep.seconds));
 
   const [cookHours, setCookHours] = useState(String(initialCook.hours));
   const [cookMinutes, setCookMinutes] = useState(String(initialCook.minutes));
-  const [cookSeconds, setCookSeconds] = useState(String(initialCook.seconds));
 
   const [rating, setRating] = useState<number | undefined>(entry?.rating);
 
@@ -84,15 +81,13 @@ export default function EditHistoryEntryScreen() {
 
   const handleSave = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const prepMs = hmsToMs(
+    const prepMs = hmToMs(
       parseInt(prepHours, 10) || 0,
       parseInt(prepMinutes, 10) || 0,
-      parseInt(prepSeconds, 10) || 0,
     );
-    const cookMs = hmsToMs(
+    const cookMs = hmToMs(
       parseInt(cookHours, 10) || 0,
       parseInt(cookMinutes, 10) || 0,
-      parseInt(cookSeconds, 10) || 0,
     );
     breakfastActions.updateHistoryEntry(id, {
       prepDuration: prepMs,
@@ -188,14 +183,6 @@ export default function EditHistoryEntryScreen() {
               textColor={inputTextColor}
               testID="prep-minutes-input"
             />
-            <TimeField
-              label="s"
-              value={prepSeconds}
-              onChangeText={setPrepSeconds}
-              inputBg={inputBg}
-              textColor={inputTextColor}
-              testID="prep-seconds-input"
-            />
           </View>
 
           <ThemedText style={styles.sectionTitle}>Cook Time</ThemedText>
@@ -215,14 +202,6 @@ export default function EditHistoryEntryScreen() {
               inputBg={inputBg}
               textColor={inputTextColor}
               testID="cook-minutes-input"
-            />
-            <TimeField
-              label="s"
-              value={cookSeconds}
-              onChangeText={setCookSeconds}
-              inputBg={inputBg}
-              textColor={inputTextColor}
-              testID="cook-seconds-input"
             />
           </View>
         </ScrollView>
@@ -268,10 +247,7 @@ function TimeField({
   return (
     <View style={styles.timeField}>
       <TextInput
-        style={[
-          styles.timeInput,
-          { backgroundColor: inputBg, color: textColor },
-        ]}
+        style={[styles.timeInput, { backgroundColor: inputBg, color: textColor }]}
         value={value}
         onChangeText={onChangeText}
         keyboardType="number-pad"
