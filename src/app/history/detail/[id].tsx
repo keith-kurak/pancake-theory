@@ -56,18 +56,14 @@ export default function HistoryDetailScreen() {
   const breakfastInfo = BREAKFAST_TYPES[entry.recipeType];
 
   const formatDuration = (milliseconds: number) => {
-    const totalSeconds = Math.floor(milliseconds / 1000);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
+    const totalMinutes = Math.round(milliseconds / 60000);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
 
     if (hours > 0) {
-      return `${hours}h ${minutes}m ${seconds}s`;
-    } else if (minutes > 0) {
-      return `${minutes}m ${seconds}s`;
-    } else {
-      return `${seconds}s`;
+      return `${hours}h ${minutes}m`;
     }
+    return `${minutes}m`;
   };
 
   const formatDate = (timestamp: number) => {
