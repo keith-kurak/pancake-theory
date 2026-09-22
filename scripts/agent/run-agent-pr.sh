@@ -13,6 +13,11 @@
 #   4. Publish     — commit, push, rewrite the PR description, and either flip
 #                    the PR to ready or leave it in draft with the blockers.
 #
+# With AGENT_VERIFY_FOLLOWS=1 (set by both workflows), a pass does not flip the
+# PR to ready. The next job runs the shared verify function against the pushed
+# commit, and its verdict decides draft state. That keeps "ready for review"
+# meaning "independently verified", and the PR changes state once per run.
+#
 # The whole run is capped at AGENT_TOTAL_BUDGET_SECONDS (default 1800). EAS
 # Workflows has no job timeout, so the cap is enforced here by run_with_budget.
 # Every exit path goes through finish(), so a phase that is killed mid-flight
@@ -57,6 +62,8 @@ mkdir -p "$AGENT_OUT"
 # is one click: GitHub only fires `labeled` on an absent-to-present transition.
 : "${AGENT_LABEL:=}"
 : "${REQUEST_MARKER:=/agent}"
+# 1 when a verify job runs after this one and owns the ready/draft decision.
+: "${AGENT_VERIFY_FOLLOWS:=}"
 
 # Phase results, read by finish().
 STATUS_IMPLEMENT="not reached"
@@ -107,6 +114,15 @@ preflight() {
   fi
   log "Mode: $AGENT_MODE (PR #$PR_NUMBER, draft=$WAS_DRAFT)"
 
+  # The branch's last commit before this run. In revise mode it bounds the
+  # change requests; the verify job reads `/agent` comments from the same point,
+  # so it checks the requests this run applied rather than none at all — the
+  # commit this run pushes would otherwise hide them.
+  REQUESTS_SINCE="$(git log -1 --format=%cI 2>/dev/null || echo "")"
+  if command -v set-output >/dev/null 2>&1; then
+    set-output requests_since "$REQUESTS_SINCE"
+  fi
+
   case "$AGENT_MODE" in
     build)   preflight_build ;;
     revise)  preflight_revise ;;
@@ -145,14 +161,24 @@ preflight_build() {
 
   log "Task:"
   sed 's/^/    /' "$PROJECT_ROOT/PR-TODO.md" | head -n 40
+
+  # Optional here, unlike revise: `/agent` comments on the draft PR are extra
+  # guidance for the build, the same as `/agent` comments on the issue are.
+  gh_collect_requests "$REQUESTS_SINCE" "$REQUEST_MARKER" > "$AGENT_OUT/change-requests.md" \
+    || : > "$AGENT_OUT/change-requests.md"
+  if [ -s "$AGENT_OUT/change-requests.md" ]; then
+    log "Extra guidance from '$REQUEST_MARKER' comments:"
+    sed 's/^/    /' "$AGENT_OUT/change-requests.md" | head -n 40
+  else
+    rm -f "$AGENT_OUT/change-requests.md"
+  fi
 }
 
 # Change requests are the comments left since the branch's last commit. That
 # timestamp is the natural boundary: anything older was either already acted on
 # or predates the code now on the branch. No state file needed.
 preflight_revise() {
-  local since
-  since="$(git log -1 --format=%cI 2>/dev/null || echo "")"
+  local since="$REQUESTS_SINCE"
   log "Collecting '$REQUEST_MARKER' comments newer than ${since:-<all time>}"
 
   gh_collect_requests "$since" "$REQUEST_MARKER" > "$AGENT_OUT/change-requests.md"
@@ -481,7 +507,9 @@ EOF
 
 results_markdown() {
   local icon source
-  if [ "$VERDICT" = pass ]; then
+  if [ "$VERDICT" = pass ] && [ -n "$AGENT_VERIFY_FOLLOWS" ]; then
+    icon="🔎 Validated — sent to independent verification"
+  elif [ "$VERDICT" = pass ]; then
     icon="✅ Ready for review"
   elif [ "$AGENT_MODE" = revise ]; then
     icon="🚧 Moved back to draft"
@@ -544,13 +572,13 @@ if errors:
     printf '🖼️ **[Screenshots from the run](%s)**\n\n' "$EVIDENCE_URL"
   fi
 
-  # The validation above ran against a dev bundle over Metro. `/verify` re-tests
-  # the published update on a fingerprint-matched build, which is closer to what
-  # a user installs. Suggested rather than chained: it is a reviewer's check, it
-  # costs another ~15 minutes, and a failing one would flip this PR straight back
-  # to draft moments after the run marked it ready.
-  if [ "$VERDICT" = pass ]; then
-    printf 'For an independent check on a production-shaped build, comment `/verify` and add the `agent-verify` label.\n\n'
+  # The validation above ran against a dev bundle over Metro, judged by an agent
+  # that had just read its own implementation notes. The verify job re-tests the
+  # published update, from the task alone, and tries to break it.
+  if [ "$VERDICT" = pass ] && [ -n "$AGENT_VERIFY_FOLLOWS" ]; then
+    printf 'An independent verifier runs next and posts its verdict as a comment. This PR is marked ready for review only if it passes.\n\n'
+  elif [ "$VERDICT" = pass ]; then
+    printf 'For an independent check, add the `agent-verify` label. To steer it, first comment `/agent <what to check>`.\n\n'
   fi
 
   printf 'Metro logs and the full transcript are attached to the '
@@ -583,7 +611,11 @@ publish() {
   merged="$(gh_merge_results_block "$body" "$results")"
   gh_set_body "$merged" || warn "could not update the PR description"
 
-  if [ "$VERDICT" = "pass" ]; then
+  if [ "$VERDICT" = "pass" ] && [ -n "$AGENT_VERIFY_FOLLOWS" ]; then
+    # No comment either: the verifier posts one, and two in a row for one run
+    # is noise. The results block already says what happens next.
+    log "Leaving draft state to the verify job"
+  elif [ "$VERDICT" = "pass" ]; then
     if [ "$is_draft" = "true" ]; then
       log "Marking PR #$PR_NUMBER ready for review"
       gh_mark_ready "$node_id" || warn "could not clear draft state"
@@ -647,7 +679,7 @@ main() {
 
   if native_changed; then
     STATUS_VALIDATE="skipped — the change alters the native fingerprint"
-    note_blocker "This change alters the iOS native fingerprint, so no existing development build can run it. Simulator validation was skipped. Build a new \`development-simulator\` build and re-apply the \`agent\` label to validate."
+    note_blocker "This change alters the iOS native fingerprint, so no existing development build can run it. Simulator validation was skipped. Build a new \`development-simulator\` build and re-apply the \`agent-start\` or \`agent-revise\` label to validate."
     return
   fi
 

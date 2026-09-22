@@ -2,44 +2,40 @@ name: Agent Start from Issue
 
 # Turn an issue into a draft PR that the EAS agent workflows pick up.
 #
-# This is the one piece that cannot live in EAS Workflows: EAS has no comment
-# trigger and no issue trigger at all. GitHub Actions has both, so it does the
-# small mechanical job — branch, PR-TODO.md, draft PR, label — and everything
-# after that runs on EAS.
+# This is the one piece that cannot live in EAS Workflows: EAS has no issue
+# trigger at all (its comment trigger covers pull requests only). GitHub Actions
+# has one, so it does the small mechanical job — branch, PR-TODO.md, draft PR,
+# label — and everything after that runs on EAS.
 #
-# Two ways in:
-#   - comment `/build <optional extra guidance>` on an issue
-#   - apply the `agent-start` label to an issue
+# Apply the `agent-start` label to an issue. To steer the build, first comment
+# `/agent <extra guidance>` on the issue; every such comment from a trusted
+# author is added to PR-TODO.md.
 #
-# Either way the run is refused unless the actor has write access. See the
-# authorise step.
+# Every agent instruction, on issues and PRs alike, is an `/agent` comment. The
+# label decides what is done with it, so there is one command to remember.
+#
+# The run is refused unless the labeller has write access. See the authorise
+# step.
 
 on:
-  issue_comment:
-    types: [created]
   issues:
     types: [labeled]
 
 concurrency:
-  # One PR per issue, even if the label and a comment land together.
+  # One PR per issue, even if the label is removed and re-applied quickly.
   group: agent-start-issue-${{ github.event.issue.number }}
   cancel-in-progress: false
 
 permissions:
   contents: read
+  # Reading the issue's `/agent` comments.
+  issues: read
 
 jobs:
   create_pr:
     name: Create a draft PR from the issue
     runs-on: ubuntu-latest
-    # `issue_comment` also fires for comments on pull requests, so the
-    # pull_request field must be null for this to be a real issue.
-    if: >-
-      (github.event_name == 'issue_comment' &&
-       !github.event.issue.pull_request &&
-       startsWith(github.event.comment.body, '/build')) ||
-      (github.event_name == 'issues' &&
-       github.event.label.name == 'agent-start')
+    if: github.event.label.name == 'agent-start'
     steps:
       # ---------------------------------------------------------------------
       # Authorisation. Everything else depends on this passing.
@@ -55,7 +51,7 @@ jobs:
       - name: Authorise the actor
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ACTOR: ${{ github.event_name == 'issue_comment' && github.event.comment.user.login || github.actor }}
+          ACTOR: ${{ github.actor }}
         run: |
           set -euo pipefail
           PERMISSION="$(gh api \
@@ -82,6 +78,28 @@ jobs:
           token: ${{ secrets.AGENT_GH_TOKEN }}
           fetch-depth: 0
 
+      # Same filter as the EAS runners' gh_collect_requests: the `/agent`
+      # prefix, and an OWNER, MEMBER, or COLLABORATOR author. The repository is
+      # public, so without the second filter a stranger's comment would become
+      # agent instructions. Written to a file, never to the shell.
+      #
+      # author_association under-reports private org members (see the
+      # authorise step). Here that fails safe: such a comment is dropped as
+      # guidance, it is never trusted by mistake.
+      - name: Collect /agent comments from the issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          gh api --paginate \
+            "repos/${{ github.repository }}/issues/${ISSUE_NUMBER}/comments?per_page=100" \
+            --jq '.[] | select(.author_association == "OWNER" or .author_association == "MEMBER" or .author_association == "COLLABORATOR")
+                      | select(.body | test("^\\s*/agent"))
+                      | {user: .user.login, body: .body}' \
+            > "$RUNNER_TEMP/guidance.jsonl" || : > "$RUNNER_TEMP/guidance.jsonl"
+          echo "Found $(wc -l < "$RUNNER_TEMP/guidance.jsonl") /agent comment(s)"
+
       - name: Build the task file
         id: task
         env:
@@ -89,25 +107,30 @@ jobs:
           ISSUE_BODY: ${{ github.event.issue.body }}
           ISSUE_URL: ${{ github.event.issue.html_url }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
-          COMMENT_BODY: ${{ github.event_name == 'issue_comment' && github.event.comment.body || '' }}
         run: |
           set -euo pipefail
 
           # Issue text is untrusted and is never interpolated into a shell
           # command — it reaches the file through the environment only.
           python3 - <<'PY'
-          import os, pathlib, re
+          import json, os, pathlib, re
 
           title = os.environ["ISSUE_TITLE"].strip()
           body = (os.environ["ISSUE_BODY"] or "").strip()
           number = os.environ["ISSUE_NUMBER"]
           url = os.environ["ISSUE_URL"]
 
-          # Anything after "/build" on the comment is extra steer for the agent.
-          comment = (os.environ.get("COMMENT_BODY") or "").strip()
-          guidance = ""
-          if comment.startswith("/build"):
-              guidance = comment[len("/build"):].strip()
+          # Anything after "/agent" on a trusted comment is extra steer, oldest
+          # first, the same order the revise run applies requests in.
+          guidance = []
+          path = pathlib.Path(os.environ["RUNNER_TEMP"]) / "guidance.jsonl"
+          for line in path.read_text(encoding="utf-8").splitlines():
+              if not line.strip():
+                  continue
+              c = json.loads(line)
+              text = c["body"].lstrip()[len("/agent"):].strip()
+              if text:
+                  guidance.append(f"- @{c['user']}: {text}")
 
           parts = [
               f"# {title}",
@@ -118,7 +141,7 @@ jobs:
               "",
           ]
           if guidance:
-              parts += ["## Extra guidance from the request", "", guidance, ""]
+              parts += ["## Extra guidance from `/agent` comments", "", *guidance, ""]
           parts += [
               "## Source",
               "",

@@ -3,12 +3,14 @@ name: Agent Revise
 # Ask for changes to an open PR by commenting `/agent <what to change>`, then
 # applying the `agent-revise` label.
 #
-# EAS Workflows has no comment trigger — the full list is workflow_dispatch,
-# push, ref_delete, pull_request, pull_request_labeled, app_store_connect, and
-# schedule. So the comment carries the request and the label starts the run. The
+# Every agent instruction is an `/agent` comment; the label decides what is done
+# with it. EAS now has a pull_request_comment trigger, but the label stays the
+# trigger on purpose: a reviewer can leave several `/agent` comments and start
+# one run for the batch, and the same comment syntax serves every workflow. The
 # job removes the label when it finishes, so the next request is one click.
 #
-# See .eas/workflows/README.md.
+# A passing run ends with the shared verify function, which decides whether the
+# PR stays open for review. See .eas/workflows/README.md.
 
 on:
   pull_request_labeled:
@@ -33,6 +35,11 @@ jobs:
     # nested virtualisation. It only runs Metro, the eas CLI, and Claude.
     runs_on: linux-medium
     environment: development
+    # Where the verifier starts reading `/agent` comments. In revise mode it
+    # is the boundary the change requests were collected from, so the
+    # verifier checks the same requests the agent applied.
+    outputs:
+      requests_since: ${{ steps.run.outputs.requests_since }}
     env:
       AGENT_MODE: revise
       AGENT_LABEL: agent-revise
@@ -47,6 +54,8 @@ jobs:
       GH_REPO: ${{ github.repository || 'keith-kurak/pancake-theory' }}
       RUN_URL: ${{ workflow.url }}
       AGENT_TOTAL_BUDGET_SECONDS: '1800'
+      # The verify job below owns the ready/draft decision.
+      AGENT_VERIFY_FOLLOWS: '1'
     steps:
       - uses: eas/checkout
         with:
@@ -65,7 +74,8 @@ jobs:
       # Comment bodies are user-written text and are never interpolated into
       # this file. The script fetches them through the API and filters them by
       # author_association, so only collaborators can instruct the agent.
-      - name: Run agent
+      - id: run
+        name: Run agent
         run: ./scripts/agent/run-agent-pr.sh
 
       - uses: eas/upload_artifact
@@ -75,3 +85,33 @@ jobs:
           name: agent-run
           path: |
             agent-out/**/*
+
+  # The independent check. `needs`, so it runs only when the agent's own
+  # validation passed: a failing run already reports its blockers and its
+  # screenshots, and verifying code the agent itself rejected spends a
+  # simulator session to learn nothing new.
+  #
+  # A custom job, not the pre-packaged fingerprint/update jobs agent-verify.yaml
+  # uses. Those always use the commit that triggered the workflow, which is the
+  # commit before the agent pushed. This checkout takes the branch head.
+  verify:
+    name: Verify independently
+    needs: [revise]
+    runs_on: linux-medium
+    environment: development
+    env:
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      PR_HEAD_REF: ${{ github.event.pull_request.head.ref || github.ref_name }}
+      GH_REPO: ${{ github.repository || 'keith-kurak/pancake-theory' }}
+      RUN_URL: ${{ workflow.url }}
+    steps:
+      - uses: eas/checkout
+        with:
+          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
+
+      # gate_ready: the agent job left the PR's draft state alone, so this
+      # verdict alone decides it. The PR is flipped once, not twice.
+      - uses: ./.eas/functions/agent-verify
+        with:
+          requests_since: ${{ needs.revise.outputs.requests_since }}
+          gate_ready: true

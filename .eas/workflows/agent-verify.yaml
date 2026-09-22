@@ -1,14 +1,16 @@
 name: Agent Verify
 
-# Ask for a PR to be proven on a real device by commenting `/verify <optional
-# guidance>`, then applying the `agent-verify` label.
+# Ask for a PR to be proven on a real device by applying the `agent-verify`
+# label. To steer the verifier, first comment `/agent <what to check>`.
 #
-# EAS Workflows has no comment trigger, so the comment carries the guidance and
-# the label starts the run. The job removes the label when it finishes.
+# Every agent instruction is an `/agent` comment. The label decides what
+# happens with it: `agent-revise` applies it as a change, `agent-verify` uses it
+# as the focus of a check. The job removes the label when it finishes.
 #
 # Unlike agent-start and agent-revise, this writes no code and pushes no
 # commits. It answers "does this PR work?" and reports, so it is safe to run
-# against a PR a human wrote.
+# against a PR a human wrote. Those two workflows also end by calling the same
+# verify function, so a passing agent run is always checked by this verifier.
 #
 # See .eas/workflows/README.md.
 
@@ -26,9 +28,10 @@ defaults:
     bun: 1.3.10
 
 jobs:
-  # The binary and the JS are resolved separately, which is the point: a
-  # fingerprint-matched development build is reused across PRs, and only the
-  # JavaScript changes per run.
+  # The binary is resolved here, not inside the verify function, so that a
+  # native change gets a fresh build instead of an INCONCLUSIVE verdict. That
+  # is safe in this workflow only: nothing pushes during it, so the triggering
+  # commit these pre-packaged jobs use is the commit under test.
   fingerprint:
     environment: development
     type: fingerprint
@@ -52,69 +55,27 @@ jobs:
       platform: ios
       profile: development-simulator
 
-  # Publishes this PR's JS to a branch named after the PR branch. The verify
-  # job deep-links the build at this exact update group, so the shared preview
-  # channel is never touched.
-  publish_update:
-    needs: [fingerprint]
-    name: Publish this PR's JS
-    environment: development
-    type: update
-    env:
-      APP_VARIANT: DEV
-    params:
-      branch: ${{ github.event.pull_request.head.ref || github.ref_name }}
-      message: 'Verify PR #${{ github.event.pull_request.number }}'
-
   verify:
     name: Verify on a cloud simulator
-    after: [get_build, build, publish_update]
+    after: [get_build, build]
     # The simulator runs on EAS, so this job only needs the eas CLI, argent,
     # and Claude.
     runs_on: linux-medium
     environment: development
     env:
-      BUILD_ID: ${{ needs.get_build.outputs.build_id || needs.build.outputs.build_id }}
-      UPDATE_GROUP_ID: ${{ needs.publish_update.outputs.first_update_group_id }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
+      PR_HEAD_REF: ${{ github.event.pull_request.head.ref || github.ref_name }}
       # github.repository is optional in EAS's context and is empty for
       # pull_request_labeled, which fails env validation (values must be a
       # string or number). Same fallback idiom as update-on-pr.yaml.
       GH_REPO: ${{ github.repository || 'keith-kurak/pancake-theory' }}
       RUN_URL: ${{ workflow.url }}
-      VERIFY_LABEL: agent-verify
     steps:
       - uses: eas/checkout
         with:
           ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
 
-      - uses: eas/install_node_modules
-
-      # Both must be on PATH before verify-pr.sh starts. npm rather than bun:
-      # global binary installs are the one case npm links more reliably on a CI
-      # worker. Project dependencies still come from bun.
-      - name: Install argent and Claude Code
-        run: npm install --global @swmansion/argent@latest @anthropic-ai/claude-code@latest
-
-      # The verify script reads the /verify comment through the API and filters
-      # it by author_association, so comment text never reaches this file or a
-      # shell command.
-      - name: Verify
-        run: ./scripts/agent/verify-pr.sh
-
-      # The evidence site is the reviewer-facing artifact, but keep the raw
-      # transcript and diff attached to the run too. `evidence/site` is excluded
-      # because it is already deployed to EAS Hosting.
-      - uses: eas/upload_artifact
-        if: ${{ always() }}
+      - uses: ./.eas/functions/agent-verify
         with:
-          type: other
-          name: verification
-          path: |
-            evidence/*.png
-            evidence/*.md
-            evidence/*.txt
-            evidence/*.json
-            evidence/*.jsonl
-            evidence/*.diff
-            evidence/*.log
+          build_id: ${{ needs.get_build.outputs.build_id || needs.build.outputs.build_id }}
+          label: agent-verify

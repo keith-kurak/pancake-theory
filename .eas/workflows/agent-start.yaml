@@ -1,9 +1,11 @@
 name: Agent Start
 
 # Label a draft PR that carries a PR-TODO.md task file with `agent-start`, and
-# this workflow implements it, proves it runs on a simulator, commits it, and
-# flips the PR to ready. Pairs with agent-revise.yaml, which applies review
-# comments afterwards. See .eas/workflows/README.md for setup and behaviour.
+# this workflow implements it, proves it runs on a simulator, and commits it.
+# A passing run then goes to the shared verify function, an independent and
+# adversarial check, and only its PASS flips the PR to ready. Pairs with
+# agent-revise.yaml, which applies `/agent` review comments afterwards. See
+# .eas/workflows/README.md for setup and behaviour.
 
 on:
   pull_request_labeled:
@@ -32,6 +34,11 @@ jobs:
     # nested virtualisation. It only runs Metro, the eas CLI, and Claude.
     runs_on: linux-medium
     environment: development
+    # Where the verifier starts reading `/agent` comments. In revise mode it
+    # is the boundary the change requests were collected from, so the
+    # verifier checks the same requests the agent applied.
+    outputs:
+      requests_since: ${{ steps.run.outputs.requests_since }}
     env:
       AGENT_MODE: build
       AGENT_LABEL: agent-start
@@ -46,6 +53,8 @@ jobs:
       GH_REPO: ${{ github.repository || 'keith-kurak/pancake-theory' }}
       RUN_URL: ${{ workflow.url }}
       AGENT_TOTAL_BUDGET_SECONDS: '1800'
+      # The verify job below owns the ready/draft decision.
+      AGENT_VERIFY_FOLLOWS: '1'
     steps:
       # The default checkout lands on a detached HEAD at the PR's recorded
       # commit. `ref` puts us on the branch itself, which is what the run needs
@@ -67,7 +76,8 @@ jobs:
       # The PR body and PR-TODO.md are user-written text. Neither is
       # interpolated into this file — the script reads them through the GitHub
       # API and from disk, so they cannot reach the shell as code.
-      - name: Run agent
+      - id: run
+        name: Run agent
         run: ./scripts/agent/run-agent-pr.sh
 
       - uses: eas/upload_artifact
@@ -77,3 +87,33 @@ jobs:
           name: agent-run
           path: |
             agent-out/**/*
+
+  # The independent check. `needs`, so it runs only when the agent's own
+  # validation passed: a failing run already reports its blockers and its
+  # screenshots, and verifying code the agent itself rejected spends a
+  # simulator session to learn nothing new.
+  #
+  # A custom job, not the pre-packaged fingerprint/update jobs agent-verify.yaml
+  # uses. Those always use the commit that triggered the workflow, which is the
+  # commit before the agent pushed. This checkout takes the branch head.
+  verify:
+    name: Verify independently
+    needs: [agent]
+    runs_on: linux-medium
+    environment: development
+    env:
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      PR_HEAD_REF: ${{ github.event.pull_request.head.ref || github.ref_name }}
+      GH_REPO: ${{ github.repository || 'keith-kurak/pancake-theory' }}
+      RUN_URL: ${{ workflow.url }}
+    steps:
+      - uses: eas/checkout
+        with:
+          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
+
+      # gate_ready: the agent job left the PR's draft state alone, so this
+      # verdict alone decides it. The PR is flipped once, not twice.
+      - uses: ./.eas/functions/agent-verify
+        with:
+          requests_since: ${{ needs.agent.outputs.requests_since }}
+          gate_ready: true

@@ -1,0 +1,85 @@
+name: Agent verify
+description: >-
+  Independently prove a PR works on an EAS cloud simulator, adversarially, and
+  post the verdict with a screenshot evidence site. Writes no code.
+
+# Called by agent-verify.yaml on its own, and by agent-start.yaml and
+# agent-revise.yaml as the last job of a passing run.
+#
+# The caller must check out the PR branch first. This function publishes the
+# update from whatever is checked out, so a caller that ran after the agent
+# pushed gets the agent's commit — something the pre-packaged `update` and
+# `fingerprint` jobs cannot do, because they always use the commit that
+# triggered the workflow.
+#
+# The caller's job must set PR_NUMBER, PR_HEAD_REF, GH_REPO, and RUN_URL, and
+# run in the `development` environment for the secrets.
+inputs:
+  # A build to use as-is. When empty, the newest runtime-matched
+  # development-simulator build is resolved, the same way the agent's own
+  # validate phase picks one.
+  - name: build_id
+    type: string
+    default_value: ''
+  # `/agent` comments newer than this ISO timestamp are the verifier's focus.
+  # When empty, the branch's last commit time is the boundary.
+  - name: requests_since
+    type: string
+    default_value: ''
+  # The label to remove when done. Empty when there is no label to remove.
+  - name: label
+    type: string
+    default_value: ''
+  # When true, the verdict decides draft state: PASS marks the PR ready, and
+  # anything else moves it back to draft. Only the agent workflows set this.
+  # A standalone verify of a human's PR must not change its state.
+  - name: gate_ready
+    type: boolean
+    default_value: false
+
+outputs:
+  verdict:
+    value: '${{ steps.verify.outputs.verdict }}'
+    description: The first line of the verdict — PASS, FAIL, or INCONCLUSIVE, then one sentence.
+  evidence_url:
+    value: '${{ steps.verify.outputs.evidence_url }}'
+    description: The EAS Hosting page of screenshots, or empty if it did not publish.
+
+runs:
+  steps:
+    - uses: eas/install_node_modules
+
+    # Both must be on PATH before verify-pr.sh starts. npm rather than bun:
+    # global binary installs are the one case npm links more reliably on a CI
+    # worker. Project dependencies still come from bun.
+    - name: Install argent and Claude Code
+      run: npm install --global @swmansion/argent@latest @anthropic-ai/claude-code@latest
+
+    # Only fixed values reach this command line: a build id, a timestamp, a
+    # label name, and a boolean. Comment text is fetched by the script through
+    # the API and filtered by author_association.
+    - id: verify
+      name: Verify
+      run: |
+        export VERIFY_BUILD_ID='${{ inputs.build_id }}'
+        export VERIFY_SINCE='${{ inputs.requests_since }}'
+        export VERIFY_LABEL='${{ inputs.label }}'
+        export VERIFY_GATE_READY='${{ inputs.gate_ready }}'
+        ./scripts/agent/verify-pr.sh
+
+    # The evidence site is the reviewer-facing artifact, but keep the raw
+    # transcript and diff attached to the run too. `evidence/site` is excluded
+    # because it is already deployed to EAS Hosting.
+    - uses: eas/upload_artifact
+      if: ${{ always() }}
+      with:
+        type: other
+        name: verification
+        path: |
+          evidence/*.png
+          evidence/*.md
+          evidence/*.txt
+          evidence/*.json
+          evidence/*.jsonl
+          evidence/*.diff
+          evidence/*.log
