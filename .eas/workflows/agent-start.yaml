@@ -1,7 +1,8 @@
 name: Agent Start
 
-# Label a draft PR that carries a PR-TODO.md task file with `agent-start`, and
-# this workflow implements it, proves it runs on a simulator, and commits it.
+# Label a draft PR whose description is the task with `agent-start`, and this
+# workflow writes an implementation plan into the description, implements it,
+# proves it runs on a simulator, and commits it.
 # A passing run then goes to the shared verify function, an independent and
 # adversarial check, and only its PASS flips the PR to ready. Pairs with
 # agent-revise.yaml, which applies `/agent` review comments afterwards. See
@@ -73,9 +74,9 @@ jobs:
       - name: Install argent and Claude Code
         run: npm install --global @swmansion/argent@latest @anthropic-ai/claude-code@latest
 
-      # The PR body and PR-TODO.md are user-written text. Neither is
-      # interpolated into this file — the script reads them through the GitHub
-      # API and from disk, so they cannot reach the shell as code.
+      # The PR description is user-written text. It is not interpolated into
+      # this file — the script reads it through the GitHub API and hands it to
+      # Claude as a file, so it cannot reach the shell as code.
       - id: run
         name: Run agent
         run: ./scripts/agent/run-agent-pr.sh

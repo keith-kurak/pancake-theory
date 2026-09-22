@@ -6,7 +6,7 @@ exists because EAS has no issue trigger — see [From an issue](#from-an-issue).
 ## The agent chain
 
 ```
-issue --agent-start--> draft PR + PR-TODO.md --agent-start--> built & validated
+issue --agent-start--> draft PR (task = description) --agent-start--> plan, build, validate
                                ^                                      |
                                |                                      v
                                |                        independent verify (adversarial)
@@ -23,7 +23,7 @@ then add decides what happens with those comments:
 
 | Label | Apply to | `/agent` comments are |
 |---|---|---|
-| `agent-start` | an issue | Extra guidance, added to `PR-TODO.md` |
+| `agent-start` | an issue | Extra guidance, added to the PR description |
 | `agent-start` | a draft PR | Extra guidance for the build |
 | `agent-revise` | any PR | The changes to make |
 | `agent-verify` | any PR | What the verifier must check |
@@ -33,8 +33,8 @@ Comments count only when the author is OWNER, MEMBER, or COLLABORATOR. See
 
 | Workflow | Trigger | What it does |
 |---|---|---|
-| `.github/.../agent-start-from-issue.yml` | `agent-start` label **on an issue** | Opens a draft PR carrying `PR-TODO.md`, then labels it to hand off to EAS |
-| `agent-start.yaml` | `agent-start` label on a draft PR | Implements `PR-TODO.md`, validates on a simulator, commits, then runs the verify function. Its PASS flips the PR to ready |
+| `.github/.../agent-start-from-issue.yml` | `agent-start` label **on an issue** | Opens a draft PR with the task as its description, then labels it to hand off to EAS |
+| `agent-start.yaml` | `agent-start` label on a draft PR | Writes a plan into the PR description, implements it, validates on a simulator, commits, then runs the verify function. Its PASS flips the PR to ready |
 | `agent-revise.yaml` | `agent-revise` label on any PR | Applies `/agent` review comments, re-validates, commits, then runs the verify function |
 | `agent-verify.yaml` | `agent-verify` label on any PR | Runs the verify function alone: proves a PR works on a cloud simulator and publishes a screenshot evidence site. Writes no code |
 | `update-on-pr.yaml` | Any **non-draft** PR | Unit tests, then publishes a preview update and comments on the PR |
@@ -61,8 +61,12 @@ The usual way in. Optionally, steer the build with a comment on the issue:
 ```
 
 Then apply the **`agent-start`** label to the issue. That opens a draft PR whose
-`PR-TODO.md` is built from the issue title and body, plus every trusted `/agent` comment
-on the issue, and labels that PR so the EAS run starts.
+description is built from the issue body, plus every trusted `/agent` comment on the
+issue, and labels that PR so the EAS run starts.
+
+If an open PR for the issue already exists, the Action only labels it again. It does not
+rewrite a description that runs have already written into. To change the task then, edit
+the PR description or comment `/agent` on the PR.
 
 This one step is a **GitHub Action**
 ([`.github/workflows/agent-start-from-issue.yml`](../../.github/workflows/agent-start-from-issue.yml)),
@@ -89,15 +93,39 @@ Three details in that Action are load-bearing:
   the whole chain, and GitHub recommends a PAT for exactly this case.
 
 Issue text never reaches a shell command — it is passed through the environment into
-Python, which writes the file. A title containing `` $(whoami) `` lands in `PR-TODO.md`
-as literal text.
+Python, which writes the PR description to a file for `gh pr create --body-file`. A title
+containing `` $(whoami) `` lands in the description as literal text.
+
+## The task lives in the PR description
+
+There is no task file in the repository. That used to be `PR-TODO.md`, and it was
+merged into `main` with every agent PR.
+
+GitHub will not open a pull request with no diff, so the Action commits one placeholder,
+`.agent-placeholder`. It holds one line and no task. The agent run deletes it in the
+same commit as its first real change, so it never reaches `main`. A run that changes
+nothing leaves it in place, so the PR still has a diff and stays open.
+
+The description is shared between people and runs, in fixed places:
+
+| Part | Written by | Changed by |
+|---|---|---|
+| Everything outside the marked blocks | the issue Action, or you | only a human |
+| `<!-- agent-plan:start -->` … `end` | a build run, before it changes code | the next build run |
+| `<!-- agent-results:start -->` … `end` | every run | the next run |
+
+The task is the description with both blocks removed (`gh_task_from_body`). The
+verifier gets the task as intent and the two blocks as claims, in separate files, which
+is what lets it plan before it reads what the author says.
+
+A revise run does not rewrite the plan. It reports its own changes in the results block.
 
 ### Draft PRs cost one workflow, not three
 
 Opening a PR also fires `update-on-pr.yaml` and `maybe-make-dev-builds-on-pr.yaml` —
 including for draft PRs, which is what an agent run starts as. That meant one issue
 label kicked off three EAS workflows, one of which could be a full native build on a branch
-whose only content was a markdown file.
+whose only content was a placeholder file.
 
 Both are now gated with `if: ${{ !github.event.pull_request.draft }}`, so they hold until
 the PR is genuinely ready for review — which is also when their output starts being
@@ -117,15 +145,24 @@ three build jobs keep their own unrelated `if` conditions untouched.
 
 If you would rather skip the issue:
 
-1. Branch, and add a `PR-TODO.md` at the repository root. Copy
-   [`PR-TODO.template.md`](../../PR-TODO.template.md) and fill it in.
-2. Open a **draft** pull request.
+1. Open a **draft** pull request. It needs at least one commit; any small change will do.
+   If you add `.agent-placeholder`, the run deletes it for you.
+2. Write the task in the PR description:
+   - **What to build** — what a user should be able to do that they cannot do today, or
+     what is broken.
+   - **Where** — screens, routes, or components, if you know them.
+   - **How to tell it works** — concrete steps in the running app and what to see. The
+     agent drives a real simulator against these.
+   - **Out of scope** — anything nearby to leave alone.
+
+   Keep it to one feature or one fix, and prefer JavaScript-only work. A native change
+   makes the run skip simulator validation.
 3. Add the **`agent-start`** label.
 
 The run takes up to 30 minutes. Watch it on the EAS dashboard.
 
 **Passing run** — the code is committed to your branch and the PR description gains a
-results block. The [verify function](#agent-verify) then runs against the pushed commit.
+plan block and a results block. The [verify function](#agent-verify) then runs against the pushed commit.
 Its `PASS` flips the PR to *ready for review*. Any other verdict leaves it in draft, with
 the findings in a comment.
 
@@ -483,7 +520,7 @@ The runner works outside EAS against a real PR — see
 
 ## Security notes
 
-`PR-TODO.md`, the PR body, and every `/agent` comment are user-written. None is
+The PR description and every `/agent` comment are user-written. None is
 interpolated into the workflow YAML or into a shell command. Bodies and comments are
 fetched through the API and written to files; Claude reads them as files and is told to
 treat them as task descriptions, not as instructions about its own behaviour.

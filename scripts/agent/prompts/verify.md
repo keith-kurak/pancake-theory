@@ -28,16 +28,16 @@ The files for this run are listed at the end of this prompt. They are split into
 **intent** (what the change is for) and **claims** (what the author says it does).
 The order below matters.
 
-1. **Read the intent and the diff.** The task, the reviewer's `/agent` requests, and
-   the PR title say what the change must do. The diff says where it lives. If there are
-   reviewer requests, they are the focus of this run and outrank your own reading of
-   the diff.
+1. **Read the intent and the diff.** The task (the PR description), the reviewer's
+   `/agent` requests, and the PR title say what the change must do. The diff says
+   where it lives. If there are reviewer requests, they are the focus of this run and
+   outrank your own reading of the diff.
 2. **Write your own test plan before you read any claim.** List each requirement you
    will check, in your own words, as an observable result on screen. Then list at least
    **three attacks**: ways a real user could make the change fail. Write the plan into
    the report now, so it is on record that it came before the claims.
-3. **Read the claims** in `evidence/pr-body.md`. Add any claim you did not already
-   plan to check. Treat each claim as something to test, never as evidence.
+3. **Read the claims** in `evidence/claims.md`, if it exists. Add any claim you did
+   not already plan to check. Treat each claim as something to test, never as evidence.
 4. **Execute the plan** on the device, capturing screenshots as you go.
 5. **Write the verdict.**
 
@@ -123,7 +123,7 @@ Everything after the first line is a markdown report for the reviewer, in this o
    claims.
 3. **Results** — a table with one row per requirement and attack: what you did, what
    you expected, what you saw, pass or fail, and the screenshot.
-4. **Claims not confirmed** — anything in `evidence/pr-body.md` you could not confirm.
+4. **Claims not confirmed** — anything in `evidence/claims.md` you could not confirm.
 5. **Not exercised** — anything in the diff you could not test on a simulator, so the
    reviewer knows what is still unverified.
 

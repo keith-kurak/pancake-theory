@@ -196,14 +196,16 @@ log "  commit: $(git rev-parse --short HEAD 2>/dev/null || echo '?')"
 # Gather intent and claims, as separate files
 # ---------------------------------------------------------------------------
 
-# The verifier is told to plan from the intent before it reads any claim. So
-# what the change was *for* (the task, the reviewer's requests) and what its
-# author *says* it does (the PR description, with the agent's results block)
-# are kept apart. All of it is user-written and reaches Claude only as files.
-if [ -f "$PROJECT_ROOT/PR-TODO.md" ]; then
-  cp "$PROJECT_ROOT/PR-TODO.md" "$EVIDENCE_DIR/task.md"
-fi
-printf '%s\n' "$(printf '%s' "$PR_JSON" | gh_field body)" > "$EVIDENCE_DIR/pr-body.md"
+# The verifier is told to plan from the intent before it reads any claim. The
+# PR description holds both, in known places: the text a human or the issue
+# Action wrote is the task, and the agent's marked blocks (plan, results) are
+# what the author says it did. They are split into separate files. All of it
+# is user-written and reaches Claude only as files.
+PR_BODY="$(printf '%s' "$PR_JSON" | gh_field body)"
+gh_task_from_body "$PR_BODY" > "$EVIDENCE_DIR/task.md"
+gh_agent_blocks_from_body "$PR_BODY" > "$EVIDENCE_DIR/claims.md"
+[ -s "$EVIDENCE_DIR/task.md" ] || rm -f "$EVIDENCE_DIR/task.md"
+[ -s "$EVIDENCE_DIR/claims.md" ] || rm -f "$EVIDENCE_DIR/claims.md"
 
 [ -n "$VERIFY_SINCE" ] || VERIFY_SINCE="$(git log -1 --format=%cI 2>/dev/null || echo "")"
 gh_collect_requests "$VERIFY_SINCE" "$VERIFY_MARKER" > "$EVIDENCE_DIR/requests.md" 2>/dev/null \
@@ -373,14 +375,18 @@ run_verifier() {
       printf -- '- An agent wrote this change and has already judged its own work as passing. Your verdict alone decides whether the PR is marked ready for review. Look for what the author missed.\n'
     fi
     printf '\nIntent — what the change is for. Read these first:\n\n'
-    [ -f "$EVIDENCE_DIR/task.md" ] && printf -- '- `evidence/task.md` — the original task.\n'
+    [ -f "$EVIDENCE_DIR/task.md" ] && printf -- '- `evidence/task.md` — the task: the PR description, without any agent-written blocks.\n'
     if [ -s "$EVIDENCE_DIR/requests.md" ]; then
       printf -- '- `evidence/requests.md` — the reviewer'"'"'s `/agent` comments for this round. They outrank your own reading of the diff.\n'
     fi
     printf -- '- The PR title, above.\n'
     printf '\nThe change itself:\n\n- `evidence/pr.diff`\n'
-    printf '\nClaims — what the author says the change does. Read only after you have written your test plan:\n\n'
-    printf -- '- `evidence/pr-body.md` — the PR description, including any agent results block.\n'
+    if [ -f "$EVIDENCE_DIR/claims.md" ]; then
+      printf '\nClaims — what the author says the change does. Read only after you have written your test plan:\n\n'
+      printf -- '- `evidence/claims.md` — the agent'"'"'s implementation plan and results from the PR description.\n'
+    else
+      printf '\nThere are no agent-written claims for this PR. Your test plan is built from the intent alone.\n'
+    fi
   } >> "$prompt"
 
   local mcp_config="$EVIDENCE_DIR/argent-mcp.json"

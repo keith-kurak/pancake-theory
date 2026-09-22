@@ -101,14 +101,14 @@ Three, named exactly. Labels are the trigger for every agent workflow. Every ins
 is an `/agent` comment, and the label decides what the run does with it.
 
 ```bash
-gh label create agent-start  --description "Build PR-TODO.md on a draft PR"
+gh label create agent-start  --description "Build the task in the PR description"
 gh label create agent-revise --description "Apply /agent review comments"
 gh label create agent-verify --description "Prove this PR works on a cloud simulator; /agent says what to check"
 ```
 
 | Label | Apply to | Starts |
 |---|---|---|
-| `agent-start` | an **issue** → the GitHub Action<br>a **draft PR** → `agent-start.yaml` | Build the task in `PR-TODO.md` |
+| `agent-start` | an **issue** → the GitHub Action<br>a **draft PR** → `agent-start.yaml` | Build the task in the PR description |
 | `agent-revise` | a PR | Apply outstanding `/agent` comments |
 | `agent-verify` | a PR | Verify on a simulator, publish evidence. `agent-start` and `agent-revise` also run this step at the end |
 
@@ -183,11 +183,12 @@ Cheapest end-to-end check, in order:
 1. **Open a throwaway issue** with a small, concrete task — "add a testID to the home
    screen title".
 2. **Add the `agent-start` label to the issue.** Within a minute the Action should open a
-   draft PR containing `PR-TODO.md` and apply `agent-start` to it. If nothing happens,
+   draft PR with the task as its description and apply `agent-start` to it. If nothing happens,
    look at the Action run: the authorisation step is the usual culprit.
 3. **Watch the EAS run** on the dashboard. The agent job takes up to 30 minutes, and the
    verify job after it about 15 more.
-4. **Expect** a commit on the branch, a results block in the PR description, an
+4. **Expect** a commit on the branch that deletes `.agent-placeholder`, a plan block
+   and a results block in the PR description, an
    "Independent verification" comment with an evidence link, and — on `PASS` — the PR
    flipped to ready for review.
 

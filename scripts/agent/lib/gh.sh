@@ -208,20 +208,50 @@ gh_pr_diff() {
     "$GH_API/repos/$GH_REPO/pulls/$PR_NUMBER"
 }
 
-# gh_merge_results_block <existing_body> <results_markdown>
+# The PR description is shared. A human (or the issue Action) writes the task;
+# agent runs own marked blocks inside it:
 #
-# Replaces the region between the agent markers, or appends it when absent, so
+#   <!-- agent-plan:start -->     the build run's implementation plan
+#   <!-- agent-results:start -->  the latest run's results
+#
+# Everything outside the blocks is the task, and no run ever edits it.
+
+# gh_merge_block <existing_body> <name> <markdown>
+#
+# Replaces the region between the <name> markers, or appends it when absent, so
 # repeated runs update one block instead of stacking copies.
-gh_merge_results_block() {
+gh_merge_block() {
   python3 -c '
 import re, sys
-body, results = sys.argv[1], sys.argv[2]
-start, end = "<!-- agent-results:start -->", "<!-- agent-results:end -->"
-block = f"{start}\n{results}\n{end}"
+body, name, content = sys.argv[1], sys.argv[2], sys.argv[3]
+start, end = f"<!-- agent-{name}:start -->", f"<!-- agent-{name}:end -->"
+block = f"{start}\n{content}\n{end}"
 pattern = re.compile(re.escape(start) + ".*?" + re.escape(end), re.DOTALL)
 if pattern.search(body):
     print(pattern.sub(lambda _: block, body, count=1))
 else:
     print((body.rstrip() + "\n\n" + block) if body.strip() else block)
-' "$1" "$2"
+' "$1" "$2" "$3"
+}
+
+# gh_task_from_body <body> — the description with every agent block removed.
+gh_task_from_body() {
+  python3 -c '
+import re, sys
+body = sys.argv[1]
+body = re.sub(r"<!-- agent-([a-z-]+):start -->.*?<!-- agent-\1:end -->", "", body, flags=re.DOTALL)
+task = re.sub(r"\n{3,}", "\n\n", body).strip()
+# Nothing at all when empty, so callers can test the file with [ -s ].
+sys.stdout.write(task + "\n" if task else "")
+' "$1"
+}
+
+# gh_agent_blocks_from_body <body> — only the agent blocks: what runs claimed.
+gh_agent_blocks_from_body() {
+  python3 -c '
+import re, sys
+blocks = re.findall(r"<!-- agent-([a-z-]+):start -->(.*?)<!-- agent-\1:end -->", sys.argv[1], flags=re.DOTALL)
+claims = "\n\n".join(content.strip() for _, content in blocks).strip()
+sys.stdout.write(claims + "\n" if claims else "")
+' "$1"
 }

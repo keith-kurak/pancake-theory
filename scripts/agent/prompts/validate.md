@@ -13,7 +13,7 @@ The environment variable `AGENT_SIM_UDID` holds the simulator's udid. Pass it as
 
 ## Read first
 
-- `PR-TODO.md` — the original task.
+- `agent-out/task.md` — the original task, from the PR description.
 - `agent-out/validation-plan.md` — the steps the implementing phase says should work.
 - `agent-out/implement-summary.md` — what changed and which `testID`s exist.
 
