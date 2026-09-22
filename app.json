@@ -73,7 +73,10 @@
       [
         "expo-build-properties",
         {
-          "usePrecompiledModules": true
+          "android": {
+            "usePrecompiledHeaders": true,
+            "enableMinifyInReleaseBuilds": true
+          }
         }
       ]
     ],

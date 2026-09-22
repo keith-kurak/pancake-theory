@@ -15,7 +15,28 @@ module.exports = ({ config }) => {
     bundleIdSuffix += process.env.APP_VARIANT.toLowerCase();
   }
 
-  const plugins = config.plugins || [];
+  // Minification slows down builds, so only pay for it in production.
+  const isProduction = (process.env.EAS_BUILD_PROFILE || "").startsWith(
+    "production"
+  );
+
+  const plugins = (config.plugins || []).map((plugin) => {
+    if (!Array.isArray(plugin) || plugin[0] !== "expo-build-properties") {
+      return plugin;
+    }
+    const [name, options = {}] = plugin;
+    return [
+      name,
+      {
+        ...options,
+        android: {
+          ...options.android,
+          enableMinifyInReleaseBuilds: isProduction,
+        },
+      },
+    ];
+  });
+
   plugins.push([
     "expo-dev-client",
     {
