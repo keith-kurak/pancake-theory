@@ -24,35 +24,35 @@
   },
   "dependencies": {
     "@expo/material-symbols": "^0.1.1",
-    "@expo/ui": "~58.0.5",
+    "@expo/ui": "~58.0.6",
     "@expo/vector-icons": "^15.0.3",
     "@legendapp/state": "^3.0.0-beta.38",
     "@react-native-community/slider": "5.2.1",
-    "@sentry/react-native": "~7.11.0",
-    "expo": "^58.0.0-preview.5",
+    "@sentry/react-native": "8.28.0",
+    "expo": "~58.0.0-preview.6",
     "expo-application": "~58.0.1",
-    "expo-background-task": "~58.0.5",
+    "expo-background-task": "~58.0.6",
     "expo-blur": "~58.0.1",
-    "expo-build-properties": "~58.0.5",
-    "expo-constants": "~58.0.5",
+    "expo-build-properties": "~58.0.6",
+    "expo-constants": "~58.0.6",
     "expo-crypto": "~58.0.2",
-    "expo-dev-client": "~58.0.5",
+    "expo-dev-client": "~58.0.6",
     "expo-font": "~58.0.2",
     "expo-glass-effect": "~58.0.2",
     "expo-haptics": "~58.0.1",
-    "expo-image": "~58.0.4",
-    "expo-insights": "~58.0.5",
-    "expo-linking": "~58.0.5",
-    "expo-observe": "~58.0.7",
-    "expo-router": "~58.0.6",
+    "expo-image": "~58.0.5",
+    "expo-insights": "~58.0.6",
+    "expo-linking": "~58.0.6",
+    "expo-observe": "~58.0.8",
+    "expo-router": "~58.0.7",
     "expo-splash-screen": "~58.0.1",
-    "expo-sqlite": "~58.0.4",
+    "expo-sqlite": "~58.0.5",
     "expo-status-bar": "~58.0.1",
     "expo-symbols": "~58.0.2",
     "expo-system-ui": "~58.0.2",
-    "expo-updates": "~58.0.7",
+    "expo-updates": "~58.0.8",
     "expo-web-browser": "~58.0.2",
-    "expo-widgets": "~58.0.5",
+    "expo-widgets": "~58.0.6",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-native": "0.88.0-rc.1",
@@ -85,6 +85,11 @@
           "expo-widgets"
         ]
       }
+    },
+    "install": {
+      "exclude": [
+        "@sentry/react-native"
+      ]
     }
   },
   "private": true
