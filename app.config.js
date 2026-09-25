@@ -50,7 +50,7 @@ module.exports = ({ config }) => {
   if (process.env.APP_VARIANT) {
     name = "PK-" + process.env.APP_VARIANT;
   }
-
+// here is a comment
   return {
     ...config,
     ...(version && { version }),
