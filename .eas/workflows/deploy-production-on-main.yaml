@@ -16,9 +16,9 @@ name: Continuous deploy to production on main
 #   fingerprint match + published release -> publish an EAS Update to production
 #   anything else                         -> explain the problem and fail
 #
-# Requires a GITHUB_TOKEN EAS environment variable in the "production"
-# environment, with read access to this repository's releases. Draft releases
-# are only visible to authenticated requests, and only through the release list
+# Uses the existing GH_TOKEN secret in the "production" EAS environment. It
+# needs read access to this repository's releases. Draft releases are only
+# visible to authenticated requests, and only through the release list
 # endpoint, so the token is not optional.
 
 on:
@@ -71,9 +71,9 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          if [ -z "${GITHUB_TOKEN:-}" ]; then
-            echo "GITHUB_TOKEN is not set. Add it as an EAS environment variable"
-            echo "in the production environment, with repository release read access."
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "GH_TOKEN is not set. It should come from the production EAS"
+            echo "environment, and needs repository release read access."
             exit 1
           fi
           # Draft releases have no git tag, so GET /releases/tags/:tag never
@@ -81,7 +81,7 @@ jobs:
           cat > "/tmp/find-release.js" <<'NODE_EOF'
           const repo = process.env.REPO;
           const rv = process.env.RUNTIME_VERSION;
-          const token = process.env.GITHUB_TOKEN;
+          const token = process.env.GH_TOKEN;
           const wanted = new Set([rv, `v${rv}`]);
 
           async function main() {
