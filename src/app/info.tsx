@@ -41,6 +41,16 @@ export default function InfoScreen() {
 
   const criticalIndex = getCriticalIndex(currentlyRunning.manifest);
 
+  // Only a downloaded update gets a timestamp. The embedded bundle also carries
+  // a createdAt, but that is the build's date, not an update's, so it is left off.
+  const updatedAt =
+    !currentlyRunning.isEmbeddedLaunch && currentlyRunning.createdAt
+      ? currentlyRunning.createdAt.toLocaleString(undefined, {
+          dateStyle: "medium",
+          timeStyle: "short",
+        })
+      : undefined;
+
   const handleVersionTap = useCallback(() => {
     const now = Date.now();
     if (now - lastTapRef.current > 1500) {
@@ -68,6 +78,9 @@ export default function InfoScreen() {
           <ThemedText style={styles.version}>
             v.{Constants.expoConfig?.version ?? "—"}
           </ThemedText>
+          {updatedAt ? (
+            <ThemedText style={styles.updatedAt}>Updated {updatedAt}</ThemedText>
+          ) : null}
         </PressableWithOpacity>
       </ThemedView>
 
@@ -125,6 +138,11 @@ const styles = StyleSheet.create({
   version: {
     fontSize: 20,
     opacity: 0.5,
+  },
+  updatedAt: {
+    fontSize: 13,
+    opacity: 0.5,
+    marginTop: 2,
   },
   section: {
     marginBottom: 24,
