@@ -1,0 +1,260 @@
+name: Continuous deploy to production on main
+
+# Continuous deployment for the production iOS app.
+#
+# Two things decide what happens on a push to main:
+#
+#   1. Is there a GitHub release whose tag matches the current runtime version?
+#      A draft release means the version is still being assembled, so the store
+#      build is not live yet and may be replaced. A published release means the
+#      version is live, so the only safe change is an over-the-air update.
+#   2. Does main still fingerprint-match the production iOS store build for that
+#      same runtime version? If not, the native layer changed and neither a
+#      repack nor an update can carry the change.
+#
+#   fingerprint match + draft release     -> repack the store build, resubmit
+#   fingerprint match + published release -> publish an EAS Update to production
+#   anything else                         -> explain the problem and fail
+#
+# Requires a GITHUB_TOKEN EAS environment variable in the "production"
+# environment, with read access to this repository's releases. Draft releases
+# are only visible to authenticated requests, and only through the release list
+# endpoint, so the token is not optional.
+
+on:
+  push:
+    branches: [main]
+  # Kept so the gating logic can be exercised without pushing to main.
+  workflow_dispatch: {}
+
+concurrency:
+  cancel_in_progress: false
+  group: ${{ workflow.filename }}-${{ github.ref }}
+
+defaults:
+  tools:
+    bun: 1.3.10
+
+jobs:
+  # Resolves the runtime version from the project, then asks GitHub whether a
+  # release is tagged for it. Both answers come from one job so the workflow
+  # spends a single VM on them.
+  release_state:
+    name: Resolve runtime version and release state
+    environment: production
+    outputs:
+      runtime_version: ${{ steps.resolve.outputs.runtime_version }}
+      release_state: ${{ steps.release.outputs.release_state }}
+      release_url: ${{ steps.release.outputs.release_url }}
+    steps:
+      - uses: eas/checkout
+      - uses: eas/install_node_modules
+
+      - name: Resolve runtime version
+        id: resolve
+        run: |
+          set -euo pipefail
+          RV=$(npx expo-updates runtimeversion:resolve --platform ios \
+            | tail -n 1 \
+            | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>process.stdout.write(JSON.parse(d).runtimeVersion))")
+          if [ -z "$RV" ]; then
+            echo "Could not resolve the iOS runtime version."
+            exit 1
+          fi
+          echo "Runtime version: $RV"
+          set-env RUNTIME_VERSION "$RV"
+          set-output runtime_version "$RV"
+
+      - name: Find the GitHub release for this runtime version
+        id: release
+        env:
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GITHUB_TOKEN:-}" ]; then
+            echo "GITHUB_TOKEN is not set. Add it as an EAS environment variable"
+            echo "in the production environment, with repository release read access."
+            exit 1
+          fi
+          # Draft releases have no git tag, so GET /releases/tags/:tag never
+          # finds one. The release list is the only endpoint that returns them.
+          cat > "/tmp/find-release.js" <<'NODE_EOF'
+          const repo = process.env.REPO;
+          const rv = process.env.RUNTIME_VERSION;
+          const token = process.env.GITHUB_TOKEN;
+          const wanted = new Set([rv, `v${rv}`]);
+
+          async function main() {
+            for (let page = 1; page <= 10; page++) {
+              const res = await fetch(
+                `https://api.github.com/repos/${repo}/releases?per_page=100&page=${page}`,
+                {
+                  headers: {
+                    authorization: `Bearer ${token}`,
+                    accept: 'application/vnd.github+json',
+                    'x-github-api-version': '2022-11-28',
+                    'user-agent': 'eas-workflow-continuous-deploy',
+                  },
+                }
+              );
+              if (!res.ok) {
+                throw new Error(`GitHub API ${res.status}: ${await res.text()}`);
+              }
+              const releases = await res.json();
+              if (releases.length === 0) break;
+              const match = releases.find((r) => wanted.has(r.tag_name));
+              if (match) {
+                console.log(`${match.draft ? 'draft' : 'published'} ${match.html_url}`);
+                return;
+              }
+            }
+            console.log('none -');
+          }
+
+          main().catch((e) => {
+            console.error(e.message);
+            process.exit(1);
+          });
+          NODE_EOF
+          RESULT=$(node "/tmp/find-release.js")
+          STATE="${RESULT%% *}"
+          URL="${RESULT#* }"
+          echo "Release for $RUNTIME_VERSION: $STATE $URL"
+          set-output release_state "$STATE"
+          set-output release_url "$URL"
+
+  fingerprint:
+    name: Fingerprint main
+    environment: production
+    type: fingerprint
+
+  # Looks for the production iOS store build that this commit could be layered
+  # on top of. An empty build_id is the "native layer changed" signal every
+  # downstream job branches on.
+  ios_get_build:
+    name: Find matching iOS store build
+    needs: [fingerprint, release_state]
+    type: get-build
+    params:
+      platform: ios
+      profile: production
+      distribution: store
+      fingerprint_hash: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
+      runtime_version: ${{ needs.release_state.outputs.runtime_version }}
+
+  # --- Path 1: draft release, so the store build can still be replaced. -------
+
+  ios_repack:
+    name: Repack production iOS build
+    needs: [ios_get_build, release_state]
+    if: ${{ needs.ios_get_build.outputs.build_id && needs.release_state.outputs.release_state == 'draft' }}
+    type: repack
+    params:
+      build_id: ${{ needs.ios_get_build.outputs.build_id }}
+      profile: production
+      message: Repack of ${{ github.sha }} for runtime ${{ needs.release_state.outputs.runtime_version }}
+
+  submit_ios:
+    name: Resubmit production iOS build
+    needs: [ios_repack]
+    type: submit
+    params:
+      build_id: ${{ needs.ios_repack.outputs.build_id }}
+      profile: production
+
+  # --- Path 2: published release, so only an update can reach users. ----------
+
+  publish_update:
+    name: Publish update to production
+    needs: [ios_get_build, release_state]
+    if: ${{ needs.ios_get_build.outputs.build_id && needs.release_state.outputs.release_state == 'published' }}
+    environment: production
+    type: update
+    params:
+      platform: ios
+      channel: production
+      message: ${{ github.commit_message || github.sha }}
+
+  # --- Path 3: nothing can ship. Say why, then fail. -------------------------
+
+  doc_fingerprint_mismatch:
+    name: Explain fingerprint mismatch
+    needs: [ios_get_build, release_state]
+    if: ${{ !needs.ios_get_build.outputs.build_id && needs.release_state.outputs.release_state != 'none' }}
+    type: doc
+    params:
+      md: |
+        # This merge does not match the production app
+
+        Runtime version **${{ needs.release_state.outputs.runtime_version }}** has a
+        ${{ needs.release_state.outputs.release_state }} release, but no production iOS store
+        build matches the fingerprint of `main` at commit `${{ github.sha }}`.
+
+        The native layer changed, so this merge cannot be repacked onto the current
+        store build and cannot be delivered as an update to it. **Revise the merge.**
+
+        Common causes:
+
+        1. A dependency with native code was added, removed, or upgraded.
+        2. A config plugin, or a value a config plugin reads, changed.
+        3. Something in **app.json** that affects the native project changed.
+
+        To ship it anyway, bump the app version and run a new production build. That
+        starts a new runtime version, which needs its own release.
+
+        Release: ${{ needs.release_state.outputs.release_url }}
+
+  doc_no_release:
+    name: Explain missing release
+    needs: [ios_get_build, release_state]
+    if: ${{ !needs.ios_get_build.outputs.build_id && needs.release_state.outputs.release_state == 'none' }}
+    type: doc
+    params:
+      md: |
+        # No release exists for this runtime version
+
+        No GitHub release is tagged `${{ needs.release_state.outputs.runtime_version }}`
+        (or `v${{ needs.release_state.outputs.runtime_version }}`), and no production iOS
+        store build matches this runtime version and fingerprint.
+
+        The runtime version — which tracks the app version — has changed. **Run the first
+        production build for it before fingerprint comparison can work**, then create the
+        release for the tag.
+
+        1. Run the `build-production.yaml` workflow to produce the store build.
+        2. Create a GitHub release tagged `${{ needs.release_state.outputs.runtime_version }}`.
+           Leave it a draft while the version is still being assembled, so later merges
+           repack and resubmit. Publish it once the version is live, so later merges
+           publish updates instead.
+
+  doc_release_missing_for_match:
+    name: Explain missing release for matching build
+    needs: [ios_get_build, release_state]
+    if: ${{ needs.ios_get_build.outputs.build_id && needs.release_state.outputs.release_state == 'none' }}
+    type: doc
+    params:
+      md: |
+        # Fingerprint matches, but no release says what to do with it
+
+        `main` at commit `${{ github.sha }}` matches production iOS store build
+        `${{ needs.ios_get_build.outputs.build_id }}` for runtime version
+        **${{ needs.release_state.outputs.runtime_version }}**, but no GitHub release is
+        tagged for that version.
+
+        The release's state is what decides between repacking the store build and
+        publishing an update, so there is nothing to decide from. Create a GitHub release
+        tagged `${{ needs.release_state.outputs.runtime_version }}`:
+
+        - **Draft** while the version is still being assembled — merges repack and resubmit.
+        - **Published** once the version is live — merges publish an update to production.
+
+  fail_workflow:
+    name: Fail
+    needs: [ios_get_build, release_state]
+    after: [doc_fingerprint_mismatch, doc_no_release, doc_release_missing_for_match]
+    if: ${{ !needs.ios_get_build.outputs.build_id || needs.release_state.outputs.release_state == 'none' }}
+    steps:
+      - name: Fail the run
+        run: |
+          echo "Nothing can ship from this merge. See the note above for what to do."
+          exit 1

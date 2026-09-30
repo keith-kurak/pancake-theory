@@ -1,0 +1,178 @@
+name: Check PR fingerprint against production
+
+# Pre-flight for the continuous deploy on main (deploy-production-on-main.yaml).
+#
+# That workflow can only ship a merge to production when the merged code still
+# fingerprint-matches the production iOS store build for the current runtime
+# version: a match is repackable and updatable, a mismatch is neither. This
+# workflow runs the same check on the pull request, so the mismatch shows up on
+# the PR rather than after the merge lands on main.
+#
+# It only reads: no build, no repack, no update, no submission.
+
+on:
+  pull_request:
+    branches: ["*"]
+    # ready_for_review is NOT in the default set (opened, reopened,
+    # synchronize). Without it, the draft guard below would mean a PR opened as
+    # a draft is never checked at all — not even once it is marked ready. That
+    # is the normal path for agent PRs, which start in draft.
+    types: [opened, reopened, synchronize, ready_for_review]
+
+concurrency:
+  cancel_in_progress: true
+  group: ${{ workflow.filename }}-${{ github.ref }}
+
+defaults:
+  tools:
+    bun: 1.3.10
+
+jobs:
+  # A draft PR is work in progress. Failing it for a fingerprint mismatch is
+  # noise while the native layer is still being changed on purpose. The guard is
+  # on the two root jobs; every other job reaches one of them through `needs`,
+  # and a skipped job skips its dependents.
+  runtime_version:
+    name: Resolve runtime version
+    if: ${{ !github.event.pull_request.draft }}
+    environment: production
+    outputs:
+      runtime_version: ${{ steps.resolve.outputs.runtime_version }}
+    steps:
+      - uses: eas/checkout
+      - uses: eas/install_node_modules
+
+      - name: Resolve runtime version
+        id: resolve
+        run: |
+          set -euo pipefail
+          RV=$(npx expo-updates runtimeversion:resolve --platform ios \
+            | tail -n 1 \
+            | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>process.stdout.write(JSON.parse(d).runtimeVersion))")
+          if [ -z "$RV" ]; then
+            echo "Could not resolve the iOS runtime version."
+            exit 1
+          fi
+          echo "Runtime version: $RV"
+          set-output runtime_version "$RV"
+
+  fingerprint:
+    name: Fingerprint the PR
+    if: ${{ !github.event.pull_request.draft }}
+    environment: production
+    type: fingerprint
+
+  # An empty build_id means no production iOS store build matches this PR's
+  # fingerprint and runtime version — the native layer changed.
+  ios_get_build:
+    name: Find matching iOS store build
+    needs: [fingerprint, runtime_version]
+    type: get-build
+    params:
+      platform: ios
+      profile: production
+      distribution: store
+      fingerprint_hash: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
+      runtime_version: ${{ needs.runtime_version.outputs.runtime_version }}
+
+  doc_fingerprint_mismatch:
+    name: Explain fingerprint mismatch
+    needs: [ios_get_build, runtime_version]
+    if: ${{ !needs.ios_get_build.outputs.build_id }}
+    type: doc
+    params:
+      md: |
+        # This PR is not eligible for continuous deploy
+
+        No production iOS store build matches this PR's fingerprint for runtime
+        version **${{ needs.runtime_version.outputs.runtime_version }}**. The production app
+        that `main` currently deploys onto does match it, so this PR does not match `main`.
+
+        The native layer changed. Merging this PR would leave `main` unable to repack the
+        store build and unable to deliver an update to it, so
+        `deploy-production-on-main.yaml` would fail on the merge.
+
+        Common causes:
+
+        1. A dependency with native code was added, removed, or upgraded.
+        2. A config plugin, or a value a config plugin reads, changed.
+        3. Something in **app.json** that affects the native project changed.
+
+        Either revise the PR to drop the native change, or bump the app version so the
+        change starts a new runtime version with its own production build and release.
+
+  comment_fingerprint_mismatch:
+    name: Post mismatch note to PR
+    needs: [ios_get_build, runtime_version]
+    after: [doc_fingerprint_mismatch]
+    if: ${{ !needs.ios_get_build.outputs.build_id }}
+    type: github-comment
+    params:
+      payload: |
+        ### ❌ Not eligible for continuous deploy
+
+        This PR's fingerprint does not match the production iOS store build for runtime
+        version **${{ needs.runtime_version.outputs.runtime_version }}**. `main` does match that
+        build, so this PR does not match `main`.
+
+        Merging as-is would break `deploy-production-on-main.yaml`: the merge could be
+        neither repacked onto the store build nor delivered to it as an update.
+
+        Usual causes: a dependency with native code changed, a config plugin (or a value one
+        reads) changed, or something in **app.json** that affects the native project changed.
+
+        Drop the native change, or bump the app version so it starts a new runtime version
+        with its own production build.
+
+        [Workflow run](${{ workflow.url }})
+
+  fail_workflow:
+    name: Fail
+    needs: [ios_get_build]
+    after: [doc_fingerprint_mismatch, comment_fingerprint_mismatch]
+    if: ${{ !needs.ios_get_build.outputs.build_id }}
+    steps:
+      - name: Fail the run
+        run: |
+          echo "This PR does not match the production app's fingerprint. See the note above."
+          exit 1
+
+  # --- Match: the PR is deploy-eligible, so give it a surfable channel. -------
+
+  # `eas update --channel <name>` creates the channel and links a branch of the
+  # same name when neither exists, so the first run on a PR provisions pr-<n>
+  # and later pushes republish to it.
+  publish_pr_channel:
+    name: Publish update to PR channel
+    needs: [ios_get_build, runtime_version]
+    if: ${{ needs.ios_get_build.outputs.build_id }}
+    environment: production
+    type: update
+    params:
+      platform: ios
+      channel: pr-${{ github.event.pull_request.number }}
+      message: PR #${{ github.event.pull_request.number }} — ${{ github.sha }}
+
+  comment_pr_channel:
+    name: Post channel to PR
+    needs: [ios_get_build, runtime_version]
+    after: [publish_pr_channel]
+    if: ${{ needs.ios_get_build.outputs.build_id }}
+    type: github-comment
+    params:
+      payload: |
+        ### 📺 Channel surfing: `pr-${{ github.event.pull_request.number }}`
+
+        This PR matches the production iOS store build for runtime version
+        **${{ needs.runtime_version.outputs.runtime_version }}**, so its JavaScript is published to
+        the **`pr-${{ github.event.pull_request.number }}`** channel. You can load it in the
+        production app without installing anything:
+
+        1. Open the app and go to the **Info** screen.
+        2. Tap **Channel Surfing**.
+        3. Enter `pr-${{ github.event.pull_request.number }}` and switch.
+
+        The app sets the `expo-channel-name` header, fetches the update, and reloads. Switch
+        back to `production` the same way. Every push to this PR republishes the channel.
+
+        [Workflow run](${{ workflow.url }})

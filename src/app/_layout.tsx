@@ -30,6 +30,14 @@ Sentry.init({
   // Enable Logs
   enableLogs: true,
 
+  // sentry-cocoa's watchdog-termination breadcrumb processor interpolates every
+  // breadcrumb dictionary into a log string eagerly (SentrySDKLog.debug takes a
+  // plain String, not an @autoclosure), so the description is built on the
+  // calling thread even with debug logging off. With large breadcrumbs that
+  // stalls the main thread long enough for iOS to watchdog-kill the app during
+  // shutdown. Still unfixed as of sentry-cocoa 9.30.0.
+  enableWatchdogTerminationTracking: false,
+
   // Configure Session Replay
   replaysSessionSampleRate: 0.1,
   replaysOnErrorSampleRate: 1,

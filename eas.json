@@ -34,22 +34,14 @@
     "production": {
       "autoIncrement": true,
       "channel": "production",
-      "environment": "production",
-      "ios": {
-        "env": {
-          "EXPO_PUBLIC_UPDATES_DISABLED": "1"
-        }
-      }
+      "environment": "production"
     },
     "production-simulator": {
       "autoIncrement": true,
       "channel": "production",
       "environment": "production",
       "ios": {
-        "simulator": true,
-        "env": {
-          "EXPO_PUBLIC_UPDATES_DISABLED": "1"
-        }
+        "simulator": true
       }
     }
   },
