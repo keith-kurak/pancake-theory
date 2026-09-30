@@ -4,6 +4,8 @@ function runtimeVersion(version) {
   return `${major}.${minor}.0`;
 }
 
+//test
+
 const version = process.env.APP_VERSION || undefined;
 const criticalIndex = process.env.CRITICAL_INDEX
   ? parseInt(process.env.CRITICAL_INDEX, 10)
@@ -17,7 +19,7 @@ module.exports = ({ config }) => {
 
   // Minification slows down builds, so only pay for it in production.
   const isProduction = (process.env.EAS_BUILD_PROFILE || "").startsWith(
-    "production"
+    "production",
   );
 
   const plugins = (config.plugins || []).map((plugin) => {
