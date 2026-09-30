@@ -67,13 +67,6 @@ jobs:
 
       - name: Find the GitHub release for this runtime version
         id: release
-        env:
-          # EAS sets github.repository to the bare repo name, NOT "owner/repo"
-          # the way GitHub Actions does, so the owner has to be joined on. A
-          # bare name yields GET /repos/<name>/releases, which GitHub routes as
-          # get-a-repository and answers 404.
-          REPO_NAME: ${{ github.repository }}
-          REPO_OWNER: ${{ github.repository_owner }}
         run: |
           set -euo pipefail
           if [ -z "${GH_TOKEN:-}" ]; then
@@ -81,22 +74,11 @@ jobs:
             echo "environment, and needs repository release read access."
             exit 1
           fi
-          case "${REPO_NAME:-}" in
-            */*) REPO="$REPO_NAME" ;;                      # already owner/name
-            "")  REPO="" ;;
-            *)   REPO="${REPO_OWNER:-}/${REPO_NAME}" ;;
-          esac
-          case "$REPO" in
-            ?*/?*) ;;
-            *)
-              echo "Could not determine the repository from the workflow context."
-              echo "  github.repository       = '${REPO_NAME:-}'"
-              echo "  github.repository_owner = '${REPO_OWNER:-}'"
-              echo "These are empty for workflow_dispatch runs, so this workflow"
-              echo "only works when triggered by a push."
-              exit 1
-              ;;
-          esac
+          # Hardcoded on purpose. EAS does not interpolate ${{ }} inside a
+          # step's `env:` block — github.repository_owner and github.repository
+          # arrive as literal text — so the repo cannot be read from the
+          # workflow context here.
+          REPO="keith-kurak/pancake-theory"
           export REPO
           echo "Repository: $REPO"
           # Draft releases have no git tag, so GET /releases/tags/:tag never
