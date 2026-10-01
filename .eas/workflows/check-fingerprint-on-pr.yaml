@@ -18,6 +18,11 @@ on:
     # a draft is never checked at all — not even once it is marked ready. That
     # is the normal path for agent PRs, which start in draft.
     types: [opened, reopened, synchronize, ready_for_review]
+    # A "store-next" PR carries a deliberate native change aimed at the NEXT
+    # store version, so measuring it against the CURRENT one would fail every
+    # time. store-next-preview.yaml takes those PRs instead. Matching the label
+    # with its quotes keeps "store-next-something" from counting.
+    if: ${{ !contains(toJSON(github.event.pull_request.labels), '"store-next"') }}
 
 concurrency:
   cancel_in_progress: true

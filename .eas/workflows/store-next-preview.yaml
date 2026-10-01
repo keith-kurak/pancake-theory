@@ -1,0 +1,118 @@
+name: Preview build for the next store version
+
+# The lane for native changes aimed at the NEXT store version.
+#
+# check-fingerprint-on-pr.yaml measures a pull request against the CURRENT
+# production store build, and fails it when the native layer moves. That is the
+# right answer for an ordinary PR and the wrong one for a PR whose whole purpose
+# is to move the native layer. Labelling such a PR "store-next" sends it here
+# instead.
+#
+# Same shape as deploy-production-on-main.yaml, on the preview profile and with
+# no release state to consult:
+#
+#   fingerprint match -> repack the preview build (fast, no native rebuild)
+#   no match          -> build preview: this PR is the one changing native code
+#
+# The resulting internal-distribution build is where native changes destined for
+# the next store version get verified.
+
+on:
+  pull_request:
+    branches: ["*"]
+    # `labeled` is what makes applying the label start a run; the rest keep the
+    # build current as the PR is pushed to.
+    types: [opened, reopened, synchronize, ready_for_review, labeled]
+    if: ${{ contains(toJSON(github.event.pull_request.labels), '"store-next"') }}
+
+concurrency:
+  # A native build is the expensive thing here, so let a new push replace one
+  # that is already running rather than paying for both.
+  cancel_in_progress: true
+  group: ${{ workflow.filename }}-${{ github.ref }}
+
+defaults:
+  tools:
+    bun: 1.3.10
+
+jobs:
+  # Same draft reasoning as the other pull request workflows: work in progress
+  # does not need a native build yet. Guarding the two root jobs is enough,
+  # since everything else reaches one of them through `needs`.
+  runtime_version:
+    name: Resolve runtime version
+    if: ${{ !github.event.pull_request.draft }}
+    environment: preview
+    outputs:
+      runtime_version: ${{ steps.resolve.outputs.runtime_version }}
+    steps:
+      - uses: eas/checkout
+      - uses: eas/install_node_modules
+
+      - name: Resolve runtime version
+        id: resolve
+        run: |
+          set -euo pipefail
+          RV=$(npx expo-updates runtimeversion:resolve --platform ios \
+            | tail -n 1 \
+            | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>process.stdout.write(JSON.parse(d).runtimeVersion))")
+          if [ -z "$RV" ]; then
+            echo "Could not resolve the iOS runtime version."
+            exit 1
+          fi
+          echo "Runtime version: $RV"
+          set-output runtime_version "$RV"
+
+  fingerprint:
+    name: Fingerprint the PR
+    if: ${{ !github.event.pull_request.draft }}
+    environment: preview
+    type: fingerprint
+
+  # An existing preview build with this fingerprint and runtime version can take
+  # the PR's JavaScript by repack. An empty result means this PR is the one
+  # moving native code, which is the expected case for store-next.
+  ios_get_build:
+    name: Find matching iOS preview build
+    needs: [fingerprint, runtime_version]
+    type: get-build
+    params:
+      platform: ios
+      profile: preview
+      distribution: internal
+      fingerprint_hash: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
+      runtime_version: ${{ needs.runtime_version.outputs.runtime_version }}
+
+  ios_repack:
+    name: Repack the preview build
+    needs: [ios_get_build]
+    if: ${{ needs.ios_get_build.outputs.build_id }}
+    type: repack
+    params:
+      build_id: ${{ needs.ios_get_build.outputs.build_id }}
+      profile: preview
+      message: store-next repack for PR #${{ github.event.pull_request.number }}
+
+  ios_build:
+    name: Build iOS preview
+    needs: [ios_get_build, runtime_version]
+    if: ${{ !needs.ios_get_build.outputs.build_id }}
+    type: build
+    params:
+      platform: ios
+      profile: preview
+      message: store-next build for PR #${{ github.event.pull_request.number }} (runtime ${{ needs.runtime_version.outputs.runtime_version }})
+
+  # `after` the two lanes, because exactly one of them runs and the other is
+  # skipped. But `after` fires even when every upstream was skipped, so the
+  # `needs` edge is what keeps a draft PR — where nothing was built — from
+  # getting a comment anyway.
+  comment_on_pr:
+    name: Post the build to the PR
+    needs: [ios_get_build]
+    after: [ios_repack, ios_build]
+    type: github-comment
+    params:
+      message: >-
+        Preview build for the next store version. Install it to verify this
+        native change before it reaches a store build.
