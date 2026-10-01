@@ -24,6 +24,15 @@ name: Continuous deploy to production on main
 on:
   push:
     branches: [main]
+    # Docs, and anything under a dot-folder (.eas, .github, .vscode, .claude,
+    # .maestro), cannot change what ships, so they should not spend a run or
+    # move the production app. "**" is the base include; the "!" patterns carve
+    # out of it.
+    paths:
+      - "**"
+      - "!**/*.md"
+      - "!.*/**"
+      - "!**/.*/**"
   # Kept so the gating logic can be exercised without pushing to main.
   workflow_dispatch: {}
 
