@@ -1,0 +1,100 @@
+name: Find GitHub release
+description: >-
+  Finds the GitHub release tagged with a runtime version and reports whether the
+  version is still being assembled or is live. Needs GH_TOKEN in the calling
+  job's environment, with read access to the repository's releases.
+
+inputs:
+  - name: runtime_version
+    type: string
+    required: true
+  - name: repository
+    type: string
+    # EAS does not interpolate ${{ }} inside a step's `env:`, and the github
+    # context is empty on non-push triggers, so the repository is a value rather
+    # than something read from the workflow context.
+    default_value: keith-kurak/pancake-theory
+
+outputs:
+  state:
+    value: ${{ steps.find.outputs.state }}
+    description: >-
+      "prerelease" when the release is a draft OR flagged pre-release — two
+      independent GitHub flags, either of which means the version is still being
+      assembled. "released" when neither is set. "none" when no release is
+      tagged for this runtime version.
+  url:
+    value: ${{ steps.find.outputs.url }}
+    description: The release's HTML URL, or "-" when there is no release.
+  id:
+    value: ${{ steps.find.outputs.id }}
+    description: The release's numeric id, or "-" when there is no release.
+
+runs:
+  steps:
+    - id: find
+      name: Find the GitHub release for this runtime version
+      run: |
+        set -euo pipefail
+        if [ -z "${GH_TOKEN:-}" ]; then
+          echo "GH_TOKEN is not set. It should come from the calling job's EAS"
+          echo "environment, and needs repository release read access."
+          exit 1
+        fi
+        REPO='${{ inputs.repository }}'
+        RUNTIME_VERSION='${{ inputs.runtime_version }}'
+        export REPO RUNTIME_VERSION
+        echo "Repository: $REPO"
+
+        cat > "/tmp/find-release.js" <<'NODE_EOF'
+        const repo = process.env.REPO;
+        const rv = process.env.RUNTIME_VERSION;
+        const token = process.env.GH_TOKEN;
+        const wanted = new Set([rv, `v${rv}`]);
+
+        async function main() {
+          // Draft releases have no git tag, so GET /releases/tags/:tag never
+          // finds one. The release list is the only endpoint that returns them.
+          for (let page = 1; page <= 10; page++) {
+            const res = await fetch(
+              `https://api.github.com/repos/${repo}/releases?per_page=100&page=${page}`,
+              {
+                headers: {
+                  authorization: `Bearer ${token}`,
+                  accept: 'application/vnd.github+json',
+                  'x-github-api-version': '2022-11-28',
+                  'user-agent': 'eas-workflow-find-github-release',
+                },
+              }
+            );
+            if (!res.ok) {
+              throw new Error(`GitHub API ${res.status}: ${await res.text()}`);
+            }
+            const releases = await res.json();
+            if (releases.length === 0) break;
+            const match = releases.find((r) => wanted.has(r.tag_name));
+            if (match) {
+              // `draft` and `prerelease` are separate booleans: a published
+              // release flagged pre-release has draft false, prerelease true.
+              const pre = match.draft || match.prerelease;
+              console.log(
+                `${pre ? 'prerelease' : 'released'} ${match.html_url} ${match.id}`
+              );
+              return;
+            }
+          }
+          console.log('none - -');
+        }
+
+        main().catch((e) => {
+          console.error(e.message);
+          process.exit(1);
+        });
+        NODE_EOF
+
+        OUT=$(node "/tmp/find-release.js")
+        set -- $OUT
+        echo "Release for $RUNTIME_VERSION: $1 $2"
+        set-output state "$1"
+        set-output url "$2"
+        set-output id "$3"
