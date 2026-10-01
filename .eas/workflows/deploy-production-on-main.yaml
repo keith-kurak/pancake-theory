@@ -92,7 +92,7 @@ jobs:
   # --- Path 1: pre-release, so the store build can still be replaced. ---------
 
   ios_repack:
-    name: Repack production iOS build
+    name: Repack iOS build for pre-release
     needs: [ios_get_build, release_state]
     if: ${{ needs.ios_get_build.outputs.build_id && needs.release_state.outputs.release_state == 'prerelease' }}
     type: repack
@@ -118,7 +118,7 @@ jobs:
   # reaches TestFlight. Subsequent merges find this build and go back to
   # repacking and resubmitting it.
   ios_first_build:
-    name: Build iOS for the new pre-release
+    name: Build iOS for pre-release
     needs: [ios_get_build, release_state]
     if: ${{ !needs.ios_get_build.outputs.build_id && needs.release_state.outputs.release_state == 'prerelease' }}
     type: build
