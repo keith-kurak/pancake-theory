@@ -5,15 +5,16 @@ name: Continuous deploy to production on main
 # Two things decide what happens on a push to main:
 #
 #   1. Is there a GitHub release whose tag matches the current runtime version?
-#      A draft release means the version is still being assembled, so the store
-#      build is not live yet and may be replaced. A published release means the
-#      version is live, so the only safe change is an over-the-air update.
+#      GitHub carries two independent flags, `draft` and `prerelease`. Either
+#      one means the version is still being assembled, so the store build is not
+#      live yet and may be replaced. Only a release with neither flag is live,
+#      and then the only safe change is an over-the-air update.
 #   2. Does main still fingerprint-match the production iOS store build for that
 #      same runtime version? If not, the native layer changed and neither a
 #      repack nor an update can carry the change.
 #
-#   fingerprint match + draft release     -> repack the store build, resubmit
-#   fingerprint match + published release -> publish an EAS Update to production
+#   fingerprint match + pre-release  -> repack the store build, resubmit
+#   fingerprint match + full release -> publish an EAS Update to production
 #   anything else                         -> explain the problem and fail
 #
 # Uses the existing GH_TOKEN secret in the "production" EAS environment. It
@@ -118,7 +119,10 @@ jobs:
               if (releases.length === 0) break;
               const match = releases.find((r) => wanted.has(r.tag_name));
               if (match) {
-                console.log(`${match.draft ? 'draft' : 'published'} ${match.html_url}`);
+                // `draft` and `prerelease` are separate booleans: a published
+                // release flagged pre-release has draft false, prerelease true.
+                const pre = match.draft || match.prerelease;
+                console.log(`${pre ? 'prerelease' : 'released'} ${match.html_url}`);
                 return;
               }
             }
@@ -156,12 +160,12 @@ jobs:
       fingerprint_hash: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
       runtime_version: ${{ needs.release_state.outputs.runtime_version }}
 
-  # --- Path 1: draft release, so the store build can still be replaced. -------
+  # --- Path 1: pre-release, so the store build can still be replaced. ---------
 
   ios_repack:
     name: Repack production iOS build
     needs: [ios_get_build, release_state]
-    if: ${{ needs.ios_get_build.outputs.build_id && needs.release_state.outputs.release_state == 'draft' }}
+    if: ${{ needs.ios_get_build.outputs.build_id && needs.release_state.outputs.release_state == 'prerelease' }}
     type: repack
     params:
       build_id: ${{ needs.ios_get_build.outputs.build_id }}
@@ -176,12 +180,12 @@ jobs:
       build_id: ${{ needs.ios_repack.outputs.build_id }}
       profile: production
 
-  # --- Path 2: published release, so only an update can reach users. ----------
+  # --- Path 2: full release, so only an update can reach users. ---------------
 
   publish_update:
     name: Publish update to production
     needs: [ios_get_build, release_state]
-    if: ${{ needs.ios_get_build.outputs.build_id && needs.release_state.outputs.release_state == 'published' }}
+    if: ${{ needs.ios_get_build.outputs.build_id && needs.release_state.outputs.release_state == 'released' }}
     environment: production
     type: update
     params:
@@ -237,9 +241,9 @@ jobs:
 
         1. Run the `build-production.yaml` workflow to produce the store build.
         2. Create a GitHub release tagged `${{ needs.release_state.outputs.runtime_version }}`.
-           Leave it a draft while the version is still being assembled, so later merges
-           repack and resubmit. Publish it once the version is live, so later merges
-           publish updates instead.
+           Mark it a draft or a pre-release while the version is still being assembled,
+           so later merges repack and resubmit. Clear both flags once the version is
+           live, so later merges publish updates instead.
 
   doc_release_missing_for_match:
     name: Explain missing release for matching build
@@ -259,8 +263,10 @@ jobs:
         publishing an update, so there is nothing to decide from. Create a GitHub release
         tagged `${{ needs.release_state.outputs.runtime_version }}`:
 
-        - **Draft** while the version is still being assembled — merges repack and resubmit.
-        - **Published** once the version is live — merges publish an update to production.
+        - **Draft or pre-release** while the version is still being assembled — merges
+          repack and resubmit.
+        - **Full release** (neither flag) once the version is live — merges publish an
+          update to production.
 
   fail_workflow:
     name: Fail

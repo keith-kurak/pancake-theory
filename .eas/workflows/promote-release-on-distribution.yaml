@@ -1,0 +1,185 @@
+name: Promote release when App Store Connect distributes
+
+# Closes the loop on deploy-production-on-main.yaml.
+#
+# While a version is being assembled its GitHub release is flagged draft or
+# pre-release, and merges to main repack the store build and resubmit. Once
+# App Store Connect reports the app version ready_for_distribution, the version
+# is live: replacing the binary is no longer an option, and merges should
+# publish an over-the-air update instead.
+#
+# That switch is driven entirely by the release's flags, so this workflow
+# clears them — draft and prerelease both to false — the moment Apple says the
+# version is out.
+#
+# Needs the production environment's GH_TOKEN to have WRITE access to releases
+# (contents: write). The read-only access the deploy workflow uses is not
+# enough here.
+
+on:
+  app_store_connect:
+    app_version:
+      states:
+        - ready_for_distribution
+
+concurrency:
+  cancel_in_progress: false
+  group: ${{ workflow.filename }}
+
+defaults:
+  tools:
+    bun: 1.3.10
+
+jobs:
+  promote_release:
+    name: Mark the release as released
+    environment: production
+    outputs:
+      runtime_version: ${{ steps.promote.outputs.runtime_version }}
+      result: ${{ steps.promote.outputs.result }}
+      release_url: ${{ steps.promote.outputs.release_url }}
+    steps:
+      - uses: eas/checkout
+      - uses: eas/install_node_modules
+
+      - name: Resolve runtime version
+        id: resolve
+        run: |
+          set -euo pipefail
+          RV=$(npx expo-updates runtimeversion:resolve --platform ios \
+            | tail -n 1 \
+            | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>process.stdout.write(JSON.parse(d).runtimeVersion))")
+          if [ -z "$RV" ]; then
+            echo "Could not resolve the iOS runtime version."
+            exit 1
+          fi
+          echo "Runtime version: $RV"
+          set-env RUNTIME_VERSION "$RV"
+
+      - name: Clear the pre-release flags
+        id: promote
+        run: |
+          set -euo pipefail
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "GH_TOKEN is not set. It should come from the production EAS"
+            echo "environment, and needs write access to releases."
+            exit 1
+          fi
+          # Hardcoded on purpose. EAS does not interpolate ${{ }} inside a
+          # step's `env:` block, so the repo cannot be read from the workflow
+          # context here.
+          REPO="keith-kurak/pancake-theory"
+          export REPO
+          echo "Repository: $REPO"
+          echo "App Store Connect reported the app version ready for distribution."
+
+          cat > "/tmp/promote-release.js" <<'NODE_EOF'
+          const repo = process.env.REPO;
+          const rv = process.env.RUNTIME_VERSION;
+          const token = process.env.GH_TOKEN;
+          const dryRun = process.env.DRY_RUN === '1';
+          const wanted = new Set([rv, `v${rv}`]);
+
+          const headers = {
+            authorization: `Bearer ${token}`,
+            accept: 'application/vnd.github+json',
+            'x-github-api-version': '2022-11-28',
+            'user-agent': 'eas-workflow-promote-release',
+          };
+
+          async function findRelease() {
+            // Draft releases have no git tag, so GET /releases/tags/:tag never
+            // finds one. The release list is the only endpoint that returns them.
+            for (let page = 1; page <= 10; page++) {
+              const res = await fetch(
+                `https://api.github.com/repos/${repo}/releases?per_page=100&page=${page}`,
+                { headers }
+              );
+              if (!res.ok) {
+                throw new Error(`GitHub API ${res.status}: ${await res.text()}`);
+              }
+              const releases = await res.json();
+              if (releases.length === 0) return null;
+              const match = releases.find((r) => wanted.has(r.tag_name));
+              if (match) return match;
+            }
+            return null;
+          }
+
+          async function main() {
+            const release = await findRelease();
+            if (!release) {
+              console.error(
+                `No GitHub release is tagged ${rv} or v${rv}. Nothing to promote — ` +
+                  `create the release for this runtime version.`
+              );
+              process.exit(1);
+            }
+            if (!release.draft && !release.prerelease) {
+              // App Store Connect can report the same state more than once.
+              console.log(`already_released ${release.html_url}`);
+              return;
+            }
+            if (dryRun) {
+              console.log(
+                `would PATCH /repos/${repo}/releases/${release.id} ` +
+                  `{draft:false, prerelease:false} (currently draft=${release.draft}, ` +
+                  `prerelease=${release.prerelease})`
+              );
+              console.log(`promoted ${release.html_url}`);
+              return;
+            }
+            const res = await fetch(
+              `https://api.github.com/repos/${repo}/releases/${release.id}`,
+              {
+                method: 'PATCH',
+                headers: { ...headers, 'content-type': 'application/json' },
+                body: JSON.stringify({ draft: false, prerelease: false }),
+              }
+            );
+            if (!res.ok) {
+              throw new Error(`GitHub API ${res.status}: ${await res.text()}`);
+            }
+            const updated = await res.json();
+            if (updated.draft || updated.prerelease) {
+              throw new Error(
+                `Release still flagged after the update: draft=${updated.draft}, ` +
+                  `prerelease=${updated.prerelease}`
+              );
+            }
+            console.log(`promoted ${updated.html_url}`);
+          }
+
+          main().catch((e) => {
+            console.error(e.message);
+            process.exit(1);
+          });
+          NODE_EOF
+
+          OUT=$(node "/tmp/promote-release.js")
+          RESULT="${OUT%% *}"
+          URL="${OUT#* }"
+          echo "$RESULT $URL"
+          set-output runtime_version "$RUNTIME_VERSION"
+          set-output result "$RESULT"
+          set-output release_url "$URL"
+
+  summary:
+    name: Summary
+    needs: [promote_release]
+    type: doc
+    params:
+      md: |
+        # Release ${{ needs.promote_release.outputs.runtime_version }} is live
+
+        App Store Connect reported the app version **ready for distribution**, and the
+        GitHub release for runtime version
+        **${{ needs.promote_release.outputs.runtime_version }}** is now a full release —
+        `draft` and `prerelease` both cleared
+        (${{ needs.promote_release.outputs.result }}).
+
+        From here, `deploy-production-on-main.yaml` switches lanes: a merge to `main` that
+        still matches the production fingerprint publishes an **over-the-air update** to the
+        `production` channel, rather than repacking and resubmitting the store build.
+
+        Release: ${{ needs.promote_release.outputs.release_url }}
