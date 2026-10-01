@@ -54,7 +54,41 @@ Describe a feature or fix once, in a file. Get back a validated PR.
 
 ## From an issue
 
-The usual way in. Optionally, steer the build with a comment on the issue:
+The usual way in. First, the issue **description** must have a user story and fit
+criteria. The **Feature or fix** issue template
+([`.github/ISSUE_TEMPLATE/agent-task.md`](../../.github/ISSUE_TEMPLATE/agent-task.md))
+starts you with both:
+
+```markdown
+## User story
+
+As a baker, I want cook times in whole minutes, so that the history list is easy to scan.
+
+## Fit criteria
+
+- The history list shows "12 min", not "12:34".
+- Editing a cook time shows a minutes field only.
+```
+
+When the label is applied, the Action runs
+[`scripts/agent/check-story.py`](../../scripts/agent/check-story.py) before it creates
+anything. If a part is missing, it comments on the issue with what to fix, removes the
+label, and fails. No branch, no PR, no EAS run. The rules:
+
+| Rule | Why |
+|---|---|
+| A heading, at any level, containing "User story" | So the check finds the story in any issue layout |
+| Under it, "As a …, I want …, so that …" | All three parts. "So that" is the one most often dropped, and it says why the work matters |
+| A heading containing "Fit criteria" | The same, for the criteria |
+| Under it, at least one `-` or numbered item | Each criterion is one observable result |
+| No template placeholders such as `<who>` | An unedited template is not a story |
+| Only the description counts | Headings inside code blocks and `/agent` comments are ignored |
+
+The fit criteria then travel with the task into the PR description. The implement
+phase must cover each one in its validation plan, the validate phase fails a missed
+one, and the verifier treats each one as a requirement.
+
+Optionally, steer the build with a comment on the issue:
 
 ```
 /agent focus on the Ratios tab only
@@ -517,6 +551,8 @@ The runner works outside EAS against a real PR — see
 | `scripts/agent/prompts/validate.md` | Validate-phase prompt, shared by build and revise. |
 | `scripts/agent/prompts/verify.md` | Adversarial verifier prompt. Judges, never edits. |
 | `scripts/lib/resolve-sim-build.sh` | Shared build resolver, also used by `remote-sim.sh`. |
+| `scripts/agent/check-story.py` | Issue readiness check: user story and fit criteria. |
+| `.github/ISSUE_TEMPLATE/agent-task.md` | Issue template with both sections. |
 
 ## Security notes
 

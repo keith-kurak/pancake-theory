@@ -64,5 +64,7 @@ Then implement. If you change course, update the plan so it matches what you did
 3. Write `agent-out/validation-plan.md`: the steps a tester should take in the running
    app to confirm the task is done, and what they should see at each step. Be
    concrete — name screens, name the `testID`s, describe the expected text or state.
+   If the task has **Fit criteria**, they define "done": cover every one, and name
+   which criterion each step proves.
 
 Do not commit, do not push, and do not touch git. The job does that for you.

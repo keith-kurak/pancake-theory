@@ -31,7 +31,9 @@ The order below matters.
 1. **Read the intent and the diff.** The task (the PR description), the reviewer's
    `/agent` requests, and the PR title say what the change must do. The diff says
    where it lives. If there are reviewer requests, they are the focus of this run and
-   outrank your own reading of the diff.
+   outrank your own reading of the diff. If the task has **Fit criteria**, each one is a
+   requirement in your plan, word for word. The **User story** says who the user is
+   and why they care, so use it to choose your attacks.
 2. **Write your own test plan before you read any claim.** List each requirement you
    will check, in your own words, as an observable result on screen. Then list at least
    **three attacks**: ways a real user could make the change fail. Write the plan into

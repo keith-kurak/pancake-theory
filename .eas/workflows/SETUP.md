@@ -180,8 +180,9 @@ npx eas-cli@latest build:list --platform ios --simulator \
 
 Cheapest end-to-end check, in order:
 
-1. **Open a throwaway issue** with a small, concrete task — "add a testID to the home
-   screen title".
+1. **Open a throwaway issue** from the **Feature or fix** template, with a small,
+   concrete task — "add a testID to the home screen title". Fill in the user story and
+   at least one fit criterion, or the next step stops with a comment that says so.
 2. **Add the `agent-start` label to the issue.** Within a minute the Action should open a
    draft PR with the task as its description and apply `agent-start` to it. If nothing happens,
    look at the Action run: the authorisation step is the usual culprit.

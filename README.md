@@ -87,10 +87,11 @@ Conventions for both humans and coding agents live in [`CLAUDE.md`](CLAUDE.md) a
 
 ## Agentic workflows
 
-This repo can build, revise, and verify its own pull requests. Add the `agent-start`
-label to an issue and an agent opens a PR, writes the code, drives it on a cloud
-simulator, and then a second, adversarial agent tries to break it and reports back with
-screenshots.
+This repo can build, revise, and verify its own pull requests. Write an issue with a
+user story and fit criteria, add the `agent-start` label, and an agent opens a PR, writes
+the code, and drives it on a cloud simulator. Then a second, adversarial agent tries to
+break it and reports back with screenshots. An issue without a user story and fit
+criteria is refused, with a comment that says what is missing.
 
 There is one command: an `/agent` comment. The label you add decides what the agent does
 with it.

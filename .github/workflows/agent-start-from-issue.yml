@@ -7,7 +7,9 @@ name: Agent Start from Issue
 # has one, so it does the small mechanical job — branch, draft PR with the task
 # as its description, label — and everything after that runs on EAS.
 #
-# Apply the `agent-start` label to an issue. To steer the build, first comment
+# Apply the `agent-start` label to an issue. The issue description must have a
+# user story and fit criteria first, or the run stops and says so on the issue
+# (see .github/ISSUE_TEMPLATE/agent-task.md). To steer the build, first comment
 # `/agent <extra guidance>` on the issue; every such comment from a trusted
 # author is added to the PR description.
 #
@@ -77,6 +79,42 @@ jobs:
           # author. See the note on AGENT_GH_TOKEN below.
           token: ${{ secrets.AGENT_GH_TOKEN }}
           fetch-depth: 0
+
+      # ---------------------------------------------------------------------
+      # Readiness. No branch, PR, or EAS run until the issue has a user story
+      # and fit criteria in its description. See scripts/agent/check-story.py
+      # for the exact rules.
+      # ---------------------------------------------------------------------
+      #
+      # On failure: explain on the issue, take the label off so applying it
+      # again is one click (GitHub only fires `labeled` on absent-to-present),
+      # and fail the job so the run is red. The description reaches the script
+      # through the environment only, never the shell.
+      - name: Require a user story and fit criteria
+        env:
+          GH_TOKEN: ${{ secrets.AGENT_GH_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          set -uo pipefail
+          if python3 scripts/agent/check-story.py > "$RUNNER_TEMP/story-check.md"; then
+            cat "$RUNNER_TEMP/story-check.md"
+            exit 0
+          fi
+
+          {
+            printf '> 🤖 **Automated** — written by the agent workflow, not by a human. · [view run](%s/actions/runs/%s)\n\n' \
+              "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_RUN_ID"
+            cat "$RUNNER_TEMP/story-check.md"
+          } > "$RUNNER_TEMP/story-comment.md"
+
+          gh issue comment "$ISSUE_NUMBER" --body-file "$RUNNER_TEMP/story-comment.md" \
+            || echo "::warning::could not comment on the issue"
+          gh issue edit "$ISSUE_NUMBER" --remove-label agent-start \
+            || echo "::warning::could not remove the agent-start label"
+          echo "::error::Issue #$ISSUE_NUMBER has no user story or fit criteria; no PR was created."
+          cat "$RUNNER_TEMP/story-check.md"
+          exit 1
 
       # Same filter as the EAS runners' gh_collect_requests: the `/agent`
       # prefix, and an OWNER, MEMBER, or COLLABORATOR author. The repository is
