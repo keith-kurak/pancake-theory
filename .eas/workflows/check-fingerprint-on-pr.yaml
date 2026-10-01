@@ -47,19 +47,8 @@ jobs:
       - uses: eas/checkout
       - uses: eas/install_node_modules
 
-      - name: Resolve runtime version
-        id: resolve
-        run: |
-          set -euo pipefail
-          RV=$(npx expo-updates runtimeversion:resolve --platform ios \
-            | tail -n 1 \
-            | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>process.stdout.write(JSON.parse(d).runtimeVersion))")
-          if [ -z "$RV" ]; then
-            echo "Could not resolve the iOS runtime version."
-            exit 1
-          fi
-          echo "Runtime version: $RV"
-          set-output runtime_version "$RV"
+      - id: resolve
+        uses: ./.eas/functions/resolve-runtime-version
 
   fingerprint:
     name: Fingerprint the PR

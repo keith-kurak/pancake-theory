@@ -19,10 +19,10 @@ name: Continuous deploy to production on main
 #                                       a version whose release already exists
 #   anything else                    -> explain the problem and fail
 #
-# Uses the existing GH_TOKEN secret in the "production" EAS environment. It
-# needs read access to this repository's releases. Draft releases are only
-# visible to authenticated requests, and only through the release list
-# endpoint, so the token is not optional.
+# Uses the existing GH_TOKEN secret in the "production" EAS environment, which
+# needs read access to this repository's releases. The lookup itself lives in
+# .eas/functions/find-github-release, shared with
+# promote-release-on-distribution.yaml.
 
 on:
   push:
@@ -56,92 +56,19 @@ jobs:
     environment: production
     outputs:
       runtime_version: ${{ steps.resolve.outputs.runtime_version }}
-      release_state: ${{ steps.release.outputs.release_state }}
-      release_url: ${{ steps.release.outputs.release_url }}
+      release_state: ${{ steps.release.outputs.state }}
+      release_url: ${{ steps.release.outputs.url }}
     steps:
       - uses: eas/checkout
       - uses: eas/install_node_modules
 
-      - name: Resolve runtime version
-        id: resolve
-        run: |
-          set -euo pipefail
-          RV=$(npx expo-updates runtimeversion:resolve --platform ios \
-            | tail -n 1 \
-            | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>process.stdout.write(JSON.parse(d).runtimeVersion))")
-          if [ -z "$RV" ]; then
-            echo "Could not resolve the iOS runtime version."
-            exit 1
-          fi
-          echo "Runtime version: $RV"
-          set-env RUNTIME_VERSION "$RV"
-          set-output runtime_version "$RV"
+      - id: resolve
+        uses: ./.eas/functions/resolve-runtime-version
 
-      - name: Find the GitHub release for this runtime version
-        id: release
-        run: |
-          set -euo pipefail
-          if [ -z "${GH_TOKEN:-}" ]; then
-            echo "GH_TOKEN is not set. It should come from the production EAS"
-            echo "environment, and needs repository release read access."
-            exit 1
-          fi
-          # Hardcoded on purpose. EAS does not interpolate ${{ }} inside a
-          # step's `env:` block — github.repository_owner and github.repository
-          # arrive as literal text — so the repo cannot be read from the
-          # workflow context here.
-          REPO="keith-kurak/pancake-theory"
-          export REPO
-          echo "Repository: $REPO"
-          # Draft releases have no git tag, so GET /releases/tags/:tag never
-          # finds one. The release list is the only endpoint that returns them.
-          cat > "/tmp/find-release.js" <<'NODE_EOF'
-          const repo = process.env.REPO;
-          const rv = process.env.RUNTIME_VERSION;
-          const token = process.env.GH_TOKEN;
-          const wanted = new Set([rv, `v${rv}`]);
-
-          async function main() {
-            for (let page = 1; page <= 10; page++) {
-              const res = await fetch(
-                `https://api.github.com/repos/${repo}/releases?per_page=100&page=${page}`,
-                {
-                  headers: {
-                    authorization: `Bearer ${token}`,
-                    accept: 'application/vnd.github+json',
-                    'x-github-api-version': '2022-11-28',
-                    'user-agent': 'eas-workflow-continuous-deploy',
-                  },
-                }
-              );
-              if (!res.ok) {
-                throw new Error(`GitHub API ${res.status}: ${await res.text()}`);
-              }
-              const releases = await res.json();
-              if (releases.length === 0) break;
-              const match = releases.find((r) => wanted.has(r.tag_name));
-              if (match) {
-                // `draft` and `prerelease` are separate booleans: a published
-                // release flagged pre-release has draft false, prerelease true.
-                const pre = match.draft || match.prerelease;
-                console.log(`${pre ? 'prerelease' : 'released'} ${match.html_url}`);
-                return;
-              }
-            }
-            console.log('none -');
-          }
-
-          main().catch((e) => {
-            console.error(e.message);
-            process.exit(1);
-          });
-          NODE_EOF
-          RESULT=$(node "/tmp/find-release.js")
-          STATE="${RESULT%% *}"
-          URL="${RESULT#* }"
-          echo "Release for $RUNTIME_VERSION: $STATE $URL"
-          set-output release_state "$STATE"
-          set-output release_url "$URL"
+      - id: release
+        uses: ./.eas/functions/find-github-release
+        with:
+          runtime_version: ${{ steps.resolve.outputs.runtime_version }}
 
   fingerprint:
     name: Fingerprint main

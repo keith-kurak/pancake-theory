@@ -1,0 +1,36 @@
+name: Resolve runtime version
+description: >-
+  Resolves the expo-updates runtime version from the checked-out project.
+  The project must already be checked out with node_modules installed —
+  run eas/checkout and eas/install_node_modules before calling this.
+
+inputs:
+  - name: platform
+    type: string
+    default_value: ios
+    allowed_values: [ios, android]
+
+outputs:
+  runtime_version:
+    value: ${{ steps.resolve.outputs.runtime_version }}
+    description: >-
+      The resolved runtime version. A major.minor.0 string for preview and
+      production, or a fingerprint hash for development builds, per
+      app.config.js.
+
+runs:
+  steps:
+    - id: resolve
+      name: Resolve runtime version
+      run: |
+        set -euo pipefail
+        PLATFORM='${{ inputs.platform }}'
+        RV=$(npx expo-updates runtimeversion:resolve --platform "$PLATFORM" \
+          | tail -n 1 \
+          | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>process.stdout.write(JSON.parse(d).runtimeVersion))")
+        if [ -z "$RV" ]; then
+          echo "Could not resolve the $PLATFORM runtime version."
+          exit 1
+        fi
+        echo "Runtime version ($PLATFORM): $RV"
+        set-output runtime_version "$RV"
