@@ -41,7 +41,12 @@ const BreakfastWidget = (
       modifiers={[fillMaxSize(), background(surface), paddingAll(16)]}
       verticalArrangement="center"
     >
-      <Text color={inkStrong} style={{ fontSize: 16, fontWeight: "bold" }}>
+      <Text
+        color={inkStrong}
+        style={{ fontSize: 16, fontWeight: "bold" }}
+        maxLines={1}
+        overflow="ellipsis"
+      >
         {props.recipeName}
       </Text>
       <Text color={inkFaint} style={{ fontSize: 11 }}>
