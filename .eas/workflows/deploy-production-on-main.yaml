@@ -15,7 +15,9 @@ name: Continuous deploy to production on main
 #
 #   fingerprint match + pre-release  -> repack the store build, resubmit
 #   fingerprint match + full release -> publish an EAS Update to production
-#   anything else                         -> explain the problem and fail
+#   NO match          + pre-release  -> build iOS: this is the first build of
+#                                       a version whose release already exists
+#   anything else                    -> explain the problem and fail
 #
 # Uses the existing GH_TOKEN secret in the "production" EAS environment. It
 # needs read access to this repository's releases. Draft releases are only
@@ -180,6 +182,22 @@ jobs:
       build_id: ${{ needs.ios_repack.outputs.build_id }}
       profile: production
 
+  # --- Path 3: pre-release with nothing to repack onto, so build it. ----------
+
+  # A release is tagged for this runtime version but no production store build
+  # matches it yet. That is the first merge after an app version bump: there is
+  # nothing to repack onto, so the build has to be made. Subsequent merges find
+  # this build and go back to repacking.
+  ios_first_build:
+    name: Build iOS for the new pre-release
+    needs: [ios_get_build, release_state]
+    if: ${{ !needs.ios_get_build.outputs.build_id && needs.release_state.outputs.release_state == 'prerelease' }}
+    type: build
+    params:
+      platform: ios
+      profile: production
+      message: First build for runtime ${{ needs.release_state.outputs.runtime_version }} (${{ github.sha }})
+
   # --- Path 2: full release, so only an update can reach users. ---------------
 
   publish_update:
@@ -198,18 +216,18 @@ jobs:
   doc_fingerprint_mismatch:
     name: Explain fingerprint mismatch
     needs: [ios_get_build, release_state]
-    if: ${{ !needs.ios_get_build.outputs.build_id && needs.release_state.outputs.release_state != 'none' }}
+    if: ${{ !needs.ios_get_build.outputs.build_id && needs.release_state.outputs.release_state == 'released' }}
     type: doc
     params:
       md: |
         # This merge does not match the production app
 
-        Runtime version **${{ needs.release_state.outputs.runtime_version }}** has a
-        ${{ needs.release_state.outputs.release_state }} release, but no production iOS store
-        build matches the fingerprint of `main` at commit `${{ github.sha }}`.
+        Runtime version **${{ needs.release_state.outputs.runtime_version }}** is already
+        released, but no production iOS store build matches the fingerprint of `main` at
+        commit `${{ github.sha }}`.
 
-        The native layer changed, so this merge cannot be repacked onto the current
-        store build and cannot be delivered as an update to it. **Revise the merge.**
+        The native layer changed. The released version cannot have its binary replaced, and
+        this merge cannot be delivered to it as an update. **Revise the merge.**
 
         Common causes:
 
@@ -272,7 +290,9 @@ jobs:
     name: Fail
     needs: [ios_get_build, release_state]
     after: [doc_fingerprint_mismatch, doc_no_release, doc_release_missing_for_match]
-    if: ${{ !needs.ios_get_build.outputs.build_id || needs.release_state.outputs.release_state == 'none' }}
+    # Everything except the three lanes that ship: repack, update, and the first
+    # build of a new pre-release.
+    if: ${{ needs.release_state.outputs.release_state == 'none' || (!needs.ios_get_build.outputs.build_id && needs.release_state.outputs.release_state == 'released') }}
     steps:
       - name: Fail the run
         run: |

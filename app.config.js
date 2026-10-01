@@ -20,6 +20,8 @@ module.exports = ({ config }) => {
     "production",
   );
 
+  const isDevelopmentBuild = process.env.APP_VARIANT === "DEV";
+
   const plugins = (config.plugins || []).map((plugin) => {
     if (!Array.isArray(plugin) || plugin[0] !== "expo-build-properties") {
       return plugin;
@@ -75,7 +77,14 @@ module.exports = ({ config }) => {
       ...config.extra,
       ...(criticalIndex != null && { criticalIndex }),
     },
-    runtimeVersion: runtimeVersion(version || config.version),
+    // Development builds exist only to be matched against each other, so the
+    // runtime version is the fingerprint itself. The major.minor value below
+    // only starts to matter for standalone apps that ship updates.
+    // APP_VARIANT is an EAS environment variable on the development
+    // environment, so a dev build and a dev fingerprint job agree on it.
+    runtimeVersion: isDevelopmentBuild
+      ? { policy: "fingerprint" }
+      : runtimeVersion(version || config.version),
     plugins,
   };
 };
