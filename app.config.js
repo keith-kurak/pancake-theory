@@ -16,9 +16,13 @@ module.exports = ({ config }) => {
   }
 
   // Minification slows down builds, so only pay for it in production.
-  const isProduction = (process.env.EAS_BUILD_PROFILE || "").startsWith(
-    "production",
-  );
+  //
+  // Driven by an EAS environment variable rather than EAS_BUILD_PROFILE: a
+  // build has EAS_BUILD_PROFILE but a `fingerprint` job does not, so reading it
+  // here made every production fingerprint job compute a config no production
+  // build could ever have. ANDROID_MINIFY lives on the production environment,
+  // which both a build and a fingerprint job load.
+  const isProduction = process.env.ANDROID_MINIFY === "1";
 
   const isDevelopmentBuild = process.env.APP_VARIANT === "DEV";
 
