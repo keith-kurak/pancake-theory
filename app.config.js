@@ -17,7 +17,7 @@ module.exports = ({ config }) => {
 
   // Minification slows down builds, so only pay for it in production.
   const isProduction = (process.env.EAS_BUILD_PROFILE || "").startsWith(
-    "production"
+    "production",
   );
 
   const plugins = (config.plugins || []).map((plugin) => {
@@ -80,4 +80,4 @@ module.exports = ({ config }) => {
   };
 };
 
-//test
+//test2
