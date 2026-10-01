@@ -15,7 +15,7 @@ name: Continuous deploy to production on main
 #
 #   fingerprint match + pre-release  -> repack the store build, resubmit
 #   fingerprint match + full release -> publish an EAS Update to production
-#   NO match          + pre-release  -> build iOS: this is the first build of
+#   NO match          + pre-release  -> build iOS and submit: the first build of
 #                                       a version whose release already exists
 #   anything else                    -> explain the problem and fail
 #
@@ -183,11 +183,13 @@ jobs:
       profile: production
 
   # --- Path 3: pre-release with nothing to repack onto, so build it. ----------
+  # (numbered after the two lanes above because it is the rarer first-build case)
 
   # A release is tagged for this runtime version but no production store build
   # matches it yet. That is the first merge after an app version bump: there is
-  # nothing to repack onto, so the build has to be made. Subsequent merges find
-  # this build and go back to repacking.
+  # nothing to repack onto, so the build has to be made, then submitted so it
+  # reaches TestFlight. Subsequent merges find this build and go back to
+  # repacking and resubmitting it.
   ios_first_build:
     name: Build iOS for the new pre-release
     needs: [ios_get_build, release_state]
@@ -197,6 +199,17 @@ jobs:
       platform: ios
       profile: production
       message: First build for runtime ${{ needs.release_state.outputs.runtime_version }} (${{ github.sha }})
+
+  # Same destination as the repack lane: App Store Connect, which is what puts
+  # the build in front of TestFlight testers. Without this the first build of a
+  # version would sit in EAS until some later merge repacked and submitted it.
+  submit_ios_first_build:
+    name: Submit the new iOS build
+    needs: [ios_first_build]
+    type: submit
+    params:
+      build_id: ${{ needs.ios_first_build.outputs.build_id }}
+      profile: production
 
   # --- Path 2: full release, so only an update can reach users. ---------------
 
@@ -211,7 +224,7 @@ jobs:
       channel: production
       message: ${{ github.commit_message || github.sha }}
 
-  # --- Path 3: nothing can ship. Say why, then fail. -------------------------
+  # --- Path 4: nothing can ship. Say why, then fail. -------------------------
 
   doc_fingerprint_mismatch:
     name: Explain fingerprint mismatch
@@ -253,15 +266,17 @@ jobs:
         (or `v${{ needs.release_state.outputs.runtime_version }}`), and no production iOS
         store build matches this runtime version and fingerprint.
 
-        The runtime version — which tracks the app version — has changed. **Run the first
-        production build for it before fingerprint comparison can work**, then create the
-        release for the tag.
+        The runtime version — which follows the app version's major and minor — has
+        changed, and nothing tells this workflow what the new version is for. **Create the
+        release and the next merge builds it.**
 
-        1. Run the `build-production.yaml` workflow to produce the store build.
-        2. Create a GitHub release tagged `${{ needs.release_state.outputs.runtime_version }}`.
-           Mark it a draft or a pre-release while the version is still being assembled,
-           so later merges repack and resubmit. Clear both flags once the version is
-           live, so later merges publish updates instead.
+        1. Create a GitHub release tagged `${{ needs.release_state.outputs.runtime_version }}`,
+           marked **draft or pre-release**.
+        2. Push to `main` again. With a pre-release and no matching build, this workflow
+           builds iOS and submits it to App Store Connect for TestFlight. Later merges
+           repack and resubmit that build.
+        3. Clear both release flags once the version is live, so later merges publish
+           over-the-air updates instead.
 
   doc_release_missing_for_match:
     name: Explain missing release for matching build
