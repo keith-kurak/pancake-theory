@@ -92,7 +92,7 @@ jobs:
   # --- Path 1: pre-release, so the store build can still be replaced. ---------
 
   ios_repack:
-    name: Repack production iOS build
+    name: Repack iOS build for pre-release
     needs: [ios_get_build, release_state]
     if: ${{ needs.ios_get_build.outputs.build_id && needs.release_state.outputs.release_state == 'prerelease' }}
     type: repack
@@ -102,7 +102,7 @@ jobs:
       message: Repack of ${{ github.sha }} for runtime ${{ needs.release_state.outputs.runtime_version }}
 
   submit_ios:
-    name: Resubmit production iOS build
+    name: Submit repacked build to TestFlight
     needs: [ios_repack]
     type: submit
     params:
@@ -118,7 +118,7 @@ jobs:
   # reaches TestFlight. Subsequent merges find this build and go back to
   # repacking and resubmitting it.
   ios_first_build:
-    name: Build iOS for the new pre-release
+    name: Build iOS for pre-release
     needs: [ios_get_build, release_state]
     if: ${{ !needs.ios_get_build.outputs.build_id && needs.release_state.outputs.release_state == 'prerelease' }}
     type: build
@@ -131,7 +131,7 @@ jobs:
   # the build in front of TestFlight testers. Without this the first build of a
   # version would sit in EAS until some later merge repacked and submitted it.
   submit_ios_first_build:
-    name: Submit the new iOS build
+    name: Submit full build to TestFlight
     needs: [ios_first_build]
     type: submit
     params:
@@ -231,7 +231,8 @@ jobs:
   fail_workflow:
     name: Fail
     needs: [ios_get_build, release_state]
-    after: [doc_fingerprint_mismatch, doc_no_release, doc_release_missing_for_match]
+    after:
+      [doc_fingerprint_mismatch, doc_no_release, doc_release_missing_for_match]
     # Everything except the three lanes that ship: repack, update, and the first
     # build of a new pre-release.
     if: ${{ needs.release_state.outputs.release_state == 'none' || (!needs.ios_get_build.outputs.build_id && needs.release_state.outputs.release_state == 'released') }}
