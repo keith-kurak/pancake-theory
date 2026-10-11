@@ -87,15 +87,25 @@ Conventions for both humans and coding agents live in [`CLAUDE.md`](CLAUDE.md) a
 
 ## Agentic workflows
 
-This repo can build, revise, and verify its own pull requests. Comment `/build` on an
-issue and an agent opens a PR, writes the code, drives it on a cloud simulator, and
-reports back with screenshots.
+This repo can build, revise, and verify its own pull requests. Write an issue with a
+user story and fit criteria, add the `agent-start` label, and an agent opens a PR, writes
+the code, and drives it on a cloud simulator. Then a second, adversarial agent tries to
+break it and reports back with screenshots. An issue without a user story and fit
+criteria is refused, with a comment that says what is missing.
+
+There is one command: an `/agent` comment. The label you add decides what the agent does
+with it.
+
+| Label | On | What `/agent` comments mean |
+|---|---|---|
+| `agent-start` | an issue or a draft PR | Extra guidance for the build |
+| `agent-revise` | a PR | Changes to make |
+| `agent-verify` | a PR | What to check |
 
 ```
-issue --/build--> draft PR --agent-start--> built & validated --> ready for review
-                     ^                                                   |
-                     └────── /agent + agent-revise ─────────────────────┘
-                                     /verify + agent-verify --> evidence site
+issue --agent-start--> draft PR --build + validate--> independent verify --PASS--> ready
+                          ^                                  |
+                          └──── /agent + agent-revise ◄──────┘ FAIL: stays in draft
 ```
 
 - **[Setup guide](.eas/workflows/SETUP.md)** — secrets, GitHub labels, and prerequisites.

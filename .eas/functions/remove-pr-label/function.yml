@@ -1,0 +1,55 @@
+name: Remove PR label
+# Removes a label from the pull request that triggered the workflow, so a
+# label-triggered workflow can run again by adding the label again. GitHub only
+# fires `labeled` when a label goes from absent to present, so a label left on
+# the PR makes the next request silently do nothing.
+#
+# Call it from its own last job with `after:`, not from inside a script. `after`
+# runs whether the jobs before it succeeded, failed, or were skipped, so a job
+# that crashes or times out still frees the label.
+#
+# Needs GH_TOKEN (an EAS secret) with permission to edit the repo's issues
+# and pull requests. Does nothing when the run has no pull request (for
+# example, a manual run). Never fails the job: a label that is already gone,
+# or a GitHub error, only prints a warning.
+#
+# Usage, in a custom job with an environment that has GH_TOKEN:
+#   - uses: ./.eas/functions/remove-pr-label
+#     with:
+#       label: agent-verify
+inputs:
+  - name: label
+    required: true
+  - name: pr_number
+    default_value: '${{ github.event.pull_request.number }}'
+  # github.repository is empty for pull_request_labeled, so fall back to the
+  # same fixed value the agent workflows use.
+  - name: repository
+    default_value: "${{ github.event.repository.full_name || github.repository || 'keith-kurak/pancake-theory' }}"
+runs:
+  steps:
+    - name: Remove the PR label
+      run: |
+        LABEL='${{ inputs.label }}'
+        PR='${{ inputs.pr_number }}'
+        REPO='${{ inputs.repository }}'
+        if [ -z "$PR" ] || [ -z "$REPO" ]; then
+          echo "No pull request for this run. Nothing to remove."
+          exit 0
+        fi
+        if [ -z "${GH_TOKEN:-}" ]; then
+          echo "warning: GH_TOKEN is not set. Could not remove the label \"$LABEL\"." >&2
+          exit 0
+        fi
+        ENCODED=$(python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "$LABEL")
+        STATUS=$(curl -s -o /tmp/remove-label.json -w '%{http_code}' -X DELETE \
+          -H "Authorization: Bearer $GH_TOKEN" \
+          -H "Accept: application/vnd.github+json" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          "https://api.github.com/repos/$REPO/issues/$PR/labels/$ENCODED")
+        case "$STATUS" in
+          200) echo "Removed the label \"$LABEL\" from $REPO#$PR." ;;
+          404) echo "The label \"$LABEL\" is not on $REPO#$PR. Nothing to remove." ;;
+          *) echo "warning: GitHub returned $STATUS. Could not remove the label \"$LABEL\" from $REPO#$PR." >&2
+             cat /tmp/remove-label.json >&2 ;;
+        esac

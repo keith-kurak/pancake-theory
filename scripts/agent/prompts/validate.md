@@ -13,7 +13,7 @@ The environment variable `AGENT_SIM_UDID` holds the simulator's udid. Pass it as
 
 ## Read first
 
-- `PR-TODO.md` — the original task.
+- `agent-out/task.md` — the original task, from the PR description.
 - `agent-out/validation-plan.md` — the steps the implementing phase says should work.
 - `agent-out/implement-summary.md` — what changed and which `testID`s exist.
 
@@ -34,6 +34,9 @@ The environment variable `AGENT_SIM_UDID` holds the simulator's udid. Pass it as
 
 Walk the validation plan. At each step, capture a screenshot into `agent-out/` with a
 name that says what it shows, for example `agent-out/02-recipe-list-filtered.png`.
+
+If the task has **Fit criteria**, each one must be covered by a step. When the plan
+misses one, add a step for it yourself. A missed criterion is a `fail`, not a skip.
 
 A step passes only when you observe the expected result on screen. "The code looks
 right" is not a pass. If the app fails to load from the dev server, if a screen
