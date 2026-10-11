@@ -26,10 +26,6 @@ inputs:
   - name: requests_since
     type: string
     default_value: ''
-  # The label to remove when done. Empty when there is no label to remove.
-  - name: label
-    type: string
-    default_value: ''
   # When true, the verdict decides draft state: PASS marks the PR ready, and
   # anything else moves it back to draft. Only the agent workflows set this.
   # A standalone verify of a human's PR must not change its state.
@@ -55,15 +51,14 @@ runs:
     - name: Install argent and Claude Code
       run: npm install --global @swmansion/argent@latest @anthropic-ai/claude-code@latest
 
-    # Only fixed values reach this command line: a build id, a timestamp, a
-    # label name, and a boolean. Comment text is fetched by the script through
+    # Only fixed values reach this command line: a build id, a timestamp,
+    # and a boolean. Comment text is fetched by the script through
     # the API and filtered by author_association.
     - id: verify
       name: Verify
       run: |
         export VERIFY_BUILD_ID='${{ inputs.build_id }}'
         export VERIFY_SINCE='${{ inputs.requests_since }}'
-        export VERIFY_LABEL='${{ inputs.label }}'
         export VERIFY_GATE_READY='${{ inputs.gate_ready }}'
         ./scripts/agent/verify-pr.sh
 

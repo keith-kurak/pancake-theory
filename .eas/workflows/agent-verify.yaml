@@ -5,7 +5,7 @@ name: Agent Verify
 #
 # Every agent instruction is an `/agent` comment. The label decides what
 # happens with it: `agent-revise` applies it as a change, `agent-verify` uses it
-# as the focus of a check. The job removes the label when it finishes.
+# as the focus of a check. The last job removes the label.
 #
 # Unlike agent-start and agent-revise, this writes no code and pushes no
 # commits. It answers "does this PR work?" and reports, so it is safe to run
@@ -78,4 +78,16 @@ jobs:
       - uses: ./.eas/functions/agent-verify
         with:
           build_id: ${{ needs.get_build.outputs.build_id || needs.build.outputs.build_id }}
+
+  # Last, and `after` rather than `needs`, so the label comes off whether the
+  # jobs above passed, failed, or were skipped. Adding the label again then
+  # starts a new run.
+  remove_label:
+    name: Remove the agent-verify label
+    after: [verify]
+    environment: development # GH_TOKEN
+    steps:
+      - uses: eas/checkout
+      - uses: ./.eas/functions/remove-pr-label
+        with:
           label: agent-verify

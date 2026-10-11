@@ -24,14 +24,12 @@
 #           UPDATE_GROUP_ID   update to load; published from the checkout when empty
 #           VERIFY_SINCE      `/agent` comments newer than this are the focus;
 #                             defaults to the branch's last commit time
-#           VERIFY_LABEL      label to remove at the end; default agent-verify,
-#                             set it empty to remove none
 #           VERIFY_GATE_READY true to let the verdict set draft state
 #           PR_HEAD_REF       the branch; looked up from the PR when unset
 #
 # Local dry run:
 #   GH_TOKEN=... GH_REPO=owner/name PR_NUMBER=123 EXPO_TOKEN_SIMULATOR=... \
-#     CLAUDE_CODE_OAUTH_TOKEN=... VERIFY_LABEL= ./scripts/agent/verify-pr.sh
+#     CLAUDE_CODE_OAUTH_TOKEN=... ./scripts/agent/verify-pr.sh
 
 set -uo pipefail
 
@@ -49,9 +47,6 @@ cd "$PROJECT_ROOT" || exit 1
 
 EVIDENCE_DIR="$PROJECT_ROOT/evidence"
 VERDICT_FILE="$PROJECT_ROOT/evidence/verdict.md"
-# `-`, not `:-`: the agent workflows pass an empty label on purpose, because
-# there is no verify label to remove when the run was chained.
-VERIFY_LABEL="${VERIFY_LABEL-agent-verify}"
 : "${VERIFY_MARKER:=/agent}"
 : "${VERIFY_BUILD_ID:=${BUILD_ID:-}}"
 : "${UPDATE_GROUP_ID:=}"
@@ -153,9 +148,6 @@ cleanup() {
     fi
   fi
 
-  if [ -n "$VERIFY_LABEL" ]; then
-    gh_remove_label "$VERIFY_LABEL"
-  fi
   exit "$code"
 }
 

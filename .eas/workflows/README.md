@@ -252,9 +252,13 @@ trigger.**
 - **Authorisation.** Applying a label needs Triage or higher. A comment trigger would
   need its own author check before any worker starts.
 
-**Both workflows remove their own label when they finish.** GitHub only fires `labeled`
+**Each workflow removes its own label in its last job.** GitHub only fires `labeled`
 on an absent-to-present transition, so without that, re-applying a label already on the
-PR would silently do nothing.
+PR would silently do nothing. The job is
+[`.eas/functions/remove-pr-label`](../functions/remove-pr-label/function.yml), called with
+`after:` rather than `needs:`. So the label comes off even when a job before it fails,
+times out, or is skipped. A run that is cancelled can leave the label on. Remove it by
+hand in that case.
 
 ## Which comments count
 
@@ -544,6 +548,7 @@ The runner works outside EAS against a real PR — see
 | `scripts/remote-sim.sh` | Session lifecycle. Shared with local work, called by the job. |
 | `.eas/workflows/agent-verify.yaml` | Verify trigger, plus the fingerprint and build jobs for a standalone run. |
 | `.eas/functions/agent-verify/function.yml` | The verify custom function. Called by all three agent workflows. |
+| `.eas/functions/remove-pr-label/function.yml` | Removes the trigger label. The last job of all three agent workflows. |
 | `scripts/agent/verify-pr.sh` | The verification run: publish, boot, verify, report, draft gate. |
 | `scripts/agent/build-evidence-site.mjs` | Screenshots to a static page for EAS Hosting. |
 | `scripts/agent/prompts/implement.md` | Build-mode prompt. |

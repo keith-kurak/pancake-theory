@@ -115,7 +115,7 @@ gh label create agent-verify --description "Prove this PR works on a cloud simul
 `agent-start` does double duty on purpose: GitHub labels are repo-wide, and the Action
 applies it to the PR it creates, which is what hands off to EAS.
 
-Each workflow **removes its own label** when it finishes, because GitHub only fires
+Each workflow **removes its own label** in its last job, because GitHub only fires
 `labeled` on an absent-to-present transition. Labels disappearing on their own is expected,
 not a bug.
 
@@ -213,9 +213,9 @@ AGENT_TOTAL_BUDGET_SECONDS=600 \
   bun run agent:local
 ```
 
-Set `AGENT_MODE=revise` for the comment path. Leave `AGENT_LABEL` unset so it does not
-strip a label off a real PR. It **will** commit and push to `PR_HEAD_REF` and edit that
-PR — point it at a throwaway.
+Set `AGENT_MODE=revise` for the comment path. A local run does not remove any label,
+because the workflow's last job does that. It **will** commit and push to `PR_HEAD_REF`
+and edit that PR — point it at a throwaway.
 
 A local run leaves `AGENT_VERIFY_FOLLOWS` unset, so a pass marks the PR ready itself, as
 there is no verify job after it. To run the verifier locally against the checked-out
@@ -227,7 +227,6 @@ GH_REPO=keith-kurak/pancake-theory \
 PR_NUMBER=123 \
 EXPO_TOKEN_SIMULATOR=... \
 CLAUDE_CODE_OAUTH_TOKEN=... \
-VERIFY_LABEL= \
   ./scripts/agent/verify-pr.sh
 ```
 

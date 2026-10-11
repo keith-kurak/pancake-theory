@@ -118,3 +118,17 @@ jobs:
         with:
           requests_since: ${{ needs.agent.outputs.requests_since }}
           gate_ready: true
+
+  # Last, and `after` rather than `needs`, so the label comes off whether the
+  # jobs above passed, failed, or were skipped. Adding the label again then
+  # starts a new run. That includes a PR that is not a draft, where the agent
+  # job is skipped and no script runs to take the label off.
+  remove_label:
+    name: Remove the agent-start label
+    after: [agent, verify]
+    environment: development # GH_TOKEN
+    steps:
+      - uses: eas/checkout
+      - uses: ./.eas/functions/remove-pr-label
+        with:
+          label: agent-start

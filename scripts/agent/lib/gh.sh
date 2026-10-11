@@ -94,18 +94,6 @@ gh_mark_ready() {
   _gh_graphql_pr_mutation markPullRequestReadyForReview "$1"
 }
 
-# gh_remove_label <label>
-#
-# GitHub only fires `labeled` when a label goes from absent to present, so a run
-# must take its own trigger label off. Without this, asking for a second run
-# means removing the label by hand first, and re-applying it silently does
-# nothing. A 404 just means it was already gone.
-gh_remove_label() {
-  local label="$1" encoded
-  encoded="$(python3 -c 'import sys,urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "$label")"
-  _gh_curl DELETE "/repos/$GH_REPO/issues/$PR_NUMBER/labels/$encoded" >/dev/null 2>&1 || true
-}
-
 # gh_convert_to_draft <pr_node_id>
 #
 # The REST API cannot set draft state in either direction; both transitions are

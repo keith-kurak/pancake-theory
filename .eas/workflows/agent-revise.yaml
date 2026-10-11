@@ -7,7 +7,7 @@ name: Agent Revise
 # with it. EAS now has a pull_request_comment trigger, but the label stays the
 # trigger on purpose: a reviewer can leave several `/agent` comments and start
 # one run for the batch, and the same comment syntax serves every workflow. The
-# job removes the label when it finishes, so the next request is one click.
+# last job removes the label, so the next request is one click.
 #
 # A passing run ends with the shared verify function, which decides whether the
 # PR stays open for review. See .eas/workflows/README.md.
@@ -115,3 +115,16 @@ jobs:
         with:
           requests_since: ${{ needs.revise.outputs.requests_since }}
           gate_ready: true
+
+  # Last, and `after` rather than `needs`, so the label comes off whether the
+  # jobs above passed, failed, or were skipped. Adding the label again then
+  # starts a new run.
+  remove_label:
+    name: Remove the agent-revise label
+    after: [revise, verify]
+    environment: development # GH_TOKEN
+    steps:
+      - uses: eas/checkout
+      - uses: ./.eas/functions/remove-pr-label
+        with:
+          label: agent-revise

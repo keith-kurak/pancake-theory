@@ -66,8 +66,8 @@ mkdir -p "$AGENT_OUT"
 # build  — implement the PR description on a draft PR, then mark it ready.
 # revise — apply the reviewer's /agent comments to an open PR.
 : "${AGENT_MODE:=build}"
-# The label that triggered this run. Removed on the way out so the next request
-# is one click: GitHub only fires `labeled` on an absent-to-present transition.
+# The label that triggered this run, named in comments. The workflow's last
+# job removes it, so the next request is one click.
 : "${AGENT_LABEL:=}"
 : "${REQUEST_MARKER:=/agent}"
 PLACEHOLDER=".agent-placeholder"
@@ -160,7 +160,6 @@ preflight_build() {
     fail "PR #$PR_NUMBER is not a draft; refusing to rewrite it"
     gh_comment "$(printf 'The `%s` label was applied, but this PR is already open for review, so I did not touch it.\n\nTo request changes on an open PR, comment `/agent <what to change>` and apply the `agent-revise` label instead.\n' \
       "${AGENT_LABEL:-agent-start}")" || warn "could not post the comment"
-    gh_remove_label "$AGENT_LABEL"
     exit 1
   fi
 
@@ -168,7 +167,6 @@ preflight_build() {
     fail "the PR description is empty, so there is no task"
     gh_comment "$(printf 'The `%s` label was applied, but this PR has no description, so there is no task to build.\n\nDescribe the feature or fix in the PR description: what a user should be able to do, where, and how to tell it works. Then apply the label again.\n' \
       "${AGENT_LABEL:-agent-start}")" || warn "could not post the comment"
-    gh_remove_label "$AGENT_LABEL"
     exit 1
   fi
 
@@ -201,7 +199,6 @@ preflight_revise() {
     gh_comment "$(printf 'The `%s` label was applied, but I found no new `%s` comments on this PR.\n\nLeave a comment that starts with `%s` describing what to change, then apply the label again. Only comments from repository collaborators, newer than the last commit on this branch, are picked up.\n' \
       "$AGENT_LABEL" "$REQUEST_MARKER" "$REQUEST_MARKER")" \
       || warn "could not post the comment"
-    gh_remove_label "$AGENT_LABEL"
     exit 1
   fi
 
@@ -671,12 +668,6 @@ publish() {
       gh_comment "$(printf 'The agent run did not reach a passing state, so this PR stays in draft.\n\n%s\nFull results are in the PR description.\n' "$blockers")" \
         || warn "could not post the comment"
     fi
-  fi
-
-  # Last, so a failure above does not strand the label and block a retry.
-  if [ -n "$AGENT_LABEL" ]; then
-    log "Removing the '$AGENT_LABEL' label so it can be applied again"
-    gh_remove_label "$AGENT_LABEL"
   fi
 }
 
