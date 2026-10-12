@@ -13,25 +13,22 @@ name: Weekly store rollup
 # Each rollup is recorded as a GitHub release tagged "<version>-rollup", which
 # is also how the next run finds the last patch.
 #
-# It runs only when the GitHub release for the runtime version is live. While
-# that release is draft or pre-release, every merge already replaces and
-# resubmits the store builds, so a rollup has nothing to add. It also skips a
-# week with no new commits on main.
+# A rollup is held to exactly the rule deploy-production-on-main.yaml uses:
+# both call .eas/functions/decide-deploy with the release state and the
+# matching production store builds. The rollup ships only when that answer is
+# `update`, the case where the release is live and main still matches the store
+# builds on both platforms. A new binary on the same runtime version is only
+# safe when an update would be.
 #
-#   both platforms match the store build -> iOS: repack with the new version
-#                                           Android: build with the new version
-#                                           submit both
-#   either platform does not match       -> explain and fail
+#   update           -> iOS: repack with the new version
+#                       Android: build with the new version (repack cannot
+#                       process an .aab; the match proves it is compatible)
+#                       submit both, then tag the release
+#   build-or-repack  -> skip: the release is still pre-release, and every merge
+#                       already replaces and resubmits the store builds
+#   error            -> explain and fail, exactly as the deploy would
 #
-# Android production builds are app bundles (.aab), which repack cannot
-# process, so Android always gets a full build. It is built from a commit that
-# matched the store build's fingerprint, so it is native-compatible.
-#
-# A rollup is held to the same rule as an over-the-air update to a live release:
-# main must still fingerprint-match the production store build. If the native
-# layer changed, a new binary on the same runtime version would break update
-# compatibility, so nothing ships. Bump the app version instead, which starts a
-# new runtime version with its own release.
+# It also skips a week with no new commits on main, before any of that runs.
 #
 # Uses the production environment's GH_TOKEN, which needs WRITE access to
 # releases (the same access promote-release-on-distribution.yaml needs).
@@ -56,6 +53,7 @@ jobs:
     environment: production
     outputs:
       runtime_version: ${{ steps.resolve.outputs.runtime_version }}
+      release_state: ${{ steps.release.outputs.state }}
       release_url: ${{ steps.release.outputs.url }}
       decision: ${{ steps.plan.outputs.decision }}
       version: ${{ steps.plan.outputs.version }}
@@ -78,18 +76,15 @@ jobs:
         uses: ./.eas/functions/plan-rollup
         with:
           runtime_version: ${{ steps.resolve.outputs.runtime_version }}
-          release_state: ${{ steps.release.outputs.state }}
 
-  # Every job below reaches this one through `needs`, so a skip here skips the
-  # whole rollup.
+  # Every job below reaches this one through `needs`, so a week with no changes
+  # skips the whole rollup.
   fingerprint:
     name: Fingerprint main
     needs: [plan]
     if: ${{ needs.plan.outputs.decision == 'rollup' }}
     environment: production
     type: fingerprint
-
-  # --- iOS --------------------------------------------------------------------
 
   ios_get_build:
     name: Find matching iOS store build
@@ -102,14 +97,44 @@ jobs:
       fingerprint_hash: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
       runtime_version: ${{ needs.plan.outputs.runtime_version }}
 
-  # Both platforms must match before either one ships, so one store never gets a
-  # rollup the other does not. APP_VERSION overrides the version in
-  # app.config.js. A repack rewrites the app metadata, so the repacked binary
-  # carries the new patch version.
+  android_get_build:
+    name: Find matching Android store build
+    needs: [fingerprint, plan]
+    type: get-build
+    params:
+      platform: android
+      profile: production
+      distribution: store
+      fingerprint_hash: ${{ needs.fingerprint.outputs.android_fingerprint_hash }}
+      runtime_version: ${{ needs.plan.outputs.runtime_version }}
+
+  # The same decision deploy-production-on-main.yaml makes, from the same
+  # inputs.
+  decide:
+    name: Decide what main can ship
+    needs: [plan, ios_get_build, android_get_build]
+    outputs:
+      action: ${{ steps.decide.outputs.action }}
+      reason: ${{ steps.decide.outputs.reason }}
+      fix: ${{ steps.decide.outputs.fix }}
+    steps:
+      - uses: eas/checkout
+      - id: decide
+        uses: ./.eas/functions/decide-deploy
+        with:
+          runtime_version: ${{ needs.plan.outputs.runtime_version }}
+          release_state: ${{ needs.plan.outputs.release_state }}
+          ios_build_id: ${{ needs.ios_get_build.outputs.build_id }}
+          android_build_id: ${{ needs.android_get_build.outputs.build_id }}
+
+  # --- update: the release is live and both platforms match, so roll up. ------
+
+  # APP_VERSION overrides the version in app.config.js. A repack rewrites the
+  # app metadata, so the repacked binary carries the new patch version.
   ios_repack:
     name: Repack iOS store build
-    needs: [ios_get_build, android_get_build, plan]
-    if: ${{ needs.ios_get_build.outputs.build_id && needs.android_get_build.outputs.build_id }}
+    needs: [decide, ios_get_build, plan]
+    if: ${{ needs.decide.outputs.action == 'update' }}
     type: repack
     env:
       APP_VERSION: ${{ needs.plan.outputs.version }}
@@ -126,26 +151,11 @@ jobs:
       build_id: ${{ needs.ios_repack.outputs.build_id }}
       profile: production
 
-  # --- Android ----------------------------------------------------------------
-
-  android_get_build:
-    name: Find matching Android store build
-    needs: [fingerprint, plan]
-    type: get-build
-    params:
-      platform: android
-      profile: production
-      distribution: store
-      fingerprint_hash: ${{ needs.fingerprint.outputs.android_fingerprint_hash }}
-      runtime_version: ${{ needs.plan.outputs.runtime_version }}
-
-  # Repack cannot process an .aab, so Android builds in full. The match is
-  # still required: it is what proves the build is native-compatible with the
-  # runtime version's store build.
+  # Repack cannot process an .aab, so Android builds in full.
   android_build:
     name: Build Android
-    needs: [ios_get_build, android_get_build, plan]
-    if: ${{ needs.ios_get_build.outputs.build_id && needs.android_get_build.outputs.build_id }}
+    needs: [decide, plan]
+    if: ${{ needs.decide.outputs.action == 'update' }}
     type: build
     env:
       APP_VERSION: ${{ needs.plan.outputs.version }}
@@ -162,46 +172,39 @@ jobs:
       build_id: ${{ needs.android_build.outputs.build_id }}
       profile: production
 
-  # --- Native layer changed: nothing can ship ---------------------------------
+  # --- error: nothing can ship. Say why, then fail. ---------------------------
 
-  doc_fingerprint_mismatch:
-    name: Explain fingerprint mismatch
-    needs: [ios_get_build, android_get_build, plan]
-    if: ${{ !needs.ios_get_build.outputs.build_id || !needs.android_get_build.outputs.build_id }}
+  doc_error:
+    name: Explain why nothing can ship
+    needs: [decide, plan, ios_get_build, android_get_build]
+    if: ${{ needs.decide.outputs.action == 'error' }}
     type: doc
     params:
       md: |
-        # main does not match the production store builds
+        # No rollup: nothing can ship from main
 
-        Runtime version **${{ needs.plan.outputs.runtime_version }}** is released, but `main`
-        at commit `${{ needs.plan.outputs.sha }}` does not fingerprint-match a production
-        store build on every platform:
+        ${{ needs.decide.outputs.reason }}
 
-        - iOS build: `${{ needs.ios_get_build.outputs.build_id || 'none' }}`
-        - Android build: `${{ needs.android_get_build.outputs.build_id || 'none' }}`
+        **What to do:** ${{ needs.decide.outputs.fix }}
 
-        The native layer changed. An over-the-air update to this release would fail for the
-        same reason, and a new binary on the same runtime version would break update
-        compatibility. **No rollup was made.**
+        | | |
+        | --- | --- |
+        | Commit | `${{ needs.plan.outputs.sha }}` |
+        | Runtime version | `${{ needs.plan.outputs.runtime_version }}` |
+        | Release state | `${{ needs.plan.outputs.release_state }}` |
+        | Matching iOS store build | `${{ needs.ios_get_build.outputs.build_id || 'none' }}` |
+        | Matching Android store build | `${{ needs.android_get_build.outputs.build_id || 'none' }}` |
+        | Release | ${{ needs.plan.outputs.release_url }} |
 
-        Common causes:
-
-        1. A dependency with native code was added, removed, or upgraded.
-        2. A config plugin, or a value a config plugin reads, changed.
-        3. Something in **app.json** that affects the native project changed.
-
-        To ship the change, bump the app version. That starts a new runtime version, which
-        needs its own release.
-
-  fail_fingerprint_mismatch:
+  fail_workflow:
     name: Fail
-    needs: [ios_get_build, android_get_build]
-    after: [doc_fingerprint_mismatch]
-    if: ${{ !needs.ios_get_build.outputs.build_id || !needs.android_get_build.outputs.build_id }}
+    needs: [decide]
+    after: [doc_error]
+    if: ${{ needs.decide.outputs.action == 'error' }}
     steps:
       - name: Fail the run
         run: |
-          echo "main does not match the production store builds. See the note above."
+          echo "Nothing can ship from main. See the note above."
           exit 1
 
   # --- Record it --------------------------------------------------------------
@@ -241,20 +244,29 @@ jobs:
 
         Release: ${{ needs.create_release.outputs.url }}
 
-  skipped:
+  skipped_no_changes:
     name: Explain why there is no rollup
     needs: [plan]
-    if: ${{ needs.plan.outputs.decision != 'rollup' }}
+    if: ${{ needs.plan.outputs.decision == 'no_changes' }}
     type: doc
     params:
       md: |
-        # No rollup this week: `${{ needs.plan.outputs.decision }}`
+        # No rollup this week: no changes
 
-        Runtime version **${{ needs.plan.outputs.runtime_version }}**.
+        `main` has no commits since `${{ needs.plan.outputs.previous_tag }}`, so a new
+        binary would match the one already in the stores.
 
-        - `prerelease`: the release for this runtime version is draft or pre-release.
-          Merges to `main` already replace and resubmit its store builds.
-        - `no_release`: no GitHub release is tagged for this runtime version.
-        - `no_changes`: `main` has no commits since `${{ needs.plan.outputs.previous_tag }}`.
+  skipped_prerelease:
+    name: Explain why there is no rollup
+    needs: [decide, plan]
+    if: ${{ needs.decide.outputs.action == 'build-or-repack' }}
+    type: doc
+    params:
+      md: |
+        # No rollup this week: the release is not live yet
+
+        The release for runtime version **${{ needs.plan.outputs.runtime_version }}** is
+        draft or pre-release. Every merge to `main` already replaces and resubmits its store
+        builds, so a rollup has nothing to add.
 
         Release: ${{ needs.plan.outputs.release_url }}
