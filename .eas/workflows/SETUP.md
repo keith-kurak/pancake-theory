@@ -11,8 +11,8 @@ For what the workflows actually *do* once they are running, see
 | # | Step | Where | Repeat? |
 |---|---|---|---|
 | 1 | Three EAS secrets | EAS `development` environment | Once |
-| 2 | One GitHub Actions secret | Repository secrets | Once |
-| 3 | Three labels | Repository labels | Once |
+| 2 | Two GitHub Actions secrets | Repository secrets | Once |
+| 3 | Four labels | Repository labels | Once |
 | 4 | EAS Hosting activated | expo.dev → Hosting | Once |
 | 5 | A current simulator build | EAS Build | Every ~30 days, or after any native change |
 
@@ -87,8 +87,21 @@ variables**. It needs the same PAT stored again as a repository secret:
 gh secret set AGENT_GH_TOKEN --body 'github_pat_...'
 ```
 
-Only `.github/workflows/agent-start-from-issue.yml` uses it. The three EAS workflows keep
+Only `.github/workflows/agent-start-from-issue.yml` uses it. The EAS workflows keep
 reading `GH_TOKEN` from EAS.
+
+`.github/workflows/agent-reproduce-from-issue.yml` starts its EAS workflow with
+`eas workflow:run`, so it needs an Expo access token with access to this project. A robot
+token is enough here: it only starts a workflow. The simulator session is created later,
+inside the EAS job, with `EXPO_TOKEN_SIMULATOR`.
+
+```bash
+gh secret set EXPO_TOKEN --body '<expo access token>'
+```
+
+That Action uses `--ref <default branch>`, so EAS runs the workflow file as it is on
+GitHub. **`agent-reproduce.yaml` must be merged to the default branch before the label
+does anything.**
 
 > **Why not the built-in `GITHUB_TOKEN`?** Events it creates are documented not to start
 > new *Actions workflow runs*. GitHub Apps such as EAS are not covered by that wording, so
@@ -97,13 +110,14 @@ reading `GH_TOKEN` from EAS.
 
 ## 3. GitHub labels
 
-Three, named exactly. Labels are the trigger for every agent workflow. Every instruction
+Four, named exactly. Labels are the trigger for every agent workflow. Every instruction
 is an `/agent` comment, and the label decides what the run does with it.
 
 ```bash
 gh label create agent-start  --description "Build the task in the PR description"
 gh label create agent-revise --description "Apply /agent review comments"
 gh label create agent-verify --description "Prove this PR works on a cloud simulator; /agent says what to check"
+gh label create agent-reproduce --description "Try to reproduce this bug on a cloud simulator; /agent says what to try"
 ```
 
 | Label | Apply to | Starts |
@@ -111,6 +125,7 @@ gh label create agent-verify --description "Prove this PR works on a cloud simul
 | `agent-start` | an **issue** → the GitHub Action<br>a **draft PR** → `agent-start.yaml` | Build the task in the PR description |
 | `agent-revise` | a PR | Apply outstanding `/agent` comments |
 | `agent-verify` | a PR | Verify on a simulator, publish evidence. `agent-start` and `agent-revise` also run this step at the end |
+| `agent-reproduce` | an **issue** → the GitHub Action → `agent-reproduce.yaml` | Try to reproduce the bug, comment the verdict on the issue |
 
 `agent-start` does double duty on purpose: GitHub labels are repo-wide, and the Action
 applies it to the PR it creates, which is what hands off to EAS.
