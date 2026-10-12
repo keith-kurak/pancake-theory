@@ -2,6 +2,8 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { PressableWithOpacity } from "@/components/ui/PressableWithOpacity";
 import { useThemeColor } from "@/hooks/use-theme-color";
+import { showConfirmDialog } from "@/utils/confirm-dialog";
+import Sentry from "@/utils/sentry";
 import { getCriticalIndex } from "@/utils/update-utils";
 import Constants from "expo-constants";
 import * as Application from "expo-application";
@@ -65,6 +67,20 @@ export default function InfoScreen() {
     }
   }, []);
 
+  const handleCrash = useCallback(async () => {
+    const confirmed = await showConfirmDialog({
+      title: "Trigger Crash",
+      message:
+        "The app will crash immediately. On TestFlight, iOS will offer to send a crash report.",
+      confirmText: "Crash",
+    });
+    if (confirmed) {
+      // A native crash (not a JS error) is what iOS records and TestFlight reports
+      // to App Store Connect, which fires the beta_feedback crash workflow.
+      Sentry.nativeCrash();
+    }
+  }, []);
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <ThemedView style={styles.header}>
@@ -109,6 +125,14 @@ export default function InfoScreen() {
             onPress={() => router.push("/channel-surf")}
           >
             <ThemedText style={styles.buttonText}>Channel Surfing</ThemedText>
+          </PressableWithOpacity>
+
+          <PressableWithOpacity
+            style={[styles.button, styles.crashButton]}
+            onPress={handleCrash}
+            accessibilityLabel="Trigger Crash"
+          >
+            <ThemedText style={styles.buttonText}>Trigger Crash</ThemedText>
           </PressableWithOpacity>
         </>
       )}
@@ -175,6 +199,9 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 10,
     marginTop: 8,
+  },
+  crashButton: {
+    backgroundColor: "#d32f2f",
   },
   buttonText: {
     color: "#fff",
