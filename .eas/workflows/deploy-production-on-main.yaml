@@ -14,14 +14,17 @@ name: Continuous deploy to production on main
 #      repack nor an update can carry the change.
 #
 #   fingerprint match + pre-release  -> repack the store build, resubmit
-#   fingerprint match + full release -> publish an EAS Update to production
+#   fingerprint match + full release -> publish an EAS Update to production,
+#                                       then tag it as a GitHub release
+#                                       "<runtime version>-ota-<group id>"
 #   NO match          + pre-release  -> build iOS and submit: the first build of
 #                                       a version whose release already exists
 #   anything else                    -> explain the problem and fail
 #
 # Uses the existing GH_TOKEN secret in the "production" EAS environment, which
-# needs read access to this repository's releases. The lookup itself lives in
-# .eas/functions/find-github-release, shared with
+# needs read access to this repository's releases, plus contents write access so
+# tag_update_release can create the update's tag and release. The lookup itself
+# lives in .eas/functions/find-github-release, shared with
 # promote-release-on-distribution.yaml.
 
 on:
@@ -150,6 +153,23 @@ jobs:
       platform: ios
       channel: production
       message: ${{ github.commit_message || github.sha }}
+
+  # Records the update on GitHub as a release tagged
+  # "<runtime version>-ota-<6 characters of the update group id>", on the commit
+  # EAS Update recorded. Runs only after the publish succeeds. The "-ota-"
+  # suffix keeps it out of find-github-release, which matches binary release
+  # tags exactly, and the release is never marked "Latest".
+  tag_update_release:
+    name: Tag update as GitHub release
+    needs: [publish_update, release_state]
+    environment: production
+    steps:
+      - uses: eas/checkout
+      - uses: ./.eas/functions/tag-ota-release
+        with:
+          runtime_version: ${{ needs.release_state.outputs.runtime_version }}
+          update_group_id: ${{ needs.publish_update.outputs.first_update_group_id }}
+          updates_json: ${{ needs.publish_update.outputs.updates_json }}
 
   # --- Path 4: nothing can ship. Say why, then fail. -------------------------
 
