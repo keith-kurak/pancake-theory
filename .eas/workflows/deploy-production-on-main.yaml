@@ -48,8 +48,11 @@ on:
   # Kept so the gating logic can be exercised without pushing to main.
   workflow_dispatch: {}
 
+# A newer push to main supersedes a run that is still going: main at the new
+# commit includes everything the older run was shipping, so the new run
+# replaces the builds or publishes the update in its place.
 concurrency:
-  cancel_in_progress: false
+  cancel_in_progress: true
   group: ${{ workflow.filename }}-${{ github.ref }}
 
 defaults:
