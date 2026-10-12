@@ -1,7 +1,7 @@
 name: Create GitHub release
 description: >-
-  Creates a full (not draft, not pre-release) GitHub release, with a tag on the
-  given commit and GitHub's generated notes. Needs GH_TOKEN in the calling
+  Creates a GitHub release, full or pre-release (never draft), with a tag on
+  the given commit and GitHub's generated notes. Needs GH_TOKEN in the calling
   job's environment, with WRITE access to releases (contents: write).
 
 inputs:
@@ -23,6 +23,11 @@ inputs:
   - name: previous_tag
     type: string
     default_value: ''
+  # A pre-release is how a runtime version's binary release says the version
+  # is still being assembled. See RELEASE.md.
+  - name: prerelease
+    type: boolean
+    default_value: false
   - name: repository
     type: string
     default_value: keith-kurak/pancake-theory
@@ -48,11 +53,12 @@ runs:
         TARGET='${{ inputs.target_commitish }}'
         NAME='${{ inputs.name }}'
         PREVIOUS_TAG='${{ inputs.previous_tag }}'
+        PRERELEASE='${{ inputs.prerelease }}'
         BODY=$(cat <<'BODY_EOF'
         ${{ inputs.body }}
         BODY_EOF
         )
-        export REPO TAG TARGET NAME PREVIOUS_TAG BODY
+        export REPO TAG TARGET NAME PREVIOUS_TAG PRERELEASE BODY
 
         cat > "/tmp/create-release.js" <<'NODE_EOF'
         const env = process.env;
@@ -102,7 +108,7 @@ runs:
             name: env.NAME || env.TAG,
             body: [env.BODY.trim(), notes.body].filter(Boolean).join('\n\n'),
             draft: false,
-            prerelease: false,
+            prerelease: env.PRERELEASE === 'true',
           });
           console.log(release.html_url);
         }
