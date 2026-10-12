@@ -102,6 +102,11 @@ jobs:
       action: ${{ steps.decide.outputs.action }}
       reason: ${{ steps.decide.outputs.reason }}
       fix: ${{ steps.decide.outputs.fix }}
+      runtime_version: ${{ steps.decide.outputs.runtime_version }}
+      release_state: ${{ steps.decide.outputs.release_state }}
+      release_url: ${{ steps.decide.outputs.release_url }}
+      ios_build_id: ${{ steps.decide.outputs.ios_build_id }}
+      android_build_id: ${{ steps.decide.outputs.android_build_id }}
     steps:
       - uses: eas/checkout
       - id: decide
@@ -109,6 +114,7 @@ jobs:
         with:
           runtime_version: ${{ needs.release_state.outputs.runtime_version }}
           release_state: ${{ needs.release_state.outputs.release_state }}
+          release_url: ${{ needs.release_state.outputs.release_url }}
           ios_build_id: ${{ needs.ios_get_build.outputs.build_id }}
           android_build_id: ${{ needs.android_get_build.outputs.build_id }}
           allow_build: false
@@ -128,13 +134,13 @@ jobs:
 
   tag_update_release:
     name: Tag update as GitHub release
-    needs: [publish_update, release_state]
+    needs: [publish_update, decide]
     environment: production
     steps:
       - uses: eas/checkout
       - uses: ./.eas/functions/tag-ota-release
         with:
-          runtime_version: ${{ needs.release_state.outputs.runtime_version }}
+          runtime_version: ${{ needs.decide.outputs.runtime_version }}
           update_group_id: ${{ needs.publish_update.outputs.first_update_group_id }}
           updates_json: ${{ needs.publish_update.outputs.updates_json }}
 
@@ -142,7 +148,7 @@ jobs:
 
   doc_error:
     name: Explain why nothing can ship
-    needs: [decide, release_state, ios_get_build, android_get_build]
+    needs: [decide]
     if: ${{ needs.decide.outputs.action == 'error' }}
     type: doc
     params:
@@ -157,11 +163,11 @@ jobs:
         | --- | --- |
         | Branch | `${{ github.ref_name }}` |
         | Commit | `${{ github.sha }}` |
-        | Runtime version | `${{ needs.release_state.outputs.runtime_version }}` |
-        | Release state | `${{ needs.release_state.outputs.release_state }}` |
-        | Matching iOS store build | `${{ needs.ios_get_build.outputs.build_id || 'none' }}` |
-        | Matching Android store build | `${{ needs.android_get_build.outputs.build_id || 'none' }}` |
-        | Release | ${{ needs.release_state.outputs.release_url }} |
+        | Runtime version | `${{ needs.decide.outputs.runtime_version }}` |
+        | Release state | `${{ needs.decide.outputs.release_state }}` |
+        | Matching iOS store build | `${{ needs.decide.outputs.ios_build_id || 'none' }}` |
+        | Matching Android store build | `${{ needs.decide.outputs.android_build_id || 'none' }}` |
+        | Release | ${{ needs.decide.outputs.release_url }} |
 
         If a store build does not match, a cherry-picked commit changed the native layer.
         Revert it on this branch.

@@ -25,6 +25,11 @@ inputs:
   - name: allow_build
     type: boolean
     default_value: true
+  # Not used in the decision. Passed through so later jobs can read the
+  # release from `decide` alone.
+  - name: release_url
+    type: string
+    default_value: ''
 
 outputs:
   action:
@@ -46,6 +51,19 @@ outputs:
   fix:
     value: ${{ steps.decide.outputs.fix }}
     description: For error, one line on what to do about it. Empty otherwise.
+  # The inputs this decision was made from, passed through unchanged, so later
+  # jobs need only `decide`.
+  runtime_version:
+    value: ${{ steps.decide.outputs.runtime_version }}
+  release_state:
+    value: ${{ steps.decide.outputs.release_state }}
+  release_url:
+    value: ${{ steps.decide.outputs.release_url }}
+  # The matching store builds, with a missing get-build output read as empty.
+  ios_build_id:
+    value: ${{ steps.decide.outputs.ios_build_id }}
+  android_build_id:
+    value: ${{ steps.decide.outputs.android_build_id }}
 
 runs:
   steps:
@@ -58,6 +76,7 @@ runs:
         IOS='${{ inputs.ios_build_id }}'
         ANDROID='${{ inputs.android_build_id }}'
         ALLOW_BUILD='${{ inputs.allow_build }}'
+        URL='${{ inputs.release_url }}'
 
         # A get-build job that finds no match has no build_id output, and the
         # expression renders that as the text "undefined", which is not empty.
@@ -119,6 +138,11 @@ runs:
         # set-output exits non-zero on an empty value. An output that is never
         # set reads as empty downstream, so skip the empty ones.
         set-output action "$ACTION"
+        set-output runtime_version "$RV"
+        set-output release_state '${{ inputs.release_state }}'
+        [ -z "$URL" ] || set-output release_url "$URL"
+        [ -z "$IOS" ] || set-output ios_build_id "$IOS"
+        [ -z "$ANDROID" ] || set-output android_build_id "$ANDROID"
         [ -z "$REPACK" ] || set-output ios_repack_build_id "$REPACK"
         [ -z "$REASON" ] || set-output reason "$REASON"
         [ -z "$FIX" ] || set-output fix "$FIX"

@@ -27,6 +27,9 @@ name: Continuous deploy to production on main
 # That table lives in .eas/functions/decide-deploy, which runs once the release
 # and build lookups are done. Every job after it reads only its `action`.
 #
+# Before any of it ships, the make-fluffy-pancakes Maestro flow must pass on
+# iOS and Android. See the maestro section below.
+#
 # Android production builds are app bundles (.aab), which repack cannot
 # process. So on a pre-release, Android always gets a full build.
 #
@@ -126,6 +129,11 @@ jobs:
       ios_repack_build_id: ${{ steps.decide.outputs.ios_repack_build_id }}
       reason: ${{ steps.decide.outputs.reason }}
       fix: ${{ steps.decide.outputs.fix }}
+      runtime_version: ${{ steps.decide.outputs.runtime_version }}
+      release_state: ${{ steps.decide.outputs.release_state }}
+      release_url: ${{ steps.decide.outputs.release_url }}
+      ios_build_id: ${{ steps.decide.outputs.ios_build_id }}
+      android_build_id: ${{ steps.decide.outputs.android_build_id }}
     steps:
       - uses: eas/checkout
       - id: decide
@@ -133,20 +141,125 @@ jobs:
         with:
           runtime_version: ${{ needs.release_state.outputs.runtime_version }}
           release_state: ${{ needs.release_state.outputs.release_state }}
+          release_url: ${{ needs.release_state.outputs.release_url }}
           ios_build_id: ${{ needs.ios_get_build.outputs.build_id }}
           android_build_id: ${{ needs.android_get_build.outputs.build_id }}
+
+  # --- maestro: test this commit before anything ships. ----------------------
+  #
+  # Runs for build-or-repack and update; an error ships nothing, so it skips.
+  # Store builds cannot run on an emulator or simulator, so these are
+  # production-apk and production-simulator builds of the same fingerprint:
+  # repacked when one exists, built when not. The deploy jobs below need both
+  # Maestro jobs, so a failed test stops the deploy.
+
+  ios_test_get_build:
+    name: Find iOS simulator build for Maestro
+    needs: [decide, fingerprint]
+    if: ${{ needs.decide.outputs.action != 'error' }}
+    type: get-build
+    params:
+      platform: ios
+      profile: production-simulator
+      fingerprint_hash: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
+
+  ios_test_repack:
+    name: Repack iOS simulator build for Maestro
+    needs: [ios_test_get_build]
+    if: ${{ needs.ios_test_get_build.outputs.build_id }}
+    type: repack
+    env:
+      METRICS_ENV: e2e
+    params:
+      build_id: ${{ needs.ios_test_get_build.outputs.build_id }}
+      profile: production-simulator
+
+  ios_test_build:
+    name: Build iOS simulator build for Maestro
+    needs: [ios_test_get_build]
+    if: ${{ !needs.ios_test_get_build.outputs.build_id }}
+    type: build
+    env:
+      METRICS_ENV: e2e
+    params:
+      platform: ios
+      profile: production-simulator
+
+  ios_maestro:
+    name: Maestro on iOS
+    needs: [decide]
+    after: [ios_test_get_build, ios_test_repack, ios_test_build]
+    if: ${{ needs.decide.outputs.action != 'error' }}
+    type: maestro
+    environment: production
+    image: latest
+    env:
+      MAESTRO_APP_ID: ${{ needs.ios_test_get_build.outputs.app_identifier || needs.ios_test_build.outputs.app_identifier }}
+    params:
+      build_id: ${{ needs.ios_test_repack.outputs.build_id || needs.ios_test_build.outputs.build_id }}
+      device_identifier: iPhone 17 Pro Max
+      flow_path: .maestro/make-fluffy-pancakes.yaml
+      record_screen: true
+
+  android_test_get_build:
+    name: Find Android APK build for Maestro
+    needs: [decide, fingerprint]
+    if: ${{ needs.decide.outputs.action != 'error' }}
+    type: get-build
+    params:
+      platform: android
+      profile: production-apk
+      fingerprint_hash: ${{ needs.fingerprint.outputs.android_fingerprint_hash }}
+
+  android_test_repack:
+    name: Repack Android APK build for Maestro
+    needs: [android_test_get_build]
+    if: ${{ needs.android_test_get_build.outputs.build_id }}
+    type: repack
+    env:
+      METRICS_ENV: e2e
+    params:
+      build_id: ${{ needs.android_test_get_build.outputs.build_id }}
+      profile: production-apk
+
+  android_test_build:
+    name: Build Android APK build for Maestro
+    needs: [android_test_get_build]
+    if: ${{ !needs.android_test_get_build.outputs.build_id }}
+    type: build
+    env:
+      METRICS_ENV: e2e
+    params:
+      platform: android
+      profile: production-apk
+
+  android_maestro:
+    name: Maestro on Android
+    needs: [decide]
+    after: [android_test_get_build, android_test_repack, android_test_build]
+    if: ${{ needs.decide.outputs.action != 'error' }}
+    type: maestro
+    environment: production
+    image: latest
+    env:
+      MAESTRO_APP_ID: ${{ needs.android_test_get_build.outputs.app_identifier || needs.android_test_build.outputs.app_identifier }}
+    params:
+      build_id: ${{ needs.android_test_repack.outputs.build_id || needs.android_test_build.outputs.build_id }}
+      device_identifier: pixel_8_pro
+      flow_path: .maestro/make-fluffy-pancakes.yaml
+      record_screen: true
 
   # --- build-or-repack: pre-release, so the store builds can be replaced. -----
 
   ios_repack:
     name: Repack iOS build for pre-release
-    needs: [decide, release_state]
+    needs: [decide, ios_maestro, android_maestro]
     if: ${{ needs.decide.outputs.action == 'build-or-repack' && needs.decide.outputs.ios_repack_build_id }}
     type: repack
     params:
       build_id: ${{ needs.decide.outputs.ios_repack_build_id }}
       profile: production
-      message: Repack of ${{ github.sha }} for runtime ${{ needs.release_state.outputs.runtime_version }}
+      message: Repack of ${{ github.sha }} for runtime ${{ needs.decide.outputs.runtime_version }}
 
   submit_ios:
     name: Submit repacked build to TestFlight
@@ -161,13 +274,13 @@ jobs:
   # back to repacking it.
   ios_build:
     name: Build iOS for pre-release
-    needs: [decide, release_state]
+    needs: [decide, ios_maestro, android_maestro]
     if: ${{ needs.decide.outputs.action == 'build-or-repack' && !needs.decide.outputs.ios_repack_build_id }}
     type: build
     params:
       platform: ios
       profile: production
-      message: Build of ${{ github.sha }} for runtime ${{ needs.release_state.outputs.runtime_version }}
+      message: Build of ${{ github.sha }} for runtime ${{ needs.decide.outputs.runtime_version }}
 
   # Same destination as the repack lane: App Store Connect, which is what puts
   # the build in front of TestFlight testers.
@@ -183,13 +296,13 @@ jobs:
   # full.
   android_build:
     name: Build Android for pre-release
-    needs: [decide, release_state]
+    needs: [decide, ios_maestro, android_maestro]
     if: ${{ needs.decide.outputs.action == 'build-or-repack' }}
     type: build
     params:
       platform: android
       profile: production
-      message: Build of ${{ github.sha }} for runtime ${{ needs.release_state.outputs.runtime_version }}
+      message: Build of ${{ github.sha }} for runtime ${{ needs.decide.outputs.runtime_version }}
 
   submit_android:
     name: Submit Android build to Google Play
@@ -203,7 +316,7 @@ jobs:
 
   publish_update:
     name: Publish update to production
-    needs: [decide]
+    needs: [decide, ios_maestro, android_maestro]
     if: ${{ needs.decide.outputs.action == 'update' }}
     environment: production
     type: update
@@ -219,13 +332,13 @@ jobs:
   # tags exactly, and the release is never marked "Latest".
   tag_update_release:
     name: Tag update as GitHub release
-    needs: [publish_update, release_state]
+    needs: [publish_update, decide]
     environment: production
     steps:
       - uses: eas/checkout
       - uses: ./.eas/functions/tag-ota-release
         with:
-          runtime_version: ${{ needs.release_state.outputs.runtime_version }}
+          runtime_version: ${{ needs.decide.outputs.runtime_version }}
           update_group_id: ${{ needs.publish_update.outputs.first_update_group_id }}
           updates_json: ${{ needs.publish_update.outputs.updates_json }}
 
@@ -233,7 +346,7 @@ jobs:
 
   doc_error:
     name: Explain why nothing can ship
-    needs: [decide, release_state, ios_get_build, android_get_build]
+    needs: [decide]
     if: ${{ needs.decide.outputs.action == 'error' }}
     type: doc
     params:
@@ -247,11 +360,11 @@ jobs:
         | | |
         | --- | --- |
         | Commit | `${{ github.sha }}` |
-        | Runtime version | `${{ needs.release_state.outputs.runtime_version }}` |
-        | Release state | `${{ needs.release_state.outputs.release_state }}` |
-        | Matching iOS store build | `${{ needs.ios_get_build.outputs.build_id || 'none' }}` |
-        | Matching Android store build | `${{ needs.android_get_build.outputs.build_id || 'none' }}` |
-        | Release | ${{ needs.release_state.outputs.release_url }} |
+        | Runtime version | `${{ needs.decide.outputs.runtime_version }}` |
+        | Release state | `${{ needs.decide.outputs.release_state }}` |
+        | Matching iOS store build | `${{ needs.decide.outputs.ios_build_id || 'none' }}` |
+        | Matching Android store build | `${{ needs.decide.outputs.android_build_id || 'none' }}` |
+        | Release | ${{ needs.decide.outputs.release_url }} |
 
         If a store build does not match, the native layer changed. Common causes: a
         dependency with native code was added, removed, or upgraded; a config plugin, or a
