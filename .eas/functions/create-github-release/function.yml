@@ -1,0 +1,118 @@
+name: Create GitHub release
+description: >-
+  Creates a full (not draft, not pre-release) GitHub release, with a tag on the
+  given commit and GitHub's generated notes. Needs GH_TOKEN in the calling
+  job's environment, with WRITE access to releases (contents: write).
+
+inputs:
+  - name: tag
+    type: string
+    required: true
+  - name: target_commitish
+    type: string
+    required: true
+  - name: name
+    type: string
+    default_value: ''
+  # Placed above the generated notes. Any text is safe here: it reaches the
+  # script through a quoted heredoc, not a quoted string.
+  - name: body
+    type: string
+    default_value: ''
+  # The tag the generated notes start from. Empty lets GitHub choose.
+  - name: previous_tag
+    type: string
+    default_value: ''
+  - name: repository
+    type: string
+    default_value: keith-kurak/pancake-theory
+
+outputs:
+  url:
+    value: ${{ steps.create.outputs.url }}
+    description: The release's HTML URL.
+
+runs:
+  steps:
+    - id: create
+      name: Create the GitHub release
+      run: |
+        set -euo pipefail
+        if [ -z "${GH_TOKEN:-}" ]; then
+          echo "GH_TOKEN is not set. It should come from the calling job's EAS"
+          echo "environment, and needs repository release write access."
+          exit 1
+        fi
+        REPO='${{ inputs.repository }}'
+        TAG='${{ inputs.tag }}'
+        TARGET='${{ inputs.target_commitish }}'
+        NAME='${{ inputs.name }}'
+        PREVIOUS_TAG='${{ inputs.previous_tag }}'
+        BODY=$(cat <<'BODY_EOF'
+        ${{ inputs.body }}
+        BODY_EOF
+        )
+        export REPO TAG TARGET NAME PREVIOUS_TAG BODY
+
+        cat > "/tmp/create-release.js" <<'NODE_EOF'
+        const env = process.env;
+        const headers = {
+          authorization: `Bearer ${env.GH_TOKEN}`,
+          accept: 'application/vnd.github+json',
+          'x-github-api-version': '2022-11-28',
+          'content-type': 'application/json',
+          'user-agent': 'eas-workflow-create-github-release',
+        };
+        const api = `https://api.github.com/repos/${env.REPO}`;
+
+        async function post(path, body) {
+          const res = await fetch(`${api}${path}`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(body),
+          });
+          if (!res.ok) {
+            throw new Error(`GitHub API ${res.status}: ${await res.text()}`);
+          }
+          return res.json();
+        }
+
+        async function main() {
+          // A scheduled run can fire twice. If the release is already there,
+          // report it rather than fail.
+          const existing = await fetch(
+            `${api}/releases/tags/${encodeURIComponent(env.TAG)}`,
+            { headers }
+          );
+          if (existing.ok) {
+            const r = await existing.json();
+            console.error(`Release ${env.TAG} already exists.`);
+            console.log(r.html_url);
+            return;
+          }
+
+          const notes = await post('/releases/generate-notes', {
+            tag_name: env.TAG,
+            target_commitish: env.TARGET,
+            ...(env.PREVIOUS_TAG && { previous_tag_name: env.PREVIOUS_TAG }),
+          });
+          const release = await post('/releases', {
+            tag_name: env.TAG,
+            target_commitish: env.TARGET,
+            name: env.NAME || env.TAG,
+            body: [env.BODY.trim(), notes.body].filter(Boolean).join('\n\n'),
+            draft: false,
+            prerelease: false,
+          });
+          console.log(release.html_url);
+        }
+
+        main().catch((e) => {
+          console.error(e.message);
+          process.exit(1);
+        });
+        NODE_EOF
+
+        URL=$(node "/tmp/create-release.js")
+        echo "Release: $URL"
+        set-output url "$URL"

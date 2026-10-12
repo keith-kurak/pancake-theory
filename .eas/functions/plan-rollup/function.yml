@@ -1,0 +1,143 @@
+name: Plan rollup
+description: >-
+  Decides whether a weekly store rollup should run, and picks its version. A
+  rollup keeps the runtime version's major.minor and takes the next patch, so
+  the new store binary can still receive every update published to that
+  runtime. Needs GH_TOKEN in the calling job's environment, with read access to
+  the repository's releases. The project must already be checked out.
+
+inputs:
+  - name: runtime_version
+    type: string
+    required: true
+  # The `state` output of find-github-release for the runtime version.
+  - name: release_state
+    type: string
+    required: true
+  - name: repository
+    type: string
+    # Same reason as find-github-release: the github context is empty on
+    # non-push triggers, so the repository is a value.
+    default_value: keith-kurak/pancake-theory
+
+outputs:
+  decision:
+    value: ${{ steps.plan.outputs.decision }}
+    description: >-
+      "rollup" when a rollup should run. Otherwise the reason it should not:
+      "prerelease" (the version is still being assembled, and merges already
+      repack and resubmit it), "no_release" (nothing is tagged for this
+      runtime version), or "no_changes" (main has no commits since the last
+      store binary for this runtime version).
+  version:
+    value: ${{ steps.plan.outputs.version }}
+    description: The app version for the rollup, such as 1.5.3.
+  tag:
+    value: ${{ steps.plan.outputs.tag }}
+    description: The release tag for the rollup, such as 1.5.3-rollup.
+  previous_tag:
+    value: ${{ steps.plan.outputs.previous_tag }}
+    description: >-
+      The tag the rollup is measured from: the newest rollup for this runtime
+      version, or the runtime version's own release when there is none yet.
+  sha:
+    value: ${{ steps.plan.outputs.sha }}
+    description: The commit the rollup is built from.
+
+runs:
+  steps:
+    - id: plan
+      name: Plan the rollup
+      run: |
+        set -euo pipefail
+        if [ -z "${GH_TOKEN:-}" ]; then
+          echo "GH_TOKEN is not set. It should come from the calling job's EAS"
+          echo "environment, and needs repository release read access."
+          exit 1
+        fi
+        REPO='${{ inputs.repository }}'
+        RUNTIME_VERSION='${{ inputs.runtime_version }}'
+        RELEASE_STATE='${{ inputs.release_state }}'
+        SHA=$(git rev-parse HEAD)
+        export REPO RUNTIME_VERSION SHA
+        set-output sha "$SHA"
+
+        # Only a live version needs a rollup. A pre-release is already
+        # repacked and resubmitted on every merge to main.
+        if [ "$RELEASE_STATE" != "released" ]; then
+          case "$RELEASE_STATE" in
+            prerelease) DECISION=prerelease ;;
+            *) DECISION=no_release ;;
+          esac
+          echo "Release state for $RUNTIME_VERSION is $RELEASE_STATE. No rollup."
+          set-output decision "$DECISION"
+          exit 0
+        fi
+
+        cat > "/tmp/plan-rollup.js" <<'NODE_EOF'
+        const { REPO: repo, RUNTIME_VERSION: rv, SHA: sha, GH_TOKEN: token } =
+          process.env;
+        const [major, minor] = rv.split('.');
+        const rollupTag = new RegExp(`^${major}\\.${minor}\\.(\\d+)-rollup$`);
+        const baseTags = new Set([rv, `v${rv}`]);
+
+        async function gh(path) {
+          const res = await fetch(`https://api.github.com/repos/${repo}${path}`, {
+            headers: {
+              authorization: `Bearer ${token}`,
+              accept: 'application/vnd.github+json',
+              'x-github-api-version': '2022-11-28',
+              'user-agent': 'eas-workflow-plan-rollup',
+            },
+          });
+          if (!res.ok) {
+            throw new Error(`GitHub API ${res.status}: ${await res.text()}`);
+          }
+          return res.json();
+        }
+
+        async function main() {
+          let lastPatch = 0;
+          let previousTag = null;
+          let baseTag = null;
+          for (let page = 1; page <= 10; page++) {
+            const releases = await gh(`/releases?per_page=100&page=${page}`);
+            if (releases.length === 0) break;
+            for (const r of releases) {
+              if (baseTags.has(r.tag_name) && !r.draft) baseTag = r.tag_name;
+              const m = rollupTag.exec(r.tag_name);
+              if (m && Number(m[1]) > lastPatch) {
+                lastPatch = Number(m[1]);
+                previousTag = r.tag_name;
+              }
+            }
+          }
+          previousTag = previousTag || baseTag;
+          const version = `${major}.${minor}.${lastPatch + 1}`;
+
+          // A rollup of nothing would only ask store users to download the same
+          // app again, so skip when main has not moved since the last binary.
+          let decision = 'rollup';
+          if (previousTag) {
+            const cmp = await gh(
+              `/compare/${encodeURIComponent(previousTag)}...${sha}`
+            );
+            console.error(`${previousTag}...${sha}: ahead by ${cmp.ahead_by}`);
+            if (cmp.ahead_by === 0) decision = 'no_changes';
+          }
+          console.log(`${decision} ${version} ${version}-rollup ${previousTag || '-'}`);
+        }
+
+        main().catch((e) => {
+          console.error(e.message);
+          process.exit(1);
+        });
+        NODE_EOF
+
+        OUT=$(node "/tmp/plan-rollup.js")
+        set -- $OUT
+        echo "Decision: $1. Version $2, tag $3, measured from $4."
+        set-output decision "$1"
+        set-output version "$2"
+        set-output tag "$3"
+        set-output previous_tag "$4"
