@@ -1,10 +1,12 @@
 // Builds a static evidence page from the screenshots and video an agent
-// captured while verifying a PR, ready for `eas deploy`.
+// captured while verifying a PR or reproducing an issue, ready for `eas deploy`.
 //
-// Usage: node scripts/agent/build-evidence-site.mjs <evidenceDir> "<subject>" "<verdict>"
+// Usage: node scripts/agent/build-evidence-site.mjs <evidenceDir> "<subject>" "<verdict>" ["<kind>"]
 //
-// <subject> is the page label, e.g. "PR #12". The verdict's leading keyword
-// drives the badge: PASS is green, INCONCLUSIVE amber, anything else red.
+// <subject> is the page label, e.g. "PR #12". <kind> names the run, e.g.
+// "reproduction", and defaults to "verification". The verdict's leading keyword
+// drives the badge: PASS and NOT_REPRODUCED are green (the app behaved),
+// INCONCLUSIVE amber, anything else red.
 //
 // Only media is copied into site/. The prompt, diff, raw JSONL transcript, and
 // the argent config also live in the evidence dir and must not be published —
@@ -12,7 +14,7 @@
 import { cpSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const [evidenceDir, subject, verdict] = process.argv.slice(2);
+const [evidenceDir, subject, verdict, kind = 'verification'] = process.argv.slice(2);
 if (!evidenceDir) {
   console.error('usage: build-evidence-site.mjs <evidenceDir> "<subject>" "<verdict>"');
   process.exit(1);
@@ -58,9 +60,15 @@ try {
   report = '';
 }
 
-const keyword = (String(verdict).match(/^[A-Za-z-]+/)?.[0] ?? 'FAIL').toUpperCase();
-const tone = keyword === 'PASS' ? 'pass' : keyword === 'INCONCLUSIVE' ? 'unsure' : 'fail';
-const detail = String(verdict).replace(/^[A-Za-z-]+\s*:?\s*/, '');
+// Underscore included for NOT_REPRODUCED.
+const keyword = (String(verdict).match(/^[A-Za-z_-]+/)?.[0] ?? 'FAIL').toUpperCase();
+const tone =
+  keyword === 'PASS' || keyword === 'NOT_REPRODUCED'
+    ? 'pass'
+    : keyword === 'INCONCLUSIVE'
+      ? 'unsure'
+      : 'fail';
+const detail = String(verdict).replace(/^[A-Za-z_-]+\s*:?\s*/, '');
 
 const imageCards = images
   .map(
@@ -88,7 +96,7 @@ writeFileSync(
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Pancake Theory · ${esc(subject)} verification</title>
+<title>Pancake Theory · ${esc(subject)} ${esc(kind)}</title>
 <style>
   /* Tokens mirror src/constants/theme.ts so the page reads like the app. */
   :root {
@@ -174,7 +182,7 @@ writeFileSync(
 <body>
 <header>
   <span class="brand">Pancake <span class="accent">Theory</span></span>
-  <span class="subject">${esc(subject)} · verification</span>
+  <span class="subject">${esc(subject)} · ${esc(kind)}</span>
 </header>
 
 <div class="verdict">

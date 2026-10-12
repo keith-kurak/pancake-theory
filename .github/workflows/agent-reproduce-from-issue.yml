@@ -1,0 +1,137 @@
+name: Agent Reproduce from Issue
+
+# Start the EAS **Agent Reproduce** workflow for a bug report.
+#
+# EAS has no issue trigger, so this Action does the one thing EAS cannot: it
+# notices the `agent-reproduce` label on an issue, checks that the labeller has
+# write access, and starts .eas/workflows/agent-reproduce.yaml on the default
+# branch with the issue number as its only input. The EAS run reads the issue,
+# drives the app on an iOS cloud simulator, posts the verdict on the issue, and
+# removes the label.
+#
+# To steer an attempt, first comment `/agent <what to try>` on the issue. Only
+# comments from OWNER, MEMBER, or COLLABORATOR authors count.
+#
+# Needs the EXPO_TOKEN repository secret. See .eas/workflows/SETUP.md.
+
+on:
+  issues:
+    types: [labeled]
+
+concurrency:
+  group: agent-reproduce-issue-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  # Comment on the issue, and take the label off when the run cannot start.
+  issues: write
+
+jobs:
+  start:
+    name: Start the EAS reproduction run
+    runs-on: ubuntu-latest
+    if: github.event.label.name == 'agent-reproduce' && !github.event.issue.pull_request
+    steps:
+      # Same check, and the same reasons, as agent-start-from-issue.yml: on a
+      # public repository this endpoint returns "read" for any GitHub user, so
+      # the permission value is what matters, never the call succeeding.
+      - name: Authorise the actor
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          set -euo pipefail
+          PERMISSION="$(gh api \
+            "repos/${{ github.repository }}/collaborators/${ACTOR}/permission" \
+            --jq '.permission' 2>/dev/null || true)"
+          case "$PERMISSION" in
+            admin|maintain|write)
+              echo "$ACTOR has '$PERMISSION' on ${{ github.repository }}"
+              ;;
+            *)
+              echo "::error::$ACTOR does not have write access on ${{ github.repository }}; refusing to start a reproduction run."
+              exit 1
+              ;;
+          esac
+
+      # eas-cli reads the project id from the app config, and app.config.js
+      # resolves config plugins from node_modules. The workflow file itself
+      # comes from --ref below, not from this checkout.
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.10
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # --ref runs the workflow from the default branch as it is on GitHub, so
+      # nothing from this runner is uploaded. Only the issue number is passed;
+      # the issue text never touches a command line.
+      - name: Start the EAS workflow
+        id: run
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -uo pipefail
+          if [ -z "${EXPO_TOKEN:-}" ]; then
+            echo "::error::The EXPO_TOKEN repository secret is not set. See .eas/workflows/SETUP.md."
+            exit 1
+          fi
+          OUT="$(npx --yes eas-cli@latest workflow:run .eas/workflows/agent-reproduce.yaml \
+            --ref "$DEFAULT_BRANCH" \
+            -F "issue_number=$ISSUE_NUMBER" \
+            --non-interactive --json 2>"$RUNNER_TEMP/eas.log")"
+          STATUS=$?
+          cat "$RUNNER_TEMP/eas.log"
+          echo "$OUT"
+          if [ "$STATUS" -ne 0 ]; then
+            echo "::error::eas workflow:run failed"
+            exit 1
+          fi
+          # The run page, from the JSON or, failing that, the first expo.dev
+          # workflow URL printed anywhere.
+          URL="$(printf '%s' "$OUT" | jq -r '.url // .workflowRunUrl // empty' 2>/dev/null || true)"
+          if [ -z "$URL" ]; then
+            URL="$(cat "$RUNNER_TEMP/eas.log" <(printf '%s' "$OUT") \
+              | grep -oE 'https://expo\.dev/[^ )"]*/workflows/[^ )"]+' | head -n 1 || true)"
+          fi
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Say so on the issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          URL: ${{ steps.run.outputs.url }}
+        run: |
+          set -euo pipefail
+          if [ -n "$URL" ]; then
+            WHERE="[EAS workflow run]($URL)"
+          else
+            WHERE="EAS workflow run (see the expo.dev dashboard)"
+          fi
+          BODY="$(printf '> 🤖 **Automated** — written by the agent workflow, not by a human. · [view run](%s/actions/runs/%s)\n\nStarted a reproduction attempt on an iOS cloud simulator: %s. The verdict will be posted here, usually within 30 minutes.\n' \
+            "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" "$WHERE")"
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "$BODY"
+
+      # The EAS run removes the label when it finishes. If it never started,
+      # nothing will, and GitHub only fires `labeled` on absent-to-present, so
+      # take it off here so that applying it again is one click.
+      - name: Report a run that did not start
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          BODY="$(printf '> 🤖 **Automated** — written by the agent workflow, not by a human. · [view run](%s/actions/runs/%s)\n\n⚠️ Could not start a reproduction attempt. See the run logs. Apply the `agent-reproduce` label again to retry.\n' \
+            "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_RUN_ID")"
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "$BODY" \
+            || echo "::warning::could not comment on the issue"
+          gh issue edit "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --remove-label agent-reproduce \
+            || echo "::warning::could not remove the agent-reproduce label"
