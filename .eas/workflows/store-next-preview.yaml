@@ -14,7 +14,10 @@ name: Preview build for the next store version
 #   fingerprint match -> repack the preview build (fast, no native rebuild)
 #   no match          -> build preview: this PR is the one changing native code
 #
-# The resulting internal-distribution build is where native changes destined for
+# Each platform takes its own lane. Android can repack here because preview
+# builds are APKs; it is production's app bundles that repack cannot process.
+#
+# The resulting internal-distribution builds are where native changes destined for
 # the next store version get verified.
 
 on:
@@ -73,7 +76,7 @@ jobs:
       runtime_version: ${{ needs.runtime_version.outputs.runtime_version }}
 
   ios_repack:
-    name: Repack the preview build
+    name: Repack the iOS preview build
     needs: [ios_get_build]
     if: ${{ needs.ios_get_build.outputs.build_id }}
     type: repack
@@ -92,16 +95,47 @@ jobs:
       profile: preview
       message: store-next build for PR #${{ github.event.pull_request.number }} (runtime ${{ needs.runtime_version.outputs.runtime_version }})
 
-  # `after` the two lanes, because exactly one of them runs and the other is
-  # skipped. But `after` fires even when every upstream was skipped, so the
+  android_get_build:
+    name: Find matching Android preview build
+    needs: [fingerprint, runtime_version]
+    type: get-build
+    params:
+      platform: android
+      profile: preview
+      distribution: internal
+      fingerprint_hash: ${{ needs.fingerprint.outputs.android_fingerprint_hash }}
+      runtime_version: ${{ needs.runtime_version.outputs.runtime_version }}
+
+  android_repack:
+    name: Repack the Android preview build
+    needs: [android_get_build]
+    if: ${{ needs.android_get_build.outputs.build_id }}
+    type: repack
+    params:
+      build_id: ${{ needs.android_get_build.outputs.build_id }}
+      profile: preview
+      message: store-next repack for PR #${{ github.event.pull_request.number }}
+
+  android_build:
+    name: Build Android preview
+    needs: [android_get_build, runtime_version]
+    if: ${{ !needs.android_get_build.outputs.build_id }}
+    type: build
+    params:
+      platform: android
+      profile: preview
+      message: store-next build for PR #${{ github.event.pull_request.number }} (runtime ${{ needs.runtime_version.outputs.runtime_version }})
+
+  # `after` the lanes, because on each platform exactly one of them runs and
+  # the other is skipped. But `after` fires even when every upstream was skipped, so the
   # `needs` edge is what keeps a draft PR — where nothing was built — from
   # getting a comment anyway.
   comment_on_pr:
-    name: Post the build to the PR
-    needs: [ios_get_build]
-    after: [ios_repack, ios_build]
+    name: Post the builds to the PR
+    needs: [ios_get_build, android_get_build]
+    after: [ios_repack, ios_build, android_repack, android_build]
     type: github-comment
     params:
       message: >-
-        Preview build for the next store version. Install it to verify this
+        Preview builds for the next store version. Install them to verify this
         native change before it reaches a store build.

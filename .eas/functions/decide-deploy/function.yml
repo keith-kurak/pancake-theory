@@ -1,0 +1,115 @@
+name: Decide deploy
+description: >-
+  Decides what a merge to main does with production, from the runtime version's
+  release state and the production store builds that match main. Keeps every
+  branch of that decision in one place, so the workflow only reads `action`.
+
+inputs:
+  - name: runtime_version
+    type: string
+    required: true
+  # The `state` output of find-github-release: prerelease, released, or none.
+  - name: release_state
+    type: string
+    required: true
+  # The matching production store builds from get-build. Empty means no match.
+  - name: ios_build_id
+    type: string
+    default_value: ''
+  - name: android_build_id
+    type: string
+    default_value: ''
+  # False on lanes that may only publish updates, such as a cherry-pick branch.
+  # Then a pre-release is an error rather than build-or-repack: replacing the
+  # store builds is main's job.
+  - name: allow_build
+    type: boolean
+    default_value: true
+
+outputs:
+  action:
+    value: ${{ steps.decide.outputs.action }}
+    description: >-
+      "build-or-repack" when the release is still pre-release, so the store
+      builds can be replaced. "update" when the release is live and both
+      platforms match, so an over-the-air update is safe. "error" when nothing
+      can ship.
+  ios_repack_build_id:
+    value: ${{ steps.decide.outputs.ios_repack_build_id }}
+    description: >-
+      For build-or-repack: the iOS build to repack, set only when BOTH
+      platforms match. Empty means iOS needs a full build. Android always
+      builds in full, because repack cannot process an .aab.
+  reason:
+    value: ${{ steps.decide.outputs.reason }}
+    description: For error, one line on why nothing can ship. Empty otherwise.
+  fix:
+    value: ${{ steps.decide.outputs.fix }}
+    description: For error, one line on what to do about it. Empty otherwise.
+
+runs:
+  steps:
+    - id: decide
+      name: Decide what this merge does
+      run: |
+        set -euo pipefail
+        RV='${{ inputs.runtime_version }}'
+        STATE='${{ inputs.release_state }}'
+        IOS='${{ inputs.ios_build_id }}'
+        ANDROID='${{ inputs.android_build_id }}'
+        ALLOW_BUILD='${{ inputs.allow_build }}'
+
+        # Both platforms are decided together, so one store never moves
+        # without the other.
+        BOTH_MATCH=false
+        if [ -n "$IOS" ] && [ -n "$ANDROID" ]; then BOTH_MATCH=true; fi
+
+        ACTION=error
+        REPACK=''
+        REASON=''
+        FIX=''
+        if [ "$STATE" = "prerelease" ] && [ "$ALLOW_BUILD" != "true" ]; then
+          STATE=prerelease-no-build
+        fi
+
+        case "$STATE:$BOTH_MATCH" in
+          prerelease-no-build:*)
+            REASON="Runtime version $RV is still pre-release. This lane only publishes updates to a live release, and it does not replace store builds."
+            FIX="Merge the change to main, which replaces the store builds while the release is pre-release."
+            ;;
+          prerelease:true)
+            ACTION=build-or-repack
+            REPACK="$IOS"
+            ;;
+          prerelease:false)
+            # The first merge after an app version bump: nothing to repack onto.
+            ACTION=build-or-repack
+            ;;
+          released:true)
+            ACTION=update
+            ;;
+          released:false)
+            REASON="Runtime version $RV is released, but this commit does not fingerprint-match a production store build on both platforms. The native layer changed, so the released binaries cannot be replaced and this commit cannot reach them as an update."
+            FIX="Drop the native change. To ship it anyway, bump the app version, which starts a new runtime version with its own release."
+            ;;
+          none:true)
+            REASON="This commit matches the production store builds for runtime version $RV, but no GitHub release is tagged for that version, so nothing says whether to replace the builds or publish an update."
+            FIX="Create a GitHub release tagged $RV. Make it draft or pre-release while the version is being assembled (merges replace and resubmit the store builds), or a full release once it is live (merges publish an update)."
+            ;;
+          none:false)
+            REASON="No GitHub release is tagged $RV (or v$RV), and the production store builds do not both match. The runtime version changed, and nothing says what the new version is for."
+            FIX="Create a GitHub release tagged $RV, marked draft or pre-release, then push to main again. That merge builds both platforms and submits them. Clear both release flags once the version is live."
+            ;;
+          *)
+            REASON="Unknown release state \"$STATE\" for runtime version $RV."
+            FIX="Check the find-github-release step in the release_state job."
+            ;;
+        esac
+
+        echo "Release: $STATE. iOS match: ${IOS:-none}. Android match: ${ANDROID:-none}."
+        echo "Action: $ACTION${REPACK:+ (repack iOS $REPACK)}"
+        [ -n "$REASON" ] && echo "Reason: $REASON"
+        set-output action "$ACTION"
+        set-output ios_repack_build_id "$REPACK"
+        set-output reason "$REASON"
+        set-output fix "$FIX"

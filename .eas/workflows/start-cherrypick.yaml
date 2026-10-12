@@ -1,0 +1,105 @@
+name: Start a cherry-pick branch for a runtime version
+
+# Manual only. For fixing a runtime version that main has moved past: once
+# main is on a new runtime version, its updates can no longer reach the older
+# binaries, so their fixes need a branch of their own.
+#
+# Creates "<runtime version>-cherrypick" on the commit production runs right now
+# for that runtime version: the newest of its binary release, weekly rollups,
+# and OTA updates. Cherry-pick fixes onto that branch, and
+# deploy-cherrypick.yaml publishes them as OTA updates. See RELEASE.md.
+#
+#   npx eas-cli@latest workflow:run .eas/workflows/start-cherrypick.yaml \
+#     --ref main -F runtime_version=1.5.0
+#
+# Run it on main: the branch gets one extra commit that copies main's .eas
+# folder, so pushes to it run the current workflows. App code stays exactly as
+# released. It refuses to run while main is still on the requested runtime
+# version (fix it on main instead), and to move a branch that already exists.
+#
+# Needs the production environment's GH_TOKEN with WRITE access to contents.
+
+on:
+  workflow_dispatch:
+    inputs:
+      runtime_version:
+        type: string
+        required: true
+        description: The runtime version to cherry-pick onto, for example 1.5.0
+
+concurrency:
+  cancel_in_progress: false
+  group: ${{ workflow.filename }}
+
+defaults:
+  tools:
+    bun: 1.3.10
+
+jobs:
+  start:
+    name: Create the cherry-pick branch
+    environment: production
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+      release_sha: ${{ steps.release.outputs.sha }}
+      release_url: ${{ steps.release.outputs.url }}
+      branch_sha: ${{ steps.branch.outputs.sha }}
+      branch_url: ${{ steps.branch.outputs.url }}
+    steps:
+      - uses: eas/checkout
+      - uses: eas/install_node_modules
+
+      - id: resolve
+        uses: ./.eas/functions/resolve-runtime-version
+
+      - name: Check that main has moved to a new runtime version
+        run: |
+          MAIN_RV='${{ steps.resolve.outputs.runtime_version }}'
+          RV='${{ inputs.runtime_version }}'
+          if [ "$MAIN_RV" = "$RV" ]; then
+            echo "This checkout is still on runtime version $RV, so its updates reach"
+            echo "the $RV binaries directly. Merge the fix to main instead."
+            echo "(Run this workflow with --ref main.)"
+            exit 1
+          fi
+          echo "Checkout is on runtime version $MAIN_RV. Cherry-picking onto $RV."
+
+      - id: release
+        uses: ./.eas/functions/find-latest-runtime-release
+        with:
+          runtime_version: ${{ inputs.runtime_version }}
+
+      - id: branch
+        uses: ./.eas/functions/create-cherrypick-branch
+        with:
+          branch: ${{ inputs.runtime_version }}-cherrypick
+          base_sha: ${{ steps.release.outputs.sha }}
+
+  summary:
+    name: Summary
+    needs: [start]
+    type: doc
+    params:
+      md: |
+        # Created `${{ inputs.runtime_version }}-cherrypick`
+
+        The branch starts from `${{ needs.start.outputs.tag }}`, the newest release for
+        runtime version **${{ inputs.runtime_version }}**, on commit
+        `${{ needs.start.outputs.release_sha }}`. One commit on top copies `.eas` from
+        `main`, so pushes run the current workflows.
+
+        ```bash
+        git fetch origin
+        git switch ${{ inputs.runtime_version }}-cherrypick
+        git cherry-pick <commit>
+        git push
+        ```
+
+        Each push publishes an OTA update to production for runtime version
+        **${{ inputs.runtime_version }}**, if it still matches the store builds on both
+        platforms. Updates from `main` are for a newer runtime version and do not reach
+        these binaries. If `main` needs the fix too, merge it there as well.
+
+        Branch: ${{ needs.start.outputs.branch_url }}
+
+        Release: ${{ needs.start.outputs.release_url }}
