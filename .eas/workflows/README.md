@@ -1,27 +1,46 @@
 # EAS Workflows
 
-Automation for this app. Everything runs on EAS except one small GitHub Action, which
-exists because EAS has no issue or comment trigger — see [From an issue](#from-an-issue).
+Automation for this app. Everything runs on EAS except two small GitHub Actions, which
+exist because EAS has no issue trigger — see [From an issue](#from-an-issue) and
+[Agent Reproduce](#agent-reproduce).
 
 ## The agent chain
 
 ```
-issue  --/build-->  draft PR + PR-TODO.md  --agent-start-->  built & validated
-                              ^                                     |
-                              |                                     v
-                       /agent + agent-revise  <-----------  ready for review
-                                                                    |
-                                                     /verify + agent-verify
-                                                                    v
-                                                      verdict + evidence site
+issue --agent-start--> draft PR (task = description) --agent-start--> plan, build, validate
+                               ^                                      |
+                               |                                      v
+                               |                        independent verify (adversarial)
+                               |                          |                    |
+                               |                        FAIL                  PASS
+                               |                          v                    v
+                        /agent + agent-revise <---- stays in draft     ready for review
 ```
+
+## One command, and the label picks the activity
+
+Every instruction to an agent is a comment that starts with **`/agent`**. The label you
+then add decides what happens with those comments:
+
+| Label | Apply to | `/agent` comments are |
+|---|---|---|
+| `agent-start` | an issue | Extra guidance, added to the PR description |
+| `agent-start` | a draft PR | Extra guidance for the build |
+| `agent-revise` | any PR | The changes to make |
+| `agent-verify` | any PR | What the verifier must check |
+| `agent-reproduce` | an issue | What the reproducer should try |
+
+Comments count only when the author is OWNER, MEMBER, or COLLABORATOR. See
+[Which comments count](#which-comments-count).
 
 | Workflow | Trigger | What it does |
 |---|---|---|
-| `.github/.../agent-start-from-issue.yml` | `/build` comment or `agent-start` label **on an issue** | Opens a draft PR carrying `PR-TODO.md`, then labels it to hand off to EAS |
-| `agent-start.yaml` | `agent-start` label on a draft PR | Implements `PR-TODO.md`, validates on a simulator, commits, flips the PR to ready |
-| `agent-revise.yaml` | `agent-revise` label on any PR | Applies `/agent` review comments, re-validates, commits |
-| `agent-verify.yaml` | `agent-verify` label on any PR | Proves a PR works on a cloud simulator and publishes a screenshot evidence site. Writes no code |
+| `.github/.../agent-start-from-issue.yml` | `agent-start` label **on an issue** | Opens a draft PR with the task as its description, then labels it to hand off to EAS |
+| `agent-start.yaml` | `agent-start` label on a draft PR | Writes a plan into the PR description, implements it, validates on a simulator, commits, then runs the verify function. Its PASS flips the PR to ready |
+| `agent-revise.yaml` | `agent-revise` label on any PR | Applies `/agent` review comments, re-validates, commits, then runs the verify function |
+| `agent-verify.yaml` | `agent-verify` label on any PR | Runs the verify function alone: proves a PR works on a cloud simulator and publishes a screenshot evidence site. Writes no code |
+| `.github/.../agent-reproduce-from-issue.yml` | `agent-reproduce` label **on an issue** | Checks write access, then starts `agent-reproduce.yaml` with `eas workflow:run` and exits |
+| `agent-reproduce.yaml` | Started by the Action above | Tries to reproduce the bug on a cloud simulator against the default branch, and comments the verdict on the issue. Writes no code |
 | `update-on-pr.yaml` | Any **non-draft** PR | Unit tests, then publishes a preview update and comments on the PR |
 | `maybe-make-dev-builds-on-pr.yaml` | Any **non-draft** PR | Builds development clients when the fingerprint changed |
 | `build-or-update-preview.yaml` | Push to `main` | Publishes an update, or builds when the fingerprint changed |
@@ -30,6 +49,7 @@ issue  --/build-->  draft PR + PR-TODO.md  --agent-start-->  built & validated
 | `observe-events-test.yaml` | Daily at 04:00 GMT | Maestro run that checks `expo-observe` events |
 | `store-screenshots.yaml` | Manual | Captures App Store / Play screenshots |
 | `build-production.yaml` | Manual | Production builds and store submissions |
+| `testflight-crash.yaml` | TestFlight crash report (App Store Connect) | Shows the crash feedback ID and a link to it in App Store Connect |
 
 ---
 
@@ -39,21 +59,62 @@ Describe a feature or fix once, in a file. Get back a validated PR.
 
 ## From an issue
 
-The usual way in. On any issue, comment:
+The usual way in. First, the issue **description** must have a user story and fit
+criteria. The **Feature or fix** issue template
+([`.github/ISSUE_TEMPLATE/agent-task.md`](../../.github/ISSUE_TEMPLATE/agent-task.md))
+starts you with both:
+
+```markdown
+## User story
+
+As a baker, I want cook times in whole minutes, so that the history list is easy to scan.
+
+## Fit criteria
+
+- The history list shows "12 min", not "12:34".
+- Editing a cook time shows a minutes field only.
+```
+
+When the label is applied, the Action runs
+[`scripts/agent/check-story.py`](../../scripts/agent/check-story.py) before it creates
+anything. If a part is missing, it comments on the issue with what to fix, removes the
+label, and fails. No branch, no PR, no EAS run. The rules:
+
+| Rule | Why |
+|---|---|
+| A heading, at any level, containing "User story" | So the check finds the story in any issue layout |
+| Under it, "As a …, I want …, so that …" | All three parts. "So that" is the one most often dropped, and it says why the work matters |
+| A heading containing "Fit criteria" | The same, for the criteria |
+| Under it, at least one `-` or numbered item | Each criterion is one observable result |
+| No template placeholders such as `<who>` | An unedited template is not a story |
+| Only the description counts | Headings inside code blocks and `/agent` comments are ignored |
+
+The fit criteria then travel with the task into the PR description. The implement
+phase must cover each one in its validation plan, the validate phase fails a missed
+one, and the verifier treats each one as a requirement.
+
+Optionally, steer the build with a comment on the issue:
 
 ```
-/build focus on the Ratios tab only
+/agent focus on the Ratios tab only
 ```
 
-Or apply the **`agent-start`** label to the issue. Either opens a draft PR whose
-`PR-TODO.md` is built from the issue title and body, plus anything you wrote after
-`/build`, and labels that PR so the EAS run starts.
+Then apply the **`agent-start`** label to the issue. That opens a draft PR whose
+description is built from the issue body, plus every trusted `/agent` comment on the
+issue, and labels that PR so the EAS run starts.
+
+If an open PR for the issue already exists, the Action only labels it again. It does not
+rewrite a description that runs have already written into. To change the task then, edit
+the PR description or comment `/agent` on the PR.
 
 This one step is a **GitHub Action**
 ([`.github/workflows/agent-start-from-issue.yml`](../../.github/workflows/agent-start-from-issue.yml)),
-not an EAS workflow, and it has to be: EAS has no issue trigger and no comment trigger.
-Actions has both — which is why `/build` works directly here while `/agent` and `/verify`
-still need a label to fire.
+not an EAS workflow, and it has to be: EAS has no issue trigger. Its comment trigger
+covers pull requests only.
+
+A comment on its own starts nothing, on an issue or a PR. That used to differ — an issue
+accepted a `/build` comment as a trigger — but one rule is easier to remember than three
+commands.
 
 Three details in that Action are load-bearing:
 
@@ -71,15 +132,39 @@ Three details in that Action are load-bearing:
   the whole chain, and GitHub recommends a PAT for exactly this case.
 
 Issue text never reaches a shell command — it is passed through the environment into
-Python, which writes the file. A title containing `` $(whoami) `` lands in `PR-TODO.md`
-as literal text.
+Python, which writes the PR description to a file for `gh pr create --body-file`. A title
+containing `` $(whoami) `` lands in the description as literal text.
+
+## The task lives in the PR description
+
+There is no task file in the repository. That used to be `PR-TODO.md`, and it was
+merged into `main` with every agent PR.
+
+GitHub will not open a pull request with no diff, so the Action commits one placeholder,
+`.agent-placeholder`. It holds one line and no task. The agent run deletes it in the
+same commit as its first real change, so it never reaches `main`. A run that changes
+nothing leaves it in place, so the PR still has a diff and stays open.
+
+The description is shared between people and runs, in fixed places:
+
+| Part | Written by | Changed by |
+|---|---|---|
+| Everything outside the marked blocks | the issue Action, or you | only a human |
+| `<!-- agent-plan:start -->` … `end` | a build run, before it changes code | the next build run |
+| `<!-- agent-results:start -->` … `end` | every run | the next run |
+
+The task is the description with both blocks removed (`gh_task_from_body`). The
+verifier gets the task as intent and the two blocks as claims, in separate files, which
+is what lets it plan before it reads what the author says.
+
+A revise run does not rewrite the plan. It reports its own changes in the results block.
 
 ### Draft PRs cost one workflow, not three
 
 Opening a PR also fires `update-on-pr.yaml` and `maybe-make-dev-builds-on-pr.yaml` —
-including for draft PRs, which is what an agent run starts as. That meant one `/build`
-kicked off three EAS workflows, one of which could be a full native build on a branch
-whose only content was a markdown file.
+including for draft PRs, which is what an agent run starts as. That meant one issue
+label kicked off three EAS workflows, one of which could be a full native build on a branch
+whose only content was a placeholder file.
 
 Both are now gated with `if: ${{ !github.event.pull_request.draft }}`, so they hold until
 the PR is genuinely ready for review — which is also when their output starts being
@@ -99,15 +184,26 @@ three build jobs keep their own unrelated `if` conditions untouched.
 
 If you would rather skip the issue:
 
-1. Branch, and add a `PR-TODO.md` at the repository root. Copy
-   [`PR-TODO.template.md`](../../PR-TODO.template.md) and fill it in.
-2. Open a **draft** pull request.
+1. Open a **draft** pull request. It needs at least one commit; any small change will do.
+   If you add `.agent-placeholder`, the run deletes it for you.
+2. Write the task in the PR description:
+   - **What to build** — what a user should be able to do that they cannot do today, or
+     what is broken.
+   - **Where** — screens, routes, or components, if you know them.
+   - **How to tell it works** — concrete steps in the running app and what to see. The
+     agent drives a real simulator against these.
+   - **Out of scope** — anything nearby to leave alone.
+
+   Keep it to one feature or one fix, and prefer JavaScript-only work. A native change
+   makes the run skip simulator validation.
 3. Add the **`agent-start`** label.
 
 The run takes up to 30 minutes. Watch it on the EAS dashboard.
 
-**Passing run** — the code is committed to your branch, the PR description gains a
-results block, and the PR is flipped to *ready for review*.
+**Passing run** — the code is committed to your branch and the PR description gains a
+plan block and a results block. The [verify function](#agent-verify) then runs against the pushed commit.
+Its `PASS` flips the PR to *ready for review*. Any other verdict leaves it in draft, with
+the findings in a comment.
 
 **Failing run** — the code is still committed, the results block explains what went
 wrong, a comment lists the blockers, and the PR **stays in draft**. Fix the task
@@ -140,8 +236,9 @@ Ask for changes in review. Get them applied and re-validated.
 Leave as many `/agent` comments as you like before labelling. They are applied together,
 oldest first.
 
-**Passing run** — the changes are committed, the results block is updated, and the PR
-stays open for review with a short comment.
+**Passing run** — the changes are committed and the results block is updated. The
+verify function then checks the same `/agent` requests independently. `PASS` keeps the
+PR open for review. Any other verdict moves it back to draft.
 
 **Failing run** — the changes are still committed, and the PR is moved **back to draft**.
 "Ready for review" should always mean "validated", so an open PR is never left showing
@@ -149,18 +246,24 @@ unvalidated code.
 
 ## Why a label and not just a comment
 
-EAS Workflows has no comment trigger. The complete list is `workflow_dispatch`, `push`,
-`ref_delete`, `pull_request`, `pull_request_labeled`, `app_store_connect`, and
-`schedule`. A comment cannot start a run, so the two roles are split: **the comment is
-the payload, the label is the trigger.**
+EAS Workflows now has a `pull_request_comment` trigger, so a comment *could* start a run.
+The label stays the trigger on purpose: **the comment is the payload, the label is the
+trigger.**
 
-That split earns its keep anyway. You can discuss freely in the same thread and only the
-`/agent` comments are treated as instructions, and you decide when a batch of feedback is
-complete rather than firing a run per comment.
+- **One command.** With comment triggers, each activity needs its own command word. With
+  labels, `/agent` means the same thing everywhere and the label picks the activity.
+- **Batches.** You can leave several `/agent` comments, discuss freely in the same
+  thread, and start one run when the feedback is complete, not one run per comment.
+- **Authorisation.** Applying a label needs Triage or higher. A comment trigger would
+  need its own author check before any worker starts.
 
-**Both workflows remove their own label when they finish.** GitHub only fires `labeled`
+**Each workflow removes its own label in its last job.** GitHub only fires `labeled`
 on an absent-to-present transition, so without that, re-applying a label already on the
-PR would silently do nothing.
+PR would silently do nothing. The job is
+[`.eas/functions/remove-pr-label`](../functions/remove-pr-label/function.yml), called with
+`after:` rather than `needs:`. So the label comes off even when a job before it fails,
+times out, or is skipped. A run that is cancelled can leave the label on. Remove it by
+hand in that case.
 
 ## Which comments count
 
@@ -171,6 +274,11 @@ A comment is picked up only when all three hold:
 | Starts with `/agent` | Ordinary discussion in the thread is not an instruction |
 | Author is OWNER, MEMBER, or COLLABORATOR | This repository is public and anyone can comment. Without this filter, a stranger's comment would become agent instructions |
 | Newer than the last commit on the branch | Anything older was already acted on, or predates the code now on the branch |
+
+The same filters apply for every label. The only difference is what the run does with
+the comments. The verify step that follows a revise run reads from the same boundary
+the revise run used, so it checks the requests that were just applied, even though the
+revise commit is now newer than them.
 
 The requests a run acted on are listed by author in the results block, so it is never
 ambiguous which comments were picked up and which were ignored.
@@ -188,12 +296,18 @@ Prove a PR works on a real device, and get a link to the screenshots.
 This one **writes no code and pushes no commits**. It answers "does this actually work?"
 and reports, so it is safe to point at a PR a human wrote.
 
+It is an EAS **custom function**,
+[`.eas/functions/agent-verify`](../functions/agent-verify/function.yml), not only a
+workflow. `agent-verify.yaml` calls it on its own. `agent-start.yaml` and
+`agent-revise.yaml` call it as their last job, so every passing agent run gets an
+independent check with screenshots.
+
 ## How to use it
 
-1. Comment on the PR, starting with **`/verify`**. Guidance is optional but helps:
+1. Optionally, comment on the PR, starting with **`/agent`**, to say what to check:
 
    ```
-   /verify check that the Eggs slider still snaps to whole numbers
+   /agent check that the Eggs slider still snaps to whole numbers
    ```
 
 2. Add the **`agent-verify`** label.
@@ -202,8 +316,27 @@ You get a PR comment with a verdict — `PASS`, `FAIL`, or `INCONCLUSIVE` — a 
 published evidence page of screenshots, and a collapsible full report. A `FAIL` or
 `INCONCLUSIVE` verdict fails the job, so the check goes red on the PR.
 
-Only the **most recent** `/verify` comment is used as guidance, unlike Agent Revise which
-batches every outstanding request. A verification is one question, asked now.
+Every trusted `/agent` comment newer than the branch's last commit is guidance, oldest
+first, the same set Agent Revise would pick up.
+
+## The verifier is adversarial
+
+The implementing agent already validated its own work, from its own test plan, after
+reading its own summary. Repeating that check adds little. The verifier prompt
+([`prompts/verify.md`](../../scripts/agent/prompts/verify.md)) is built to find what that
+check missed:
+
+- **Intent before claims.** The job gives the verifier the task and the `/agent` requests
+  in separate files from the PR description, which holds the author's claims. The
+  verifier must write its own test plan, with at least three attacks, *before* it reads
+  the claims. The plan is in the report, so you can see it came first.
+- **Assume broken.** A requirement is met only when it was observed on screen. The
+  prompt lists attacks to pick from: edge values, persistence across a restart,
+  neighbouring screens the diff touches, the reverse path, and unrequested changes.
+- **Lean red.** A cosmetic nit that nobody asked about is a finding, not a `FAIL`. But
+  when the verifier is unsure between the two, it chooses `FAIL`.
+- **Infrastructure is not evidence.** If no build matches, the update does not publish,
+  or the session does not start, the verdict is `INCONCLUSIVE`, never `FAIL`.
 
 ## Screenshots without bloating the repo
 
@@ -230,22 +363,40 @@ verdict text is written by a model that has just read an untrusted PR diff.
 Screenshot filenames drive the page: `2-ratios-adjusted.png` becomes item 2, captioned
 "Ratios adjusted".
 
-## Why nothing chains into verify automatically
+## Why verify runs after every passing agent run
 
-`agent-start` and `agent-revise` already validate on a simulator, so running verify
-straight afterwards is tempting. It is deliberately not wired up:
+This used to be a manual step, for three reasons. Each now has an answer:
 
-- **It re-tests the same change, differently.** Their validation runs a dev bundle over
-  Metro; verify runs the published update on a fingerprint-matched build. That extra
-  fidelity is real but modest for a JavaScript change.
-- **It roughly doubles the cost.** Another simulator session, another Claude run, another
-  ~15 minutes — and a native change means a ~10 minute build on top.
-- **The states fight.** `agent-start` marks the PR ready on a pass. A chained verify that
-  failed would convert it straight back to draft, so a single run would flip the PR twice.
+- **"It re-tests the same change."** It does not, now. The validate phase checks the
+  author's own plan against a Metro bundle. The verifier plans from the intent alone,
+  tries to break the change, and loads the published update. It is a second opinion,
+  not a repeat.
+- **"It roughly doubles the cost."** Still true: another simulator session and another
+  Claude run. It runs only after the agent's own validation passed, because a failing
+  run already reports its blockers and screenshots. A native change stops the agent run
+  before validation, so it never reaches a verify job that has no build to run.
+- **"The states fight."** Solved by giving one job the decision. With
+  `AGENT_VERIFY_FOLLOWS=1`, the agent job never marks the PR ready. The verify job does,
+  on `PASS` only. On any other verdict it keeps the PR in draft, or moves an open PR
+  back to draft. The PR changes state once per run.
 
-They are different questions asked by different people: *"did I build it right"* before
-claiming done, versus *"prove it to me"* when a reviewer arrives. A passing run therefore
-ends by suggesting `/verify` rather than running it.
+The chained call passes `gate_ready: true`. A standalone `agent-verify` run leaves it
+false, so verifying a human's PR only comments. It never changes draft state.
+
+### Why the chained verify cannot use the pre-packaged jobs
+
+`agent-verify.yaml` uses the `fingerprint`, `get-build`, and `build` pre-packaged jobs.
+They have no `ref` parameter and always use the commit that triggered the workflow. In
+`agent-verify.yaml` that is correct, because nothing pushes during the run.
+
+In `agent-start.yaml` and `agent-revise.yaml` the agent pushes a new commit mid-run. The
+pre-packaged jobs would publish and test the commit *before* the agent's change. So the
+verify function does that work itself, in a custom job whose `eas/checkout` takes the
+branch head:
+
+- It publishes the checkout with `eas update --branch <pr-branch> --platform ios`.
+- When no `build_id` input is given, it resolves the build with
+  `scripts/lib/resolve-sim-build.sh`, the resolver the validate phase uses.
 
 ## How the PR's code reaches the simulator
 
@@ -254,8 +405,8 @@ is faster: **no Metro and no tunnel.**
 
 | Piece | Where it comes from |
 |---|---|
-| The binary | A fingerprint-matched `development-simulator` build, reused across PRs. Built only when no build matches |
-| The JavaScript | An EAS Update published from the PR branch, per run |
+| The binary | Standalone: a fingerprint-matched `development-simulator` build, built only when none matches. Chained: the runtime-matched build the validate phase used |
+| The JavaScript | An EAS Update the verify function publishes from the checked-out branch, per run |
 
 The job then deep-links the build at that one update group:
 
@@ -268,7 +419,7 @@ named after the PR branch, which a `preview`-channel build would never resolve t
 pointing the shared `preview` channel at a PR branch would break previews for everyone
 else. The deep link sidesteps both: it loads exactly that update and nothing else.
 
-A native change means no build matches the fingerprint, so a fresh
+In a standalone run, a native change means no build matches the fingerprint, so a fresh
 `development-simulator` build runs first. That makes the run long rather than making it
 lie.
 
@@ -286,12 +437,93 @@ closed rather than reporting a pass nobody proved.
 
 ---
 
+# Agent Reproduce
+
+Ask whether a bug report is real. Get a verdict on the issue, with screenshots.
+
+## How to use it
+
+1. Open the issue with the **Bug report** template, so it has steps, an expected
+   result, and an actual result. Screenshots attached to the issue are given to the
+   reproducer too.
+2. Optionally, comment on the issue, starting with **`/agent`**, to steer it:
+
+   ```
+   /agent this only happens with the metric units setting turned on
+   ```
+
+3. Add the **`agent-reproduce`** label to the issue.
+
+Within a minute the EAS run comments that it started, with a link to the run. When it
+ends, a second comment gives the verdict and two links:
+
+| Verdict | Means |
+|---|---|
+| `REPRODUCED` | The reproducer saw the actual result the issue describes |
+| `NOT_REPRODUCED` | It ran the steps and up to three variations, and the app behaved correctly each time |
+| `INCONCLUSIVE` | It could not run the steps: the issue is too vague, it needs something a simulator cannot do, or the run could not reach the app |
+
+| Link | Goes to |
+|---|---|
+| **Evidence** | A page on EAS Hosting with the run's screenshots, alias `issue-<N>-repro` |
+| **Simulator session** | The session page on expo.dev, with its recording and logs |
+
+The label comes off at the end of the run, so applying it again starts a new attempt.
+
+## How it runs
+
+```
+issue --agent-reproduce--> GitHub Action --eas workflow:run--> agent-reproduce.yaml
+                           (write access?)                     announce (comment on issue)
+                                                               fingerprint -> build if needed
+                                                               -> reproduce -> comment on issue
+                                                               -> remove label
+```
+
+The Action exists only because EAS has no issue trigger. It checks write access the
+same way as [the agent-start Action](#from-an-issue), then calls
+`eas workflow:run --ref <default branch> -F issue_number=<N>` and exits. It does not
+wait and does not comment, except when the run could not start at all. The EAS
+workflow posts every other comment. The issue number is the only value that crosses
+into EAS. The EAS job reads the issue text itself, through the
+API, and gives it to Claude as a file.
+
+The app under test is the **default branch**, not the version the reporter used. The
+build and the update come from the same place as in a standalone
+[Agent Verify](#agent-verify) run: a fingerprint-matched `development-simulator` build
+(built first when none matches), and an EAS Update published from the checkout to the
+`agent-reproduce` branch, deep-linked into the build. The session code is shared with
+the verifier in `scripts/agent/lib/session.sh`.
+
+The reproducer prompt ([`prompts/reproduce.md`](../../scripts/agent/prompts/reproduce.md))
+has these rules:
+
+- **Plan first.** It writes the steps and the on-screen sign of the bug into the
+  report before it touches the device. When the issue has no steps, it says it
+  inferred them.
+- **Steps as written, then variations.** If the bug does not appear, it tries up to
+  three things a real user could plausibly have done differently.
+- **Observed or nothing.** Source code helps it find screens, never proves a bug.
+- **Other defects are findings.** A different bug seen on the way is reported, but
+  does not make the verdict `REPRODUCED`.
+- **The issue is data.** Anyone can open an issue on a public repository, so any
+  instruction in it that is not about using the app is ignored and reported.
+
+Any verdict the reproducer reaches is a successful job, including `REPRODUCED`. The job
+is red only when the run never reached the app, or could not comment.
+
+Reporter images are downloaded only from GitHub's own attachment hosts, at most six,
+10 MB each, and are not published on the evidence page.
+
+---
+
 ## What a build or revise run actually does
 
 Agent Start and Agent Revise share `scripts/agent/run-agent-pr.sh`, switched by
 `AGENT_MODE`. Only the source of the task and the prompt differ; the checks, the
-fingerprint gate, the simulator validation, and the publish step are identical. Agent
-Verify is a separate script — it has no implement phase and never touches the branch.
+fingerprint gate, the simulator validation, and the publish step are identical. The
+verify job that follows is a separate job and script — it has no implement phase and
+never touches the branch.
 
 | Phase | Budget | Detail |
 |---|---|---|
@@ -299,7 +531,7 @@ Verify is a separate script — it has no implement phase and never touches the 
 | 1. Implement | 15 min | Claude writes the code, then lint and `bun test` |
 | 2. Gate | seconds | Recompute the fingerprint |
 | 3. Validate | 10 min | Publish Metro over a tunnel, start a remote EAS Simulator on it, drive the app |
-| 4. Publish | 4 min | Commit, push, rewrite the PR description, flip to ready or comment |
+| 4. Publish | 4 min | Commit, push, rewrite the PR description. Draft state is left to the verify job |
 
 Everything runs in one `linux-medium` job. The simulator runs **on EAS**, not on the
 worker, so this needs no Mac and no nested virtualisation — the job only runs Metro, the
@@ -399,18 +631,27 @@ The runner works outside EAS against a real PR — see
 | `scripts/agent/lib/gh.sh` | GitHub REST and GraphQL over `curl`. |
 | `scripts/agent/lib/sim.sh` | Tunnelled Metro, remote session, Argent, startup dialogs. |
 | `scripts/remote-sim.sh` | Session lifecycle. Shared with local work, called by the job. |
-| `.eas/workflows/agent-verify.yaml` | Verify trigger, plus the build and update jobs it needs. |
-| `scripts/agent/verify-pr.sh` | The verification run. Separate: no implement phase. |
+| `.eas/workflows/agent-verify.yaml` | Verify trigger, plus the fingerprint and build jobs for a standalone run. |
+| `.eas/functions/agent-verify/function.yml` | The verify custom function. Called by all three agent workflows. |
+| `.eas/functions/remove-pr-label/function.yml` | Removes the trigger label. The last job of all three agent workflows. |
+| `scripts/agent/verify-pr.sh` | The verification run: publish, boot, verify, report, draft gate. |
 | `scripts/agent/build-evidence-site.mjs` | Screenshots to a static page for EAS Hosting. |
+| `.github/workflows/agent-reproduce-from-issue.yml` | Reproduce trigger: access check, then `eas workflow:run`. |
+| `.eas/workflows/agent-reproduce.yaml` | Reproduce workflow: build resolution, the run, label removal. |
+| `scripts/agent/reproduce-issue.sh` | The reproduction run: read the issue, publish, boot, reproduce, report. |
+| `scripts/agent/lib/session.sh` | Publish an update and boot a deep-linked session. Shared by verify and reproduce. |
+| `scripts/agent/prompts/reproduce.md` | Reproducer prompt. Judges, never edits. |
 | `scripts/agent/prompts/implement.md` | Build-mode prompt. |
 | `scripts/agent/prompts/revise.md` | Revise-mode prompt. Narrower on purpose. |
 | `scripts/agent/prompts/validate.md` | Validate-phase prompt, shared by build and revise. |
-| `scripts/agent/prompts/verify.md` | Verifier prompt. Judges, never edits. |
+| `scripts/agent/prompts/verify.md` | Adversarial verifier prompt. Judges, never edits. |
 | `scripts/lib/resolve-sim-build.sh` | Shared build resolver, also used by `remote-sim.sh`. |
+| `scripts/agent/check-story.py` | Issue readiness check: user story and fit criteria. |
+| `.github/ISSUE_TEMPLATE/agent-task.md` | Issue template with both sections. |
 
 ## Security notes
 
-`PR-TODO.md`, the PR body, and every `/agent` comment are user-written. None is
+The PR description and every `/agent` comment are user-written. None is
 interpolated into the workflow YAML or into a shell command. Bodies and comments are
 fetched through the API and written to files; Claude reads them as files and is told to
 treat them as task descriptions, not as instructions about its own behaviour.
@@ -441,7 +682,7 @@ collaborator exists:
 
 | Entry point | Requires |
 |---|---|
-| `/build` or `agent-start` on an **issue** | `write`, `maintain`, or `admin` |
+| `agent-start` on an **issue** | `write`, `maintain`, or `admin` |
 | Any label on a **PR** | Triage or higher, since that is what labelling needs |
 
 The Action is the stricter of the two. To make the label path match, add the same

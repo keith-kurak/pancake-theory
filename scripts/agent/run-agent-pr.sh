@@ -2,8 +2,9 @@
 #
 # Agent PR runner — the body of both agent-start.yaml and agent-revise.yaml.
 #
-# In build mode, given a draft PR carrying a PR-TODO.md and the `agent-start`
-# label (in revise mode, the `/agent` comments gathered from the PR):
+# In build mode, given a draft PR whose description is the task and the
+# `agent-start` label (in revise mode, the `/agent` comments gathered from the
+# PR):
 #
 #   0. Preflight   — check secrets, read the task, record the iOS fingerprint.
 #   1. Implement   — Claude writes the code, then lint and unit tests run.
@@ -12,6 +13,18 @@
 #                    session pointed at it, and let Claude drive the real app.
 #   4. Publish     — commit, push, rewrite the PR description, and either flip
 #                    the PR to ready or leave it in draft with the blockers.
+#
+# The task is the PR description outside the agent's marked blocks. A build run
+# writes its implementation plan into an `agent-plan` block, and every run
+# rewrites the `agent-results` block. Neither ever edits the task text. The
+# issue Action opens the PR with a `.agent-placeholder` file, because GitHub
+# will not open a PR with no diff; the first commit with real changes deletes
+# it, so no task file ever reaches main.
+#
+# With AGENT_VERIFY_FOLLOWS=1 (set by both workflows), a pass does not flip the
+# PR to ready. The next job runs the shared verify function against the pushed
+# commit, and its verdict decides draft state. That keeps "ready for review"
+# meaning "independently verified", and the PR changes state once per run.
 #
 # The whole run is capped at AGENT_TOTAL_BUDGET_SECONDS (default 1800). EAS
 # Workflows has no job timeout, so the cap is enforced here by run_with_budget.
@@ -50,13 +63,16 @@ mkdir -p "$AGENT_OUT"
 : "${PUBLISH_RESERVE_SECONDS:=240}"
 : "${RUN_URL:=}"
 
-# build  — implement PR-TODO.md on a draft PR, then mark it ready.
+# build  — implement the PR description on a draft PR, then mark it ready.
 # revise — apply the reviewer's /agent comments to an open PR.
 : "${AGENT_MODE:=build}"
-# The label that triggered this run. Removed on the way out so the next request
-# is one click: GitHub only fires `labeled` on an absent-to-present transition.
+# The label that triggered this run, named in comments. The workflow's last
+# job removes it, so the next request is one click.
 : "${AGENT_LABEL:=}"
 : "${REQUEST_MARKER:=/agent}"
+PLACEHOLDER=".agent-placeholder"
+# 1 when a verify job runs after this one and owns the ready/draft decision.
+: "${AGENT_VERIFY_FOLLOWS:=}"
 
 # Phase results, read by finish().
 STATUS_IMPLEMENT="not reached"
@@ -99,6 +115,10 @@ preflight() {
   local pr_json
   pr_json="$(gh_pr_json)" || { fail "could not read PR #$PR_NUMBER"; exit 1; }
   WAS_DRAFT="$(printf '%s' "$pr_json" | gh_field draft)"
+  PR_TITLE="$(printf '%s' "$pr_json" | gh_field title)"
+
+  # The task, for Claude to read as a file. Never interpolated anywhere.
+  gh_task_from_body "$(printf '%s' "$pr_json" | gh_field body)" > "$AGENT_OUT/task.md"
 
   if [ -z "${PR_HEAD_REF:-}" ]; then
     PR_HEAD_REF="$(printf '%s' "$pr_json" | gh_field head.ref)"
@@ -106,6 +126,15 @@ preflight() {
     log "Recovered head branch from the API: $PR_HEAD_REF"
   fi
   log "Mode: $AGENT_MODE (PR #$PR_NUMBER, draft=$WAS_DRAFT)"
+
+  # The branch's last commit before this run. In revise mode it bounds the
+  # change requests; the verify job reads `/agent` comments from the same point,
+  # so it checks the requests this run applied rather than none at all — the
+  # commit this run pushes would otherwise hide them.
+  REQUESTS_SINCE="$(git log -1 --format=%cI 2>/dev/null || echo "")"
+  if command -v set-output >/dev/null 2>&1; then
+    set-output requests_since "$REQUESTS_SINCE"
+  fi
 
   case "$AGENT_MODE" in
     build)   preflight_build ;;
@@ -131,28 +160,36 @@ preflight_build() {
     fail "PR #$PR_NUMBER is not a draft; refusing to rewrite it"
     gh_comment "$(printf 'The `%s` label was applied, but this PR is already open for review, so I did not touch it.\n\nTo request changes on an open PR, comment `/agent <what to change>` and apply the `agent-revise` label instead.\n' \
       "${AGENT_LABEL:-agent-start}")" || warn "could not post the comment"
-    gh_remove_label "$AGENT_LABEL"
     exit 1
   fi
 
-  if [ ! -f "$PROJECT_ROOT/PR-TODO.md" ]; then
-    fail "no PR-TODO.md at the repository root"
-    gh_comment "$(printf 'The `%s` label was applied, but there is no `PR-TODO.md` at the repository root.\n\nAdd one describing the feature or fix, push it, then apply the label again.\nStart from `PR-TODO.template.md`.\n' \
+  if [ ! -s "$AGENT_OUT/task.md" ]; then
+    fail "the PR description is empty, so there is no task"
+    gh_comment "$(printf 'The `%s` label was applied, but this PR has no description, so there is no task to build.\n\nDescribe the feature or fix in the PR description: what a user should be able to do, where, and how to tell it works. Then apply the label again.\n' \
       "${AGENT_LABEL:-agent-start}")" || warn "could not post the comment"
-    gh_remove_label "$AGENT_LABEL"
     exit 1
   fi
 
-  log "Task:"
-  sed 's/^/    /' "$PROJECT_ROOT/PR-TODO.md" | head -n 40
+  log "Task (from the PR description):"
+  sed 's/^/    /' "$AGENT_OUT/task.md" | head -n 40
+
+  # Optional here, unlike revise: `/agent` comments on the draft PR are extra
+  # guidance for the build, the same as `/agent` comments on the issue are.
+  gh_collect_requests "$REQUESTS_SINCE" "$REQUEST_MARKER" > "$AGENT_OUT/change-requests.md" \
+    || : > "$AGENT_OUT/change-requests.md"
+  if [ -s "$AGENT_OUT/change-requests.md" ]; then
+    log "Extra guidance from '$REQUEST_MARKER' comments:"
+    sed 's/^/    /' "$AGENT_OUT/change-requests.md" | head -n 40
+  else
+    rm -f "$AGENT_OUT/change-requests.md"
+  fi
 }
 
 # Change requests are the comments left since the branch's last commit. That
 # timestamp is the natural boundary: anything older was either already acted on
 # or predates the code now on the branch. No state file needed.
 preflight_revise() {
-  local since
-  since="$(git log -1 --format=%cI 2>/dev/null || echo "")"
+  local since="$REQUESTS_SINCE"
   log "Collecting '$REQUEST_MARKER' comments newer than ${since:-<all time>}"
 
   gh_collect_requests "$since" "$REQUEST_MARKER" > "$AGENT_OUT/change-requests.md"
@@ -162,7 +199,6 @@ preflight_revise() {
     gh_comment "$(printf 'The `%s` label was applied, but I found no new `%s` comments on this PR.\n\nLeave a comment that starts with `%s` describing what to change, then apply the label again. Only comments from repository collaborators, newer than the last commit on this branch, are picked up.\n' \
       "$AGENT_LABEL" "$REQUEST_MARKER" "$REQUEST_MARKER")" \
       || warn "could not post the comment"
-    gh_remove_label "$AGENT_LABEL"
     exit 1
   fi
 
@@ -202,7 +238,14 @@ ios_fingerprint() {
 # Phase 1 — implement
 # ---------------------------------------------------------------------------
 
-# The prompt file is passed to claude as the prompt argument. PR-TODO.md is NOT
+# has_changes — true when the working tree has a real change. Untracked files
+# count (a change that only adds files is still a change), and the placeholder
+# does not: deleting it alone is not work.
+has_changes() {
+  [ -n "$(git status --porcelain -- . ":(exclude)agent-out" ":(exclude)$PLACEHOLDER")" ]
+}
+
+# The prompt file is passed to claude as the prompt argument. The task is NOT
 # interpolated into the shell or the prompt string — Claude reads it as a file,
 # so its contents cannot break out into the command line.
 claude_run() {
@@ -247,12 +290,12 @@ implement() {
     return 1
   fi
 
-  if git diff --quiet && git diff --cached --quiet; then
+  if ! has_changes; then
     STATUS_IMPLEMENT="made no changes"
     if [ "$AGENT_MODE" = revise ]; then
       note_blocker "The revise phase finished without changing any files. The change requests may be unclear, or may describe work that is already done."
     else
-      note_blocker "The implement phase finished without changing any files. The task in \`PR-TODO.md\` may be unclear."
+      note_blocker "The implement phase finished without changing any files. The task in the PR description may be unclear."
     fi
     return 1
   fi
@@ -439,10 +482,14 @@ validate() {
 # ---------------------------------------------------------------------------
 
 commit_and_push() {
-  if git diff --quiet && git diff --cached --quiet; then
+  if ! has_changes; then
     log "Nothing to commit"
     return 0
   fi
+
+  # The placeholder only existed so the PR could be opened. It leaves with the
+  # first real change, so the PR never merges it.
+  rm -f "$PLACEHOLDER"
 
   log "Phase 4: commit and push to $PR_HEAD_REF"
 
@@ -463,8 +510,8 @@ commit_and_push() {
     subject="Agent: ${subject:-apply review feedback}"
     source="Applied review comments from PR #$PR_NUMBER."
   else
-    subject="Agent: $(head -n 1 PR-TODO.md | sed 's/^#* *//')"
-    source="Implemented from PR-TODO.md."
+    subject="Agent: ${PR_TITLE#Agent: }"
+    source="Implemented from the description of PR #$PR_NUMBER."
   fi
 
   git commit --message "$(cat <<EOF
@@ -481,7 +528,9 @@ EOF
 
 results_markdown() {
   local icon source
-  if [ "$VERDICT" = pass ]; then
+  if [ "$VERDICT" = pass ] && [ -n "$AGENT_VERIFY_FOLLOWS" ]; then
+    icon="🔎 Validated — sent to independent verification"
+  elif [ "$VERDICT" = pass ]; then
     icon="✅ Ready for review"
   elif [ "$AGENT_MODE" = revise ]; then
     icon="🚧 Moved back to draft"
@@ -492,7 +541,7 @@ results_markdown() {
   if [ "$AGENT_MODE" = revise ]; then
     source="review comments"
   else
-    source='`PR-TODO.md`'
+    source='the PR description'
   fi
 
   printf '## %s\n\n' "$icon"
@@ -544,13 +593,13 @@ if errors:
     printf '🖼️ **[Screenshots from the run](%s)**\n\n' "$EVIDENCE_URL"
   fi
 
-  # The validation above ran against a dev bundle over Metro. `/verify` re-tests
-  # the published update on a fingerprint-matched build, which is closer to what
-  # a user installs. Suggested rather than chained: it is a reviewer's check, it
-  # costs another ~15 minutes, and a failing one would flip this PR straight back
-  # to draft moments after the run marked it ready.
-  if [ "$VERDICT" = pass ]; then
-    printf 'For an independent check on a production-shaped build, comment `/verify` and add the `agent-verify` label.\n\n'
+  # The validation above ran against a dev bundle over Metro, judged by an agent
+  # that had just read its own implementation notes. The verify job re-tests the
+  # published update, from the task alone, and tries to break it.
+  if [ "$VERDICT" = pass ] && [ -n "$AGENT_VERIFY_FOLLOWS" ]; then
+    printf 'An independent verifier runs next and posts its verdict as a comment. This PR is marked ready for review only if it passes.\n\n'
+  elif [ "$VERDICT" = pass ]; then
+    printf 'For an independent check, add the `agent-verify` label. To steer it, first comment `/agent <what to check>`.\n\n'
   fi
 
   printf 'Metro logs and the full transcript are attached to the '
@@ -580,10 +629,20 @@ publish() {
   node_id="$(printf '%s' "$pr_json" | gh_field node_id)"
   is_draft="$(printf '%s' "$pr_json" | gh_field draft)"
 
-  merged="$(gh_merge_results_block "$body" "$results")"
+  # Only a build run writes the plan. A revise run leaves the original plan in
+  # place and reports its own changes in the results block.
+  merged="$body"
+  if [ "$AGENT_MODE" = build ] && [ -s "$AGENT_OUT/plan.md" ]; then
+    merged="$(gh_merge_block "$merged" plan "$(printf '## Implementation plan\n\n_Written by the agent before it changed any code._\n\n%s\n' "$(cat "$AGENT_OUT/plan.md")")")"
+  fi
+  merged="$(gh_merge_block "$merged" results "$results")"
   gh_set_body "$merged" || warn "could not update the PR description"
 
-  if [ "$VERDICT" = "pass" ]; then
+  if [ "$VERDICT" = "pass" ] && [ -n "$AGENT_VERIFY_FOLLOWS" ]; then
+    # No comment either: the verifier posts one, and two in a row for one run
+    # is noise. The results block already says what happens next.
+    log "Leaving draft state to the verify job"
+  elif [ "$VERDICT" = "pass" ]; then
     if [ "$is_draft" = "true" ]; then
       log "Marking PR #$PR_NUMBER ready for review"
       gh_mark_ready "$node_id" || warn "could not clear draft state"
@@ -609,12 +668,6 @@ publish() {
       gh_comment "$(printf 'The agent run did not reach a passing state, so this PR stays in draft.\n\n%s\nFull results are in the PR description.\n' "$blockers")" \
         || warn "could not post the comment"
     fi
-  fi
-
-  # Last, so a failure above does not strand the label and block a retry.
-  if [ -n "$AGENT_LABEL" ]; then
-    log "Removing the '$AGENT_LABEL' label so it can be applied again"
-    gh_remove_label "$AGENT_LABEL"
   fi
 }
 
@@ -647,7 +700,7 @@ main() {
 
   if native_changed; then
     STATUS_VALIDATE="skipped — the change alters the native fingerprint"
-    note_blocker "This change alters the iOS native fingerprint, so no existing development build can run it. Simulator validation was skipped. Build a new \`development-simulator\` build and re-apply the \`agent\` label to validate."
+    note_blocker "This change alters the iOS native fingerprint, so no existing development build can run it. Simulator validation was skipped. Build a new \`development-simulator\` build and re-apply the \`agent-start\` or \`agent-revise\` label to validate."
     return
   fi
 

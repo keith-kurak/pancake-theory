@@ -1,0 +1,171 @@
+name: Tag OTA release
+description: >-
+  Records a published EAS Update as a GitHub release, tagged
+  "<runtime version>-ota-<first 6 characters of the update group id>" on the
+  commit that EAS Update recorded for it. Needs GH_TOKEN in the calling job's
+  environment, with write access to the repository's contents (tags and
+  releases).
+
+# The tag can never be mistaken for a binary release tag: find-github-release
+# matches only "<runtime version>" and "v<runtime version>" exactly, so the
+# "-ota-" suffix keeps these out of the gating logic. The release is also
+# created with make_latest false, so the binary release keeps the "Latest"
+# badge on GitHub.
+
+inputs:
+  - name: runtime_version
+    type: string
+    required: true
+  - name: update_group_id
+    type: string
+    required: true
+  - name: updates_json
+    type: string
+    required: true
+  - name: commit_sha
+    type: string
+    # Used only when updates_json carries no gitCommitHash.
+    default_value: ${{ github.sha }}
+  - name: repository
+    type: string
+    # Same reason as find-github-release: the github context is empty on
+    # non-push triggers.
+    default_value: keith-kurak/pancake-theory
+  - name: dashboard_project
+    type: string
+    default_value: keithco/projects/pancake-theory
+
+outputs:
+  tag:
+    value: ${{ steps.tag.outputs.tag }}
+    description: The tag that was created, for example "1.5.0-ota-3f9a1c".
+  url:
+    value: ${{ steps.tag.outputs.url }}
+    description: The GitHub release's HTML URL.
+
+runs:
+  steps:
+    - id: tag
+      name: Tag the update's commit and create a GitHub release
+      run: |
+        set -euo pipefail
+        if [ -z "${GH_TOKEN:-}" ]; then
+          echo "GH_TOKEN is not set. It should come from the calling job's EAS"
+          echo "environment, and needs repository contents write access."
+          exit 1
+        fi
+        REPO='${{ inputs.repository }}'
+        RUNTIME_VERSION='${{ inputs.runtime_version }}'
+        GROUP_ID='${{ inputs.update_group_id }}'
+        FALLBACK_SHA='${{ inputs.commit_sha }}'
+        DASHBOARD_PROJECT='${{ inputs.dashboard_project }}'
+        export REPO RUNTIME_VERSION GROUP_ID FALLBACK_SHA DASHBOARD_PROJECT
+
+        # The JSON holds the commit message, which can contain any quote
+        # character, so it goes through a quoted heredoc rather than a shell
+        # string.
+        cat > /tmp/updates.json <<'UPDATES_JSON_EOF'
+        ${{ inputs.updates_json }}
+        UPDATES_JSON_EOF
+
+        cat > /tmp/tag-ota-release.js <<'NODE_EOF'
+        const fs = require('fs');
+
+        const repo = process.env.REPO;
+        const rv = process.env.RUNTIME_VERSION;
+        const groupId = process.env.GROUP_ID;
+        const token = process.env.GH_TOKEN;
+
+        const headers = {
+          authorization: `Bearer ${token}`,
+          accept: 'application/vnd.github+json',
+          'x-github-api-version': '2022-11-28',
+          'user-agent': 'eas-workflow-tag-ota-release',
+        };
+
+        async function gh(method, path, body) {
+          const res = await fetch(`https://api.github.com/repos/${repo}${path}`, {
+            method,
+            headers,
+            body: body && JSON.stringify(body),
+          });
+          const text = await res.text();
+          return { status: res.status, body: text ? JSON.parse(text) : null };
+        }
+
+        async function main() {
+          if (!groupId) throw new Error('No update group id was passed in.');
+
+          let updates = [];
+          try {
+            updates = JSON.parse(fs.readFileSync('/tmp/updates.json', 'utf8'));
+          } catch (e) {
+            console.log(`Could not parse updates_json (${e.message}).`);
+          }
+          const update =
+            (Array.isArray(updates) &&
+              (updates.find((u) => u.group === groupId) || updates[0])) ||
+            {};
+
+          // Tag what EAS Update recorded, so the tag and the dashboard agree
+          // even if main has moved on since the update job checked out.
+          const sha = update.gitCommitHash || process.env.FALLBACK_SHA;
+          if (!sha) throw new Error('No commit to tag: updates_json has no gitCommitHash and no fallback sha was passed in.');
+
+          const tag = `${rv}-ota-${groupId.slice(0, 6)}`;
+          const dashboard = `https://expo.dev/accounts/${process.env.DASHBOARD_PROJECT}/updates/${groupId}`;
+          console.error(`Tagging ${sha} as ${tag}`);
+
+          // Create the tag explicitly. Letting the release create it from
+          // target_commitish would silently reuse an existing tag on a
+          // different commit.
+          const ref = await gh('POST', '/git/refs', { ref: `refs/tags/${tag}`, sha });
+          if (ref.status === 422) {
+            const existing = await gh('GET', `/git/ref/tags/${encodeURIComponent(tag)}`);
+            if (existing.body?.object?.sha !== sha) {
+              throw new Error(`Tag ${tag} already exists on ${existing.body?.object?.sha}, not ${sha}.`);
+            }
+            console.error(`Tag ${tag} already exists on ${sha}. Reusing it.`);
+          } else if (ref.status !== 201) {
+            throw new Error(`Creating tag: GitHub API ${ref.status}: ${JSON.stringify(ref.body)}`);
+          }
+
+          const existingRelease = await gh('GET', `/releases/tags/${encodeURIComponent(tag)}`);
+          if (existingRelease.status === 200) {
+            console.error(`Release for ${tag} already exists. Leaving it as is.`);
+            console.log(`${tag} ${existingRelease.body.html_url}`);
+            return;
+          }
+
+          const lines = [
+            `Over-the-air update for runtime version **${rv}**. This is not a store binary.`,
+            '',
+            `- Update group: [\`${groupId}\`](${dashboard})`,
+            `- Commit: ${sha}`,
+          ];
+          if (update.message) lines.push(`- Message: ${update.message}`);
+          const release = await gh('POST', '/releases', {
+            tag_name: tag,
+            name: tag,
+            body: lines.join('\n'),
+            draft: false,
+            prerelease: false,
+            make_latest: 'false',
+          });
+          if (release.status !== 201) {
+            throw new Error(`Creating release: GitHub API ${release.status}: ${JSON.stringify(release.body)}`);
+          }
+          console.log(`${tag} ${release.body.html_url}`);
+        }
+
+        main().catch((e) => {
+          console.error(e.message);
+          process.exit(1);
+        });
+        NODE_EOF
+
+        OUT=$(node /tmp/tag-ota-release.js)
+        set -- $OUT
+        echo "Created $1: $2"
+        set-output tag "$1"
+        set-output url "$2"

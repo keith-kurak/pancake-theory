@@ -3,8 +3,9 @@ name: Check PR fingerprint against production
 # Pre-flight for the continuous deploy on main (deploy-production-on-main.yaml).
 #
 # That workflow can only ship a merge to production when the merged code still
-# fingerprint-matches the production iOS store build for the current runtime
-# version: a match is repackable and updatable, a mismatch is neither. This
+# fingerprint-matches the production store builds for the current runtime
+# version on BOTH iOS and Android: a match is replaceable and updatable, a
+# mismatch on either platform is neither. This
 # workflow runs the same check on the pull request, so the mismatch shows up on
 # the PR rather than after the merge lands on main.
 #
@@ -56,8 +57,9 @@ jobs:
     environment: production
     type: fingerprint
 
-  # An empty build_id means no production iOS store build matches this PR's
-  # fingerprint and runtime version — the native layer changed.
+  # An empty build_id on either platform means no production store build
+  # matches this PR's fingerprint and runtime version — the native layer
+  # changed.
   ios_get_build:
     name: Find matching iOS store build
     needs: [fingerprint, runtime_version]
@@ -69,21 +71,36 @@ jobs:
       fingerprint_hash: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
       runtime_version: ${{ needs.runtime_version.outputs.runtime_version }}
 
+  android_get_build:
+    name: Find matching Android store build
+    needs: [fingerprint, runtime_version]
+    type: get-build
+    params:
+      platform: android
+      profile: production
+      distribution: store
+      fingerprint_hash: ${{ needs.fingerprint.outputs.android_fingerprint_hash }}
+      runtime_version: ${{ needs.runtime_version.outputs.runtime_version }}
+
   doc_fingerprint_mismatch:
     name: Explain fingerprint mismatch
-    needs: [ios_get_build, runtime_version]
-    if: ${{ !needs.ios_get_build.outputs.build_id }}
+    needs: [ios_get_build, android_get_build, runtime_version]
+    if: ${{ !(needs.ios_get_build.outputs.build_id && needs.android_get_build.outputs.build_id) }}
     type: doc
     params:
       md: |
         # This PR is not eligible for continuous deploy
 
-        No production iOS store build matches this PR's fingerprint for runtime
-        version **${{ needs.runtime_version.outputs.runtime_version }}**. The production app
-        that `main` currently deploys onto does match it, so this PR does not match `main`.
+        This PR's fingerprint does not match a production store build on both platforms
+        for runtime version **${{ needs.runtime_version.outputs.runtime_version }}**:
+
+        - iOS: `${{ needs.ios_get_build.outputs.build_id || 'no match' }}`
+        - Android: `${{ needs.android_get_build.outputs.build_id || 'no match' }}`
+
+        `main` is expected to match both, so this PR does not match `main`.
 
         The native layer changed. Merging this PR would leave `main` unable to repack the
-        store build and unable to deliver an update to it, so
+        store builds and unable to deliver an update to them, so
         `deploy-production-on-main.yaml` would fail on the merge.
 
         Common causes:
@@ -97,20 +114,22 @@ jobs:
 
   comment_fingerprint_mismatch:
     name: Post mismatch note to PR
-    needs: [ios_get_build, runtime_version]
+    needs: [ios_get_build, android_get_build, runtime_version]
     after: [doc_fingerprint_mismatch]
-    if: ${{ !needs.ios_get_build.outputs.build_id }}
+    if: ${{ !(needs.ios_get_build.outputs.build_id && needs.android_get_build.outputs.build_id) }}
     type: github-comment
     params:
       payload: |
         ### ❌ Not eligible for continuous deploy
 
-        This PR's fingerprint does not match the production iOS store build for runtime
-        version **${{ needs.runtime_version.outputs.runtime_version }}**. `main` does match that
-        build, so this PR does not match `main`.
+        This PR's fingerprint does not match the production store builds for runtime
+        version **${{ needs.runtime_version.outputs.runtime_version }}** (iOS:
+        `${{ needs.ios_get_build.outputs.build_id || 'no match' }}`, Android:
+        `${{ needs.android_get_build.outputs.build_id || 'no match' }}`). `main` is expected to
+        match both, so this PR does not match `main`.
 
         Merging as-is would break `deploy-production-on-main.yaml`: the merge could be
-        neither repacked onto the store build nor delivered to it as an update.
+        neither shipped as a replacement store build nor delivered as an update.
 
         Usual causes: a dependency with native code changed, a config plugin (or a value one
         reads) changed, or something in **app.json** that affects the native project changed.
@@ -122,9 +141,9 @@ jobs:
 
   fail_workflow:
     name: Fail
-    needs: [ios_get_build]
+    needs: [ios_get_build, android_get_build]
     after: [doc_fingerprint_mismatch, comment_fingerprint_mismatch]
-    if: ${{ !needs.ios_get_build.outputs.build_id }}
+    if: ${{ !(needs.ios_get_build.outputs.build_id && needs.android_get_build.outputs.build_id) }}
     steps:
       - name: Fail the run
         run: |
@@ -138,26 +157,26 @@ jobs:
   # and later pushes republish to it.
   publish_pr_channel:
     name: Publish update to PR channel
-    needs: [ios_get_build, runtime_version]
-    if: ${{ needs.ios_get_build.outputs.build_id }}
+    needs: [ios_get_build, android_get_build, runtime_version]
+    if: ${{ needs.ios_get_build.outputs.build_id && needs.android_get_build.outputs.build_id }}
     environment: production
     type: update
     params:
-      platform: ios
+      platform: all
       channel: pr-${{ github.event.pull_request.number }}
       message: PR #${{ github.event.pull_request.number }} — ${{ github.sha }}
 
   comment_pr_channel:
     name: Post channel to PR
-    needs: [ios_get_build, runtime_version]
+    needs: [ios_get_build, android_get_build, runtime_version]
     after: [publish_pr_channel]
-    if: ${{ needs.ios_get_build.outputs.build_id }}
+    if: ${{ needs.ios_get_build.outputs.build_id && needs.android_get_build.outputs.build_id }}
     type: github-comment
     params:
       payload: |
         ### 📺 Channel surfing: `pr-${{ github.event.pull_request.number }}`
 
-        This PR matches the production iOS store build for runtime version
+        This PR matches the production iOS and Android store builds for runtime version
         **${{ needs.runtime_version.outputs.runtime_version }}**, so its JavaScript is published to
         the **`pr-${{ github.event.pull_request.number }}`** channel. You can load it in the
         production app without installing anything:
