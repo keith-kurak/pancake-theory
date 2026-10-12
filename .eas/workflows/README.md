@@ -30,6 +30,7 @@ issue  --/build-->  draft PR + PR-TODO.md  --agent-start-->  built & validated
 | `observe-events-test.yaml` | Daily at 04:00 GMT | Maestro run that checks `expo-observe` events |
 | `store-screenshots.yaml` | Manual | Captures App Store / Play screenshots |
 | `build-production.yaml` | Manual | Production builds and store submissions |
+| `testflight-crash.yaml` | TestFlight crash report (App Store Connect) | Shows the crash feedback ID and a link to it in App Store Connect |
 
 ---
 

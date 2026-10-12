@@ -1,0 +1,25 @@
+name: TestFlight crash
+
+on:
+  app_store_connect:
+    beta_feedback:
+      types:
+        - crash
+
+jobs:
+  report:
+    name: Crash report
+    type: doc
+    params:
+      md: |
+        # TestFlight crash reported
+
+        A tester sent a crash report from TestFlight.
+
+        | Field | Value |
+        |---|---|
+        | App Store Connect app | `${{ app_store_connect.app.id }}` |
+        | Feedback ID | `${{ app_store_connect.beta_feedback.id }}` |
+        | Type | `${{ app_store_connect.beta_feedback.type }}` |
+
+        [Open the crash in App Store Connect](${{ app_store_connect.beta_feedback.url }})
