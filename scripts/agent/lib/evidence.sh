@@ -7,12 +7,13 @@
 # inside a downloadable tarball. GitHub markdown will not render an EAS artifact
 # link — it is behind expo.dev auth — so the page is hosted instead.
 
-# publish_evidence <dir> <subject> <verdict> <alias>
+# publish_evidence <dir> <subject> <verdict> <alias> [kind]
 #
+# [kind] names the run on the page ("verification" when omitted).
 # Prints the deployed URL on stdout, or nothing if publishing failed. Never
 # fatal: losing the screenshots must not lose the verdict that goes with them.
 publish_evidence() {
-  local dir="$1" subject="$2" verdict="$3" alias="$4"
+  local dir="$1" subject="$2" verdict="$3" alias="$4" kind="${5:-verification}"
 
   # Nothing to show. A run that never reached the app has no evidence, and an
   # empty page is worse than no link.
@@ -21,7 +22,7 @@ publish_evidence() {
     return 0
   fi
 
-  node scripts/agent/build-evidence-site.mjs "$dir" "$subject" "$verdict" >&2 || {
+  node scripts/agent/build-evidence-site.mjs "$dir" "$subject" "$verdict" "$kind" >&2 || {
     echo "evidence: could not build the site" >&2
     return 0
   }

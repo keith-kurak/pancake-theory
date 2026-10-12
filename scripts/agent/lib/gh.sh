@@ -56,6 +56,14 @@ gh_pr_json() {
   _gh_curl GET "/repos/$GH_REPO/pulls/$PR_NUMBER"
 }
 
+# gh_issue_json — the issue numbered PR_NUMBER. GitHub numbers issues and PRs
+# from one sequence and serves both from the issues endpoints, so gh_comment
+# and gh_collect_requests work on an issue unchanged. (The review-comment half
+# of gh_collect_requests gets a 404 for an issue and contributes nothing.)
+gh_issue_json() {
+  _gh_curl GET "/repos/$GH_REPO/issues/$PR_NUMBER"
+}
+
 # Until a machine user owns the token, every comment is authored by a real
 # person's account and looks hand-written. This marker is the only thing
 # distinguishing them, so it is applied here rather than at each call site,

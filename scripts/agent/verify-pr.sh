@@ -40,6 +40,8 @@ cd "$PROJECT_ROOT" || exit 1
 . "$PROJECT_ROOT/scripts/agent/lib/gh.sh"
 # shellcheck source=scripts/agent/lib/sim.sh
 . "$PROJECT_ROOT/scripts/agent/lib/sim.sh"
+# shellcheck source=scripts/agent/lib/session.sh
+. "$PROJECT_ROOT/scripts/agent/lib/session.sh"
 # shellcheck source=scripts/agent/lib/evidence.sh
 . "$PROJECT_ROOT/scripts/agent/lib/evidence.sh"
 # shellcheck source=scripts/lib/resolve-sim-build.sh
@@ -55,9 +57,6 @@ VERDICT_FILE="$PROJECT_ROOT/evidence/verdict.md"
 : "${CLAUDE_TIMEOUT:=20m}"
 : "${SESSION_MAX_MINUTES:=30}"
 : "${RUN_URL:=}"
-
-UPDATES_URL="https://u.expo.dev/1de013cf-b8b2-4ac3-9e4d-dd70bfd4892e"
-APP_SCHEME="pancaketheory"
 
 COMMENT_POSTED=""
 GATE_APPLIED=""
@@ -133,7 +132,7 @@ cleanup() {
   local code=$?
   trap - EXIT
 
-  npx --yes eas-cli@latest simulator:stop --non-interactive >/dev/null 2>&1 || true
+  session_stop
 
   if [ "$code" -ne 0 ] && [ -z "$COMMENT_POSTED" ]; then
     local line
@@ -221,28 +220,10 @@ fi
 # ---------------------------------------------------------------------------
 
 # publish_update — publish the checkout to a branch named after the PR branch,
-# and set UPDATE_GROUP_ID. iOS only: that is the only platform verified.
+# and set UPDATE_GROUP_ID.
 publish_update() {
   log "Publishing this checkout as an EAS Update on branch '$PR_HEAD_REF'"
-  local out
-  out="$(APP_VARIANT=DEV npx --yes eas-cli@latest update \
-    --branch "$PR_HEAD_REF" \
-    --message "Verify PR #$PR_NUMBER" \
-    --platform ios \
-    --environment development \
-    --non-interactive --json 2>"$EVIDENCE_DIR/update.log")" || return 1
-
-  UPDATE_GROUP_ID="$(printf '%s' "$out" | python3 -c '
-import json, sys
-raw = sys.stdin.read()
-start = raw.find("[")
-try:
-    groups = json.loads(raw[start:]) if start >= 0 else []
-except Exception:
-    groups = []
-print(next((g.get("group") for g in groups if g.get("group")), ""))
-' 2>/dev/null || echo "")"
-  [ -n "$UPDATE_GROUP_ID" ]
+  session_publish_update "$PR_HEAD_REF" "Verify PR #$PR_NUMBER" "$EVIDENCE_DIR/update.log"
 }
 
 resolve_inputs() {
@@ -272,67 +253,13 @@ resolve_inputs() {
 # ---------------------------------------------------------------------------
 
 start_session() {
-  # --build-id installs and launches the binary before the session reports
-  # ready, and --open-url deep-links it straight at one specific update group.
-  # That combination is why this needs no dev server: the PR's JS is already
-  # published, and this URL is how a development build loads exactly that
-  # update instead of whatever its channel would resolve to.
-  local target open_url session_name
-  target="${UPDATES_URL}/group/${UPDATE_GROUP_ID}"
-  open_url="${APP_SCHEME}://expo-development-client/?url=$(
-    python3 -c 'import sys,urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "$target"
-  )"
+  local session_name
   session_name="$(printf 'PR #%s verify: %s' "$PR_NUMBER" "$PR_TITLE" | cut -c1-50)"
-
   log "Starting the EAS Simulator session"
-  if ! npx --yes eas-cli@latest simulator:start \
-      --platform ios --type argent \
-      --build-id "$VERIFY_BUILD_ID" \
-      --open-url "$open_url" \
-      --max-duration-minutes "$SESSION_MAX_MINUTES" \
-      --name "$session_name" \
-      --non-interactive --out-config-type dotenv; then
-    inconclusive "the EAS Simulator session did not start."
+  session_start "$VERIFY_BUILD_ID" "$UPDATE_GROUP_ID" "$session_name" || {
+    inconclusive "$SESSION_ERROR"
     return 1
-  fi
-
-  log "Waiting for the session to report ready"
-  local live="" state
-  for _ in $(seq 1 64); do
-    state="$(npx --yes eas-cli@latest simulator:get --json --non-interactive 2>/dev/null || true)"
-    if printf '%s' "$state" | grep -q '"status": *"IN_PROGRESS"'; then
-      live=1
-      break
-    fi
-    if printf '%s' "$state" | grep -qE '"status": *"(STOPPED|ERRORED)"'; then
-      inconclusive "the simulator session stopped before it was ready."
-      return 1
-    fi
-    sleep 15
-  done
-  [ -n "$live" ] || { inconclusive "the simulator session was not ready in time."; return 1; }
-
-  # An argent session writes its connection config to .env.eas-simulator.
-  # Exporting these routes every argent client in this process tree — CLI and
-  # MCP server alike — at the remote tool-server. Deliberately not `argent
-  # link`: that writes to ~/.argent/link.json, which is global to the machine.
-  if [ -f "$PROJECT_ROOT/.env.eas-simulator" ]; then
-    set -a
-    # shellcheck disable=SC1091
-    . "$PROJECT_ROOT/.env.eas-simulator"
-    set +a
-  fi
-  if [ -z "${ARGENT_TOOLS_URL:-}" ] || [ -z "${ARGENT_AUTH_TOKEN:-}" ]; then
-    inconclusive "the argent connection config was missing from the session."
-    return 1
-  fi
-  export ARGENT_TOOLS_URL ARGENT_AUTH_TOKEN
-
-  if ! sim_wait_for_device; then
-    inconclusive "argent never saw a booted device in the session."
-    return 1
-  fi
-  export AGENT_SIM_UDID="$SIM_UDID"
+  }
 }
 
 # ---------------------------------------------------------------------------
@@ -408,7 +335,7 @@ VERDICT_LINE="$(head -n 1 "$VERDICT_FILE")"
 log "Verdict: $VERDICT_LINE"
 
 # Stop as soon as the verdict is in. The session bills until then.
-npx --yes eas-cli@latest simulator:stop --non-interactive >/dev/null 2>&1 || true
+session_stop
 
 # ---------------------------------------------------------------------------
 # Publish the evidence
