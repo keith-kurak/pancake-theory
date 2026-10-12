@@ -15,8 +15,11 @@
 # Read-only with respect to the repository. It writes no code and pushes no
 # commits.
 #
+# Usage:    reproduce-issue.sh             run the reproduction
+#           reproduce-issue.sh --announce  only comment that a run started
+#
 # Required: ISSUE_NUMBER, GH_REPO, GH_TOKEN, EXPO_TOKEN_SIMULATOR,
-#           CLAUDE_CODE_OAUTH_TOKEN
+#           CLAUDE_CODE_OAUTH_TOKEN (only the first three for --announce)
 # Optional: REPRO_BUILD_ID   build to use; resolved by runtime when empty
 #           UPDATE_GROUP_ID  update to load; published from the checkout when empty
 #           RUN_URL          the EAS workflow run, linked from the comment
@@ -36,6 +39,16 @@ PR_NUMBER="${ISSUE_NUMBER:-}"
 
 # shellcheck source=scripts/agent/lib/gh.sh
 . "$PROJECT_ROOT/scripts/agent/lib/gh.sh"
+
+# --announce: post the "started" comment and exit. The workflow's first job
+# runs this, so the issue hears about the run before any build starts.
+if [ "${1:-}" = "--announce" ]; then
+  for var in ISSUE_NUMBER GH_REPO GH_TOKEN; do
+    [ -n "${!var:-}" ] || { echo "error: $var is not set" >&2; exit 1; }
+  done
+  gh_comment "Started a reproduction attempt on an iOS cloud simulator, against the default branch. The verdict will be posted here, usually within 30 minutes."
+  exit $?
+fi
 # shellcheck source=scripts/agent/lib/sim.sh
 . "$PROJECT_ROOT/scripts/agent/lib/sim.sh"
 # shellcheck source=scripts/agent/lib/session.sh

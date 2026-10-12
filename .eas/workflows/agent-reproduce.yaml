@@ -7,7 +7,8 @@ name: Agent Reproduce
 # Started by .github/workflows/agent-reproduce-from-issue.yml when the
 # `agent-reproduce` label is applied to an issue. EAS has no issue trigger, so
 # that Action checks the labeller's access and starts this run with
-# `eas workflow:run --ref <default branch>`. Everything else happens here.
+# `eas workflow:run --ref <default branch>` and exits. Everything else,
+# including every comment on the issue, happens here.
 #
 # The app under test is the default branch: the fingerprint and build jobs use
 # the commit the run was started on. To steer an attempt, comment
@@ -31,6 +32,20 @@ defaults:
     bun: 1.3.10
 
 jobs:
+  # First, and with no dependencies, so the issue hears about the run before
+  # a native build that can take twenty minutes.
+  announce:
+    name: Comment that the run started
+    environment: development # GH_TOKEN
+    env:
+      ISSUE_NUMBER: ${{ inputs.issue_number }}
+      GH_REPO: ${{ github.repository || 'keith-kurak/pancake-theory' }}
+      RUN_URL: ${{ workflow.url }}
+    steps:
+      - uses: eas/checkout
+      - name: Comment on the issue
+        run: ./scripts/agent/reproduce-issue.sh --announce
+
   # Same build resolution as agent-verify.yaml: a native change on the default
   # branch gets a fresh simulator build instead of an INCONCLUSIVE verdict.
   fingerprint:

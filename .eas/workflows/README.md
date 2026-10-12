@@ -39,7 +39,7 @@ Comments count only when the author is OWNER, MEMBER, or COLLABORATOR. See
 | `agent-start.yaml` | `agent-start` label on a draft PR | Writes a plan into the PR description, implements it, validates on a simulator, commits, then runs the verify function. Its PASS flips the PR to ready |
 | `agent-revise.yaml` | `agent-revise` label on any PR | Applies `/agent` review comments, re-validates, commits, then runs the verify function |
 | `agent-verify.yaml` | `agent-verify` label on any PR | Runs the verify function alone: proves a PR works on a cloud simulator and publishes a screenshot evidence site. Writes no code |
-| `.github/.../agent-reproduce-from-issue.yml` | `agent-reproduce` label **on an issue** | Checks write access, then starts `agent-reproduce.yaml` with `eas workflow:run` |
+| `.github/.../agent-reproduce-from-issue.yml` | `agent-reproduce` label **on an issue** | Checks write access, then starts `agent-reproduce.yaml` with `eas workflow:run` and exits |
 | `agent-reproduce.yaml` | Started by the Action above | Tries to reproduce the bug on a cloud simulator against the default branch, and comments the verdict on the issue. Writes no code |
 | `update-on-pr.yaml` | Any **non-draft** PR | Unit tests, then publishes a preview update and comments on the PR |
 | `maybe-make-dev-builds-on-pr.yaml` | Any **non-draft** PR | Builds development clients when the fingerprint changed |
@@ -453,8 +453,8 @@ Ask whether a bug report is real. Get a verdict on the issue, with screenshots.
 
 3. Add the **`agent-reproduce`** label to the issue.
 
-Within a minute the Action comments with a link to the EAS run. When the run ends, a
-second comment gives the verdict and two links:
+Within a minute the EAS run comments that it started, with a link to the run. When it
+ends, a second comment gives the verdict and two links:
 
 | Verdict | Means |
 |---|---|
@@ -473,15 +473,18 @@ The label comes off at the end of the run, so applying it again starts a new att
 
 ```
 issue --agent-reproduce--> GitHub Action --eas workflow:run--> agent-reproduce.yaml
-                           (write access?)                     fingerprint -> build if needed
+                           (write access?)                     announce (comment on issue)
+                                                               fingerprint -> build if needed
                                                                -> reproduce -> comment on issue
                                                                -> remove label
 ```
 
 The Action exists only because EAS has no issue trigger. It checks write access the
 same way as [the agent-start Action](#from-an-issue), then calls
-`eas workflow:run --ref <default branch> -F issue_number=<N>`. The issue number is the
-only value that crosses into EAS. The EAS job reads the issue text itself, through the
+`eas workflow:run --ref <default branch> -F issue_number=<N>` and exits. It does not
+wait and does not comment, except when the run could not start at all. The EAS
+workflow posts every other comment. The issue number is the only value that crosses
+into EAS. The EAS job reads the issue text itself, through the
 API, and gives it to Claude as a file.
 
 The app under test is the **default branch**, not the version the reporter used. The

@@ -6,8 +6,9 @@ name: Agent Reproduce from Issue
 # notices the `agent-reproduce` label on an issue, checks that the labeller has
 # write access, and starts .eas/workflows/agent-reproduce.yaml on the default
 # branch with the issue number as its only input. The EAS run reads the issue,
-# drives the app on an iOS cloud simulator, posts the verdict on the issue, and
-# removes the label.
+# drives the app on an iOS cloud simulator, and does all the commenting: once
+# when it starts and once with the verdict. It also removes the label. This
+# Action comments only when the EAS run could not be started at all.
 #
 # To steer an attempt, first comment `/agent <what to try>` on the issue. Only
 # comments from OWNER, MEMBER, or COLLABORATOR authors count.
@@ -24,7 +25,7 @@ concurrency:
 
 permissions:
   contents: read
-  # Comment on the issue, and take the label off when the run cannot start.
+  # Only when the EAS run cannot start: comment, and take the label off.
   issues: write
 
 jobs:
@@ -69,56 +70,25 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      # --ref runs the workflow from the default branch as it is on GitHub, so
-      # nothing from this runner is uploaded. Only the issue number is passed;
-      # the issue text never touches a command line.
+      # Fire and forget: the EAS run comments on the issue when it starts and
+      # when it finishes. --ref runs the workflow from the default branch as it
+      # is on GitHub, so nothing from this runner is uploaded. Only the issue
+      # number is passed; the issue text never touches a command line.
       - name: Start the EAS workflow
-        id: run
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
-          set -uo pipefail
+          set -euo pipefail
           if [ -z "${EXPO_TOKEN:-}" ]; then
             echo "::error::The EXPO_TOKEN repository secret is not set. See .eas/workflows/SETUP.md."
             exit 1
           fi
-          OUT="$(npx --yes eas-cli@latest workflow:run .eas/workflows/agent-reproduce.yaml \
+          npx --yes eas-cli@latest workflow:run .eas/workflows/agent-reproduce.yaml \
             --ref "$DEFAULT_BRANCH" \
             -F "issue_number=$ISSUE_NUMBER" \
-            --non-interactive --json 2>"$RUNNER_TEMP/eas.log")"
-          STATUS=$?
-          cat "$RUNNER_TEMP/eas.log"
-          echo "$OUT"
-          if [ "$STATUS" -ne 0 ]; then
-            echo "::error::eas workflow:run failed"
-            exit 1
-          fi
-          # The run page, from the JSON or, failing that, the first expo.dev
-          # workflow URL printed anywhere.
-          URL="$(printf '%s' "$OUT" | jq -r '.url // .workflowRunUrl // empty' 2>/dev/null || true)"
-          if [ -z "$URL" ]; then
-            URL="$(cat "$RUNNER_TEMP/eas.log" <(printf '%s' "$OUT") \
-              | grep -oE 'https://expo\.dev/[^ )"]*/workflows/[^ )"]+' | head -n 1 || true)"
-          fi
-          echo "url=$URL" >> "$GITHUB_OUTPUT"
-
-      - name: Say so on the issue
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-          URL: ${{ steps.run.outputs.url }}
-        run: |
-          set -euo pipefail
-          if [ -n "$URL" ]; then
-            WHERE="[EAS workflow run]($URL)"
-          else
-            WHERE="EAS workflow run (see the expo.dev dashboard)"
-          fi
-          BODY="$(printf '> 🤖 **Automated** — written by the agent workflow, not by a human. · [view run](%s/actions/runs/%s)\n\nStarted a reproduction attempt on an iOS cloud simulator: %s. The verdict will be posted here, usually within 30 minutes.\n' \
-            "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" "$WHERE")"
-          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "$BODY"
+            --non-interactive
 
       # The EAS run removes the label when it finishes. If it never started,
       # nothing will, and GitHub only fires `labeled` on absent-to-present, so
