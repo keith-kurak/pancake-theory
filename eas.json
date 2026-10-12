@@ -36,6 +36,12 @@
       "channel": "production",
       "environment": "production"
     },
+    "production-apk": {
+      "extends": "production",
+      "android": {
+        "buildType": "apk"
+      }
+    },
     "production-simulator": {
       "autoIncrement": true,
       "channel": "production",

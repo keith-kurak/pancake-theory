@@ -27,6 +27,9 @@ name: Continuous deploy to production on main
 # That table lives in .eas/functions/decide-deploy, which runs once the release
 # and build lookups are done. Every job after it reads only its `action`.
 #
+# Before any of it ships, the make-fluffy-pancakes Maestro flow must pass on
+# iOS and Android. See the maestro section below.
+#
 # Android production builds are app bundles (.aab), which repack cannot
 # process. So on a pre-release, Android always gets a full build.
 #
@@ -142,11 +145,115 @@ jobs:
           ios_build_id: ${{ needs.ios_get_build.outputs.build_id }}
           android_build_id: ${{ needs.android_get_build.outputs.build_id }}
 
+  # --- maestro: test this commit before anything ships. ----------------------
+  #
+  # Runs for build-or-repack and update; an error ships nothing, so it skips.
+  # Store builds cannot run on an emulator or simulator, so these are
+  # production-apk and production-simulator builds of the same fingerprint:
+  # repacked when one exists, built when not. The deploy jobs below need both
+  # Maestro jobs, so a failed test stops the deploy.
+
+  ios_test_get_build:
+    name: Find iOS simulator build for Maestro
+    needs: [decide, fingerprint]
+    if: ${{ needs.decide.outputs.action != 'error' }}
+    type: get-build
+    params:
+      platform: ios
+      profile: production-simulator
+      fingerprint_hash: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
+
+  ios_test_repack:
+    name: Repack iOS simulator build for Maestro
+    needs: [ios_test_get_build]
+    if: ${{ needs.ios_test_get_build.outputs.build_id }}
+    type: repack
+    env:
+      METRICS_ENV: e2e
+    params:
+      build_id: ${{ needs.ios_test_get_build.outputs.build_id }}
+      profile: production-simulator
+
+  ios_test_build:
+    name: Build iOS simulator build for Maestro
+    needs: [ios_test_get_build]
+    if: ${{ !needs.ios_test_get_build.outputs.build_id }}
+    type: build
+    env:
+      METRICS_ENV: e2e
+    params:
+      platform: ios
+      profile: production-simulator
+
+  ios_maestro:
+    name: Maestro on iOS
+    needs: [decide]
+    after: [ios_test_get_build, ios_test_repack, ios_test_build]
+    if: ${{ needs.decide.outputs.action != 'error' }}
+    type: maestro
+    environment: production
+    image: latest
+    env:
+      MAESTRO_APP_ID: ${{ needs.ios_test_get_build.outputs.app_identifier || needs.ios_test_build.outputs.app_identifier }}
+    params:
+      build_id: ${{ needs.ios_test_repack.outputs.build_id || needs.ios_test_build.outputs.build_id }}
+      device_identifier: iPhone 17 Pro Max
+      flow_path: .maestro/make-fluffy-pancakes.yaml
+      record_screen: true
+
+  android_test_get_build:
+    name: Find Android APK build for Maestro
+    needs: [decide, fingerprint]
+    if: ${{ needs.decide.outputs.action != 'error' }}
+    type: get-build
+    params:
+      platform: android
+      profile: production-apk
+      fingerprint_hash: ${{ needs.fingerprint.outputs.android_fingerprint_hash }}
+
+  android_test_repack:
+    name: Repack Android APK build for Maestro
+    needs: [android_test_get_build]
+    if: ${{ needs.android_test_get_build.outputs.build_id }}
+    type: repack
+    env:
+      METRICS_ENV: e2e
+    params:
+      build_id: ${{ needs.android_test_get_build.outputs.build_id }}
+      profile: production-apk
+
+  android_test_build:
+    name: Build Android APK build for Maestro
+    needs: [android_test_get_build]
+    if: ${{ !needs.android_test_get_build.outputs.build_id }}
+    type: build
+    env:
+      METRICS_ENV: e2e
+    params:
+      platform: android
+      profile: production-apk
+
+  android_maestro:
+    name: Maestro on Android
+    needs: [decide]
+    after: [android_test_get_build, android_test_repack, android_test_build]
+    if: ${{ needs.decide.outputs.action != 'error' }}
+    type: maestro
+    environment: production
+    image: latest
+    env:
+      MAESTRO_APP_ID: ${{ needs.android_test_get_build.outputs.app_identifier || needs.android_test_build.outputs.app_identifier }}
+    params:
+      build_id: ${{ needs.android_test_repack.outputs.build_id || needs.android_test_build.outputs.build_id }}
+      device_identifier: pixel_8_pro
+      flow_path: .maestro/make-fluffy-pancakes.yaml
+      record_screen: true
+
   # --- build-or-repack: pre-release, so the store builds can be replaced. -----
 
   ios_repack:
     name: Repack iOS build for pre-release
-    needs: [decide]
+    needs: [decide, ios_maestro, android_maestro]
     if: ${{ needs.decide.outputs.action == 'build-or-repack' && needs.decide.outputs.ios_repack_build_id }}
     type: repack
     params:
@@ -167,7 +274,7 @@ jobs:
   # back to repacking it.
   ios_build:
     name: Build iOS for pre-release
-    needs: [decide]
+    needs: [decide, ios_maestro, android_maestro]
     if: ${{ needs.decide.outputs.action == 'build-or-repack' && !needs.decide.outputs.ios_repack_build_id }}
     type: build
     params:
@@ -189,7 +296,7 @@ jobs:
   # full.
   android_build:
     name: Build Android for pre-release
-    needs: [decide]
+    needs: [decide, ios_maestro, android_maestro]
     if: ${{ needs.decide.outputs.action == 'build-or-repack' }}
     type: build
     params:
@@ -209,7 +316,7 @@ jobs:
 
   publish_update:
     name: Publish update to production
-    needs: [decide]
+    needs: [decide, ios_maestro, android_maestro]
     if: ${{ needs.decide.outputs.action == 'update' }}
     environment: production
     type: update
