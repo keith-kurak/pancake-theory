@@ -126,6 +126,11 @@ jobs:
       ios_repack_build_id: ${{ steps.decide.outputs.ios_repack_build_id }}
       reason: ${{ steps.decide.outputs.reason }}
       fix: ${{ steps.decide.outputs.fix }}
+      runtime_version: ${{ steps.decide.outputs.runtime_version }}
+      release_state: ${{ steps.decide.outputs.release_state }}
+      release_url: ${{ steps.decide.outputs.release_url }}
+      ios_build_id: ${{ steps.decide.outputs.ios_build_id }}
+      android_build_id: ${{ steps.decide.outputs.android_build_id }}
     steps:
       - uses: eas/checkout
       - id: decide
@@ -133,6 +138,7 @@ jobs:
         with:
           runtime_version: ${{ needs.release_state.outputs.runtime_version }}
           release_state: ${{ needs.release_state.outputs.release_state }}
+          release_url: ${{ needs.release_state.outputs.release_url }}
           ios_build_id: ${{ needs.ios_get_build.outputs.build_id }}
           android_build_id: ${{ needs.android_get_build.outputs.build_id }}
 
@@ -140,13 +146,13 @@ jobs:
 
   ios_repack:
     name: Repack iOS build for pre-release
-    needs: [decide, release_state]
+    needs: [decide]
     if: ${{ needs.decide.outputs.action == 'build-or-repack' && needs.decide.outputs.ios_repack_build_id }}
     type: repack
     params:
       build_id: ${{ needs.decide.outputs.ios_repack_build_id }}
       profile: production
-      message: Repack of ${{ github.sha }} for runtime ${{ needs.release_state.outputs.runtime_version }}
+      message: Repack of ${{ github.sha }} for runtime ${{ needs.decide.outputs.runtime_version }}
 
   submit_ios:
     name: Submit repacked build to TestFlight
@@ -161,13 +167,13 @@ jobs:
   # back to repacking it.
   ios_build:
     name: Build iOS for pre-release
-    needs: [decide, release_state]
+    needs: [decide]
     if: ${{ needs.decide.outputs.action == 'build-or-repack' && !needs.decide.outputs.ios_repack_build_id }}
     type: build
     params:
       platform: ios
       profile: production
-      message: Build of ${{ github.sha }} for runtime ${{ needs.release_state.outputs.runtime_version }}
+      message: Build of ${{ github.sha }} for runtime ${{ needs.decide.outputs.runtime_version }}
 
   # Same destination as the repack lane: App Store Connect, which is what puts
   # the build in front of TestFlight testers.
@@ -183,13 +189,13 @@ jobs:
   # full.
   android_build:
     name: Build Android for pre-release
-    needs: [decide, release_state]
+    needs: [decide]
     if: ${{ needs.decide.outputs.action == 'build-or-repack' }}
     type: build
     params:
       platform: android
       profile: production
-      message: Build of ${{ github.sha }} for runtime ${{ needs.release_state.outputs.runtime_version }}
+      message: Build of ${{ github.sha }} for runtime ${{ needs.decide.outputs.runtime_version }}
 
   submit_android:
     name: Submit Android build to Google Play
@@ -219,13 +225,13 @@ jobs:
   # tags exactly, and the release is never marked "Latest".
   tag_update_release:
     name: Tag update as GitHub release
-    needs: [publish_update, release_state]
+    needs: [publish_update, decide]
     environment: production
     steps:
       - uses: eas/checkout
       - uses: ./.eas/functions/tag-ota-release
         with:
-          runtime_version: ${{ needs.release_state.outputs.runtime_version }}
+          runtime_version: ${{ needs.decide.outputs.runtime_version }}
           update_group_id: ${{ needs.publish_update.outputs.first_update_group_id }}
           updates_json: ${{ needs.publish_update.outputs.updates_json }}
 
@@ -233,7 +239,7 @@ jobs:
 
   doc_error:
     name: Explain why nothing can ship
-    needs: [decide, release_state, ios_get_build, android_get_build]
+    needs: [decide]
     if: ${{ needs.decide.outputs.action == 'error' }}
     type: doc
     params:
@@ -247,11 +253,11 @@ jobs:
         | | |
         | --- | --- |
         | Commit | `${{ github.sha }}` |
-        | Runtime version | `${{ needs.release_state.outputs.runtime_version }}` |
-        | Release state | `${{ needs.release_state.outputs.release_state }}` |
-        | Matching iOS store build | `${{ needs.ios_get_build.outputs.build_id || 'none' }}` |
-        | Matching Android store build | `${{ needs.android_get_build.outputs.build_id || 'none' }}` |
-        | Release | ${{ needs.release_state.outputs.release_url }} |
+        | Runtime version | `${{ needs.decide.outputs.runtime_version }}` |
+        | Release state | `${{ needs.decide.outputs.release_state }}` |
+        | Matching iOS store build | `${{ needs.decide.outputs.ios_build_id || 'none' }}` |
+        | Matching Android store build | `${{ needs.decide.outputs.android_build_id || 'none' }}` |
+        | Release | ${{ needs.decide.outputs.release_url }} |
 
         If a store build does not match, the native layer changed. Common causes: a
         dependency with native code was added, removed, or upgraded; a config plugin, or a
