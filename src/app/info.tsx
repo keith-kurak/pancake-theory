@@ -29,6 +29,13 @@ function InfoRow({
 
 const TAP_THRESHOLD = 5;
 
+/** YYYY-MM-DD in the device's time zone. */
+function formatDate(date: Date) {
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
 export default function InfoScreen() {
   const { currentlyRunning } = useUpdates();
   const [devVisible, setDevVisible] = useState(false);
@@ -47,10 +54,12 @@ export default function InfoScreen() {
   // a createdAt, but that is the build's date, not an update's, so it is left off.
   const updatedAt =
     !currentlyRunning.isEmbeddedLaunch && currentlyRunning.createdAt
-      ? currentlyRunning.createdAt.toLocaleString(undefined, {
-          dateStyle: "medium",
-          timeStyle: "short",
-        })
+      ? formatDate(currentlyRunning.createdAt)
+      : undefined;
+
+  const shortUpdateId =
+    !currentlyRunning.isEmbeddedLaunch && currentlyRunning.updateId
+      ? currentlyRunning.updateId.slice(0, 6)
       : undefined;
 
   const handleVersionTap = useCallback(() => {
@@ -95,7 +104,10 @@ export default function InfoScreen() {
             v.{Constants.expoConfig?.version ?? "—"}
           </ThemedText>
           {updatedAt ? (
-            <ThemedText style={styles.updatedAt}>Updated {updatedAt}</ThemedText>
+            <ThemedText style={styles.updatedAt}>
+              {updatedAt}
+              {shortUpdateId ? ` (${shortUpdateId})` : null}
+            </ThemedText>
           ) : null}
         </PressableWithOpacity>
       </ThemedView>
