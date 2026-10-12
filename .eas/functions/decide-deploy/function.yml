@@ -30,6 +30,14 @@ inputs:
   - name: release_url
     type: string
     default_value: ''
+  # Not used in the decision either. Passed through so later jobs can find
+  # test builds of the same fingerprint from `decide` alone.
+  - name: ios_fingerprint_hash
+    type: string
+    default_value: ''
+  - name: android_fingerprint_hash
+    type: string
+    default_value: ''
 
 outputs:
   action:
@@ -64,6 +72,10 @@ outputs:
     value: ${{ steps.decide.outputs.ios_build_id }}
   android_build_id:
     value: ${{ steps.decide.outputs.android_build_id }}
+  ios_fingerprint_hash:
+    value: ${{ steps.decide.outputs.ios_fingerprint_hash }}
+  android_fingerprint_hash:
+    value: ${{ steps.decide.outputs.android_fingerprint_hash }}
 
 runs:
   steps:
@@ -77,6 +89,8 @@ runs:
         ANDROID='${{ inputs.android_build_id }}'
         ALLOW_BUILD='${{ inputs.allow_build }}'
         URL='${{ inputs.release_url }}'
+        IOS_FP='${{ inputs.ios_fingerprint_hash }}'
+        ANDROID_FP='${{ inputs.android_fingerprint_hash }}'
 
         # A get-build job that finds no match has no build_id output, and the
         # expression renders that as the text "undefined", which is not empty.
@@ -143,6 +157,8 @@ runs:
         [ -z "$URL" ] || set-output release_url "$URL"
         [ -z "$IOS" ] || set-output ios_build_id "$IOS"
         [ -z "$ANDROID" ] || set-output android_build_id "$ANDROID"
+        [ -z "$IOS_FP" ] || set-output ios_fingerprint_hash "$IOS_FP"
+        [ -z "$ANDROID_FP" ] || set-output android_fingerprint_hash "$ANDROID_FP"
         [ -z "$REPACK" ] || set-output ios_repack_build_id "$REPACK"
         [ -z "$REASON" ] || set-output reason "$REASON"
         [ -z "$FIX" ] || set-output fix "$FIX"
