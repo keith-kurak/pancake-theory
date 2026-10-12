@@ -155,9 +155,14 @@ npx eas-cli@latest workflow:run .eas/workflows/weekly-store-rollup.yaml --ref ma
 
 ### Cherry-pick a fix
 
-Use this when production needs a fix, but `main` has other changes that are not ready to
-ship. The fix goes out as an OTA update, from a branch that starts at what production
-runs now.
+Use this when a live runtime version needs a fix after `main` has moved to a new runtime
+version. For example, `main` is on `1.7.0` (pre-release) and the stores still have
+`1.6.x`. Updates only reach binaries with the same runtime version, so nothing from
+`main` can reach the `1.6.x` binaries any more. The fix goes out as an OTA update, from a
+branch that starts at what those binaries run now.
+
+While `main` is still on the live runtime version, merge the fix to `main` instead. The
+start workflow refuses to run in that case.
 
 1. **Start the branch:**
 
@@ -187,8 +192,12 @@ runs now.
    explains why. It also fails if the branch name does not match the runtime version
    that the project resolves to.
 
-**Put each fix on `main` too.** The cherry-pick and `main` publish to the same channel,
-so the next update from `main` replaces the cherry-picked one.
+Both lanes publish to the `production` channel, but each update carries its runtime
+version, so each binary only gets the updates for its own version. If the next version
+needs the fix too, merge it to `main` as well.
+
+While `main` is on the new runtime version, the weekly rollup decides for that version.
+It skips while the version is a pre-release, so the older binaries get no rollups.
 
 To start over, delete the branch, then run `start-cherrypick.yaml` again. The new branch
 starts from the newest release, which can be an `-ota-` tag from the cherry-pick lane.
