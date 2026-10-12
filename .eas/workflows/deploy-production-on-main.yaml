@@ -15,12 +15,15 @@ name: Continuous deploy to production on main
 #      change. Both platforms are decided together, so one store never moves
 #      without the other.
 #
-#   both match + pre-release  -> iOS: repack the store build, resubmit
+#   pre-release, both match   -> iOS: repack the store build, resubmit
 #                                Android: build and submit (see below)
-#   both match + full release -> publish an EAS Update to production
-#   NOT both   + pre-release  -> build both and submit: the first build of a
+#   pre-release, not both     -> build both and submit: the first build of a
 #                                version whose release already exists
+#   full release, both match  -> publish an EAS Update to production
 #   anything else             -> explain the problem and fail
+#
+# That table lives in .eas/functions/decide-deploy, which runs once the release
+# and build lookups are done. Every job after it reads only its `action`.
 #
 # Android production builds are app bundles (.aab), which repack cannot
 # process. So on a pre-release, Android always gets a full build.
@@ -106,15 +109,36 @@ jobs:
       fingerprint_hash: ${{ needs.fingerprint.outputs.android_fingerprint_hash }}
       runtime_version: ${{ needs.release_state.outputs.runtime_version }}
 
-  # --- Path 1: pre-release, so the store builds can still be replaced. --------
+  # One place for the whole decision, so the jobs below need only one
+  # condition each. It checks out so the custom function is on disk; it does
+  # not install anything.
+  decide:
+    name: Decide what this merge does
+    needs: [release_state, ios_get_build, android_get_build]
+    outputs:
+      action: ${{ steps.decide.outputs.action }}
+      ios_repack_build_id: ${{ steps.decide.outputs.ios_repack_build_id }}
+      reason: ${{ steps.decide.outputs.reason }}
+      fix: ${{ steps.decide.outputs.fix }}
+    steps:
+      - uses: eas/checkout
+      - id: decide
+        uses: ./.eas/functions/decide-deploy
+        with:
+          runtime_version: ${{ needs.release_state.outputs.runtime_version }}
+          release_state: ${{ needs.release_state.outputs.release_state }}
+          ios_build_id: ${{ needs.ios_get_build.outputs.build_id }}
+          android_build_id: ${{ needs.android_get_build.outputs.build_id }}
+
+  # --- build-or-repack: pre-release, so the store builds can be replaced. -----
 
   ios_repack:
     name: Repack iOS build for pre-release
-    needs: [ios_get_build, android_get_build, release_state]
-    if: ${{ needs.ios_get_build.outputs.build_id && needs.android_get_build.outputs.build_id && needs.release_state.outputs.release_state == 'prerelease' }}
+    needs: [decide, release_state]
+    if: ${{ needs.decide.outputs.action == 'build-or-repack' && needs.decide.outputs.ios_repack_build_id }}
     type: repack
     params:
-      build_id: ${{ needs.ios_get_build.outputs.build_id }}
+      build_id: ${{ needs.decide.outputs.ios_repack_build_id }}
       profile: production
       message: Repack of ${{ github.sha }} for runtime ${{ needs.release_state.outputs.runtime_version }}
 
@@ -126,13 +150,35 @@ jobs:
       build_id: ${{ needs.ios_repack.outputs.build_id }}
       profile: production
 
+  # Nothing to repack onto: the first merge after an app version bump, or a
+  # merge where only one platform matched. Later merges find this build and go
+  # back to repacking it.
+  ios_build:
+    name: Build iOS for pre-release
+    needs: [decide, release_state]
+    if: ${{ needs.decide.outputs.action == 'build-or-repack' && !needs.decide.outputs.ios_repack_build_id }}
+    type: build
+    params:
+      platform: ios
+      profile: production
+      message: Build of ${{ github.sha }} for runtime ${{ needs.release_state.outputs.runtime_version }}
+
+  # Same destination as the repack lane: App Store Connect, which is what puts
+  # the build in front of TestFlight testers.
+  submit_ios_build:
+    name: Submit full build to TestFlight
+    needs: [ios_build]
+    type: submit
+    params:
+      build_id: ${{ needs.ios_build.outputs.build_id }}
+      profile: production
+
   # Repack cannot process an .aab, so every pre-release merge builds Android in
-  # full, whether or not a matching build exists. It still waits on both
-  # get-build jobs, so nothing starts until both platforms are known.
+  # full.
   android_build:
     name: Build Android for pre-release
-    needs: [ios_get_build, android_get_build, release_state]
-    if: ${{ needs.release_state.outputs.release_state == 'prerelease' }}
+    needs: [decide, release_state]
+    if: ${{ needs.decide.outputs.action == 'build-or-repack' }}
     type: build
     params:
       platform: android
@@ -147,42 +193,12 @@ jobs:
       build_id: ${{ needs.android_build.outputs.build_id }}
       profile: production
 
-  # --- Path 3: pre-release with nothing to repack onto, so build it. ----------
-  # (numbered after the two lanes above because it is the rarer first-build case)
-
-  # A release is tagged for this runtime version but the production store
-  # builds do not both match it yet. That is the first merge after an app
-  # version bump: there is nothing to repack onto, so the iOS build has to be
-  # made, then submitted so it reaches TestFlight. Android is already covered by
-  # android_build above. Subsequent merges find this build and go back to
-  # repacking and resubmitting it.
-  ios_first_build:
-    name: Build iOS for pre-release
-    needs: [ios_get_build, android_get_build, release_state]
-    if: ${{ !(needs.ios_get_build.outputs.build_id && needs.android_get_build.outputs.build_id) && needs.release_state.outputs.release_state == 'prerelease' }}
-    type: build
-    params:
-      platform: ios
-      profile: production
-      message: First build for runtime ${{ needs.release_state.outputs.runtime_version }} (${{ github.sha }})
-
-  # Same destination as the repack lane: App Store Connect, which is what puts
-  # the build in front of TestFlight testers. Without this the first build of a
-  # version would sit in EAS until some later merge repacked and submitted it.
-  submit_ios_first_build:
-    name: Submit full build to TestFlight
-    needs: [ios_first_build]
-    type: submit
-    params:
-      build_id: ${{ needs.ios_first_build.outputs.build_id }}
-      profile: production
-
-  # --- Path 2: full release, so only an update can reach users. ---------------
+  # --- update: full release, so only an update can reach users. ---------------
 
   publish_update:
     name: Publish update to production
-    needs: [ios_get_build, android_get_build, release_state]
-    if: ${{ needs.ios_get_build.outputs.build_id && needs.android_get_build.outputs.build_id && needs.release_state.outputs.release_state == 'released' }}
+    needs: [decide]
+    if: ${{ needs.decide.outputs.action == 'update' }}
     environment: production
     type: update
     params:
@@ -190,95 +206,40 @@ jobs:
       channel: production
       message: ${{ github.commit_message || github.sha }}
 
-  # --- Path 4: nothing can ship. Say why, then fail. -------------------------
+  # --- error: nothing can ship. Say why, then fail. ---------------------------
 
-  doc_fingerprint_mismatch:
-    name: Explain fingerprint mismatch
-    needs: [ios_get_build, android_get_build, release_state]
-    if: ${{ !(needs.ios_get_build.outputs.build_id && needs.android_get_build.outputs.build_id) && needs.release_state.outputs.release_state == 'released' }}
+  doc_error:
+    name: Explain why nothing can ship
+    needs: [decide, release_state, ios_get_build, android_get_build]
+    if: ${{ needs.decide.outputs.action == 'error' }}
     type: doc
     params:
       md: |
-        # This merge does not match the production app
+        # Nothing can ship from this merge
 
-        Runtime version **${{ needs.release_state.outputs.runtime_version }}** is already
-        released, but `main` at commit `${{ github.sha }}` does not fingerprint-match a
-        production store build on both platforms:
+        ${{ needs.decide.outputs.reason }}
 
-        - iOS: `${{ needs.ios_get_build.outputs.build_id || 'no match' }}`
-        - Android: `${{ needs.android_get_build.outputs.build_id || 'no match' }}`
+        **What to do:** ${{ needs.decide.outputs.fix }}
 
-        The native layer changed. The released version cannot have its binary replaced, and
-        this merge cannot be delivered to it as an update. **Revise the merge.**
+        | | |
+        | --- | --- |
+        | Commit | `${{ github.sha }}` |
+        | Runtime version | `${{ needs.release_state.outputs.runtime_version }}` |
+        | Release state | `${{ needs.release_state.outputs.release_state }}` |
+        | Matching iOS store build | `${{ needs.ios_get_build.outputs.build_id || 'none' }}` |
+        | Matching Android store build | `${{ needs.android_get_build.outputs.build_id || 'none' }}` |
+        | Release | ${{ needs.release_state.outputs.release_url }} |
 
-        Common causes:
-
-        1. A dependency with native code was added, removed, or upgraded.
-        2. A config plugin, or a value a config plugin reads, changed.
-        3. Something in **app.json** that affects the native project changed.
-
-        To ship it anyway, bump the app version and run a new production build. That
-        starts a new runtime version, which needs its own release.
-
-        Release: ${{ needs.release_state.outputs.release_url }}
-
-  doc_no_release:
-    name: Explain missing release
-    needs: [ios_get_build, android_get_build, release_state]
-    if: ${{ !(needs.ios_get_build.outputs.build_id && needs.android_get_build.outputs.build_id) && needs.release_state.outputs.release_state == 'none' }}
-    type: doc
-    params:
-      md: |
-        # No release exists for this runtime version
-
-        No GitHub release is tagged `${{ needs.release_state.outputs.runtime_version }}`
-        (or `v${{ needs.release_state.outputs.runtime_version }}`), and the production store
-        builds do not both match this runtime version and fingerprint.
-
-        The runtime version — which follows the app version's major and minor — has
-        changed, and nothing tells this workflow what the new version is for. **Create the
-        release and the next merge builds it.**
-
-        1. Create a GitHub release tagged `${{ needs.release_state.outputs.runtime_version }}`,
-           marked **draft or pre-release**.
-        2. Push to `main` again. With a pre-release and no matching builds, this workflow
-           builds iOS and Android and submits them to App Store Connect and Google Play.
-           Later merges repack and resubmit iOS, and rebuild and resubmit Android.
-        3. Clear both release flags once the version is live, so later merges publish
-           over-the-air updates instead.
-
-  doc_release_missing_for_match:
-    name: Explain missing release for matching build
-    needs: [ios_get_build, android_get_build, release_state]
-    if: ${{ needs.ios_get_build.outputs.build_id && needs.android_get_build.outputs.build_id && needs.release_state.outputs.release_state == 'none' }}
-    type: doc
-    params:
-      md: |
-        # Fingerprint matches, but no release says what to do with it
-
-        `main` at commit `${{ github.sha }}` matches the production store builds for runtime
-        version **${{ needs.release_state.outputs.runtime_version }}**
-        (iOS `${{ needs.ios_get_build.outputs.build_id }}`, Android
-        `${{ needs.android_get_build.outputs.build_id }}`), but no GitHub release is tagged
-        for that version.
-
-        The release's state is what decides between replacing the store builds and
-        publishing an update, so there is nothing to decide from. Create a GitHub release
-        tagged `${{ needs.release_state.outputs.runtime_version }}`:
-
-        - **Draft or pre-release** while the version is still being assembled — merges
-          replace and resubmit the store builds.
-        - **Full release** (neither flag) once the version is live — merges publish an
-          update to production.
+        If a store build does not match, the native layer changed. Common causes: a
+        dependency with native code was added, removed, or upgraded; a config plugin, or a
+        value a config plugin reads, changed; or something in **app.json** that affects the
+        native project changed.
 
   fail_workflow:
     name: Fail
-    needs: [ios_get_build, android_get_build, release_state]
-    after:
-      [doc_fingerprint_mismatch, doc_no_release, doc_release_missing_for_match]
-    # Everything except the lanes that ship: a pre-release (either lane), and an
-    # update when both platforms match.
-    if: ${{ needs.release_state.outputs.release_state == 'none' || (!(needs.ios_get_build.outputs.build_id && needs.android_get_build.outputs.build_id) && needs.release_state.outputs.release_state == 'released') }}
+    needs: [decide]
+    after: [doc_error]
+    if: ${{ needs.decide.outputs.action == 'error' }}
     steps:
       - name: Fail the run
         run: |
