@@ -59,6 +59,13 @@ runs:
         ANDROID='${{ inputs.android_build_id }}'
         ALLOW_BUILD='${{ inputs.allow_build }}'
 
+        # A get-build job that finds no match has no build_id output, and the
+        # expression renders that as the text "undefined", which is not empty.
+        # Left alone, it reads as a match and lets an update go out with no
+        # store build behind it.
+        case "$IOS" in undefined|null) IOS='' ;; esac
+        case "$ANDROID" in undefined|null) ANDROID='' ;; esac
+
         # Both platforms are decided together, so one store never moves
         # without the other.
         BOTH_MATCH=false
@@ -109,7 +116,9 @@ runs:
         echo "Release: $STATE. iOS match: ${IOS:-none}. Android match: ${ANDROID:-none}."
         echo "Action: $ACTION${REPACK:+ (repack iOS $REPACK)}"
         [ -n "$REASON" ] && echo "Reason: $REASON"
+        # set-output exits non-zero on an empty value. An output that is never
+        # set reads as empty downstream, so skip the empty ones.
         set-output action "$ACTION"
-        set-output ios_repack_build_id "$REPACK"
-        set-output reason "$REASON"
-        set-output fix "$FIX"
+        [ -z "$REPACK" ] || set-output ios_repack_build_id "$REPACK"
+        [ -z "$REASON" ] || set-output reason "$REASON"
+        [ -z "$FIX" ] || set-output fix "$FIX"
