@@ -19,6 +19,12 @@ inputs:
   - name: android_build_id
     type: string
     default_value: ''
+  # False on lanes that may only publish updates, such as a cherry-pick branch.
+  # Then a pre-release is an error rather than build-or-repack: replacing the
+  # store builds is main's job.
+  - name: allow_build
+    type: boolean
+    default_value: true
 
 outputs:
   action:
@@ -51,6 +57,7 @@ runs:
         STATE='${{ inputs.release_state }}'
         IOS='${{ inputs.ios_build_id }}'
         ANDROID='${{ inputs.android_build_id }}'
+        ALLOW_BUILD='${{ inputs.allow_build }}'
 
         # Both platforms are decided together, so one store never moves
         # without the other.
@@ -61,7 +68,15 @@ runs:
         REPACK=''
         REASON=''
         FIX=''
+        if [ "$STATE" = "prerelease" ] && [ "$ALLOW_BUILD" != "true" ]; then
+          STATE=prerelease-no-build
+        fi
+
         case "$STATE:$BOTH_MATCH" in
+          prerelease-no-build:*)
+            REASON="Runtime version $RV is still pre-release. This lane only publishes updates to a live release, and it does not replace store builds."
+            FIX="Merge the change to main, which replaces the store builds while the release is pre-release."
+            ;;
           prerelease:true)
             ACTION=build-or-repack
             REPACK="$IOS"
@@ -74,11 +89,11 @@ runs:
             ACTION=update
             ;;
           released:false)
-            REASON="Runtime version $RV is released, but main does not fingerprint-match a production store build on both platforms. The native layer changed, so the released binaries cannot be replaced and this merge cannot reach them as an update."
-            FIX="Revise the merge to drop the native change. To ship it anyway, bump the app version, which starts a new runtime version with its own release."
+            REASON="Runtime version $RV is released, but this commit does not fingerprint-match a production store build on both platforms. The native layer changed, so the released binaries cannot be replaced and this commit cannot reach them as an update."
+            FIX="Drop the native change. To ship it anyway, bump the app version, which starts a new runtime version with its own release."
             ;;
           none:true)
-            REASON="main matches the production store builds for runtime version $RV, but no GitHub release is tagged for that version, so nothing says whether to replace the builds or publish an update."
+            REASON="This commit matches the production store builds for runtime version $RV, but no GitHub release is tagged for that version, so nothing says whether to replace the builds or publish an update."
             FIX="Create a GitHub release tagged $RV. Make it draft or pre-release while the version is being assembled (merges replace and resubmit the store builds), or a full release once it is live (merges publish an update)."
             ;;
           none:false)

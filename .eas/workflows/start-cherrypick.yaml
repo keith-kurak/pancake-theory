@@ -1,0 +1,79 @@
+name: Start a cherry-pick branch for a runtime version
+
+# Manual only. Creates "<runtime version>-cherrypick" on the commit production
+# runs right now for that runtime version: the newest of its binary release,
+# weekly rollups, and OTA updates. Cherry-pick fixes onto that branch, and
+# deploy-cherrypick.yaml publishes them as OTA updates. See RELEASE.md.
+#
+#   npx eas-cli@latest workflow:run .eas/workflows/start-cherrypick.yaml \
+#     --ref main -F runtime_version=1.5.0
+#
+# Run it on main: the branch gets one extra commit that copies main's .eas
+# folder, so pushes to it run the current workflows. App code stays exactly as
+# released. It refuses to move a branch that already exists.
+#
+# Needs the production environment's GH_TOKEN with WRITE access to contents.
+
+on:
+  workflow_dispatch:
+    inputs:
+      runtime_version:
+        type: string
+        required: true
+        description: The runtime version to cherry-pick onto, for example 1.5.0
+
+concurrency:
+  cancel_in_progress: false
+  group: ${{ workflow.filename }}
+
+jobs:
+  start:
+    name: Create the cherry-pick branch
+    environment: production
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+      release_sha: ${{ steps.release.outputs.sha }}
+      release_url: ${{ steps.release.outputs.url }}
+      branch_sha: ${{ steps.branch.outputs.sha }}
+      branch_url: ${{ steps.branch.outputs.url }}
+    steps:
+      - uses: eas/checkout
+
+      - id: release
+        uses: ./.eas/functions/find-latest-runtime-release
+        with:
+          runtime_version: ${{ inputs.runtime_version }}
+
+      - id: branch
+        uses: ./.eas/functions/create-cherrypick-branch
+        with:
+          branch: ${{ inputs.runtime_version }}-cherrypick
+          base_sha: ${{ steps.release.outputs.sha }}
+
+  summary:
+    name: Summary
+    needs: [start]
+    type: doc
+    params:
+      md: |
+        # Created `${{ inputs.runtime_version }}-cherrypick`
+
+        The branch starts from `${{ needs.start.outputs.tag }}`, the newest release for
+        runtime version **${{ inputs.runtime_version }}**, on commit
+        `${{ needs.start.outputs.release_sha }}`. One commit on top copies `.eas` from
+        `main`, so pushes run the current workflows.
+
+        ```bash
+        git fetch origin
+        git switch ${{ inputs.runtime_version }}-cherrypick
+        git cherry-pick <commit>
+        git push
+        ```
+
+        Each push publishes an OTA update to production if it still matches the store
+        builds on both platforms. Make sure each fix is on `main` too. The next update from
+        `main` replaces this one.
+
+        Branch: ${{ needs.start.outputs.branch_url }}
+
+        Release: ${{ needs.start.outputs.release_url }}

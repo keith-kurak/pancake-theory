@@ -33,17 +33,18 @@ one platform does not match, the native layer changed.
 | Tag | Made by | Meaning |
 | --- | --- | --- |
 | `1.5.0` | You, or `mint-prerelease.yaml` | The binary release for the runtime version. Sets the mode. |
-| `1.5.0-ota-3f9a1c` | `deploy-production-on-main.yaml` | An OTA update to production, by update group. |
+| `1.5.0-ota-3f9a1c` | `deploy-production-on-main.yaml` or `deploy-cherrypick.yaml` | An OTA update to production, by update group. |
 | `1.5.1-rollup` | `weekly-store-rollup.yaml` | A weekly store binary at a new patch version. |
 
 Only the exact runtime version tag sets the mode. The `-ota-` and `-rollup` tags never
 do.
 
-## One decision, two workflows
+## One decision, three workflows
 
-[`decide-deploy`](.eas/functions/decide-deploy/function.yml) makes the decision for both
-`deploy-production-on-main.yaml` and `weekly-store-rollup.yaml`. Its inputs are the
-release state and the matching store builds:
+[`decide-deploy`](.eas/functions/decide-deploy/function.yml) makes the decision for
+`deploy-production-on-main.yaml`, `weekly-store-rollup.yaml`, and
+`deploy-cherrypick.yaml`. Its inputs are the release state and the matching store
+builds:
 
 | Release state | Both platforms match? | `action` |
 | --- | --- | --- |
@@ -55,6 +56,9 @@ release state and the matching store builds:
 
 Android always gets a full build. Production Android builds are app bundles (`.aab`),
 and repack cannot process them.
+
+The cherry-pick lane never builds. It sets `allow_build: false`, so for a pre-release it
+gets `error` in place of `build-or-repack`.
 
 ## Pre-release mode
 
@@ -149,6 +153,46 @@ To run it now:
 npx eas-cli@latest workflow:run .eas/workflows/weekly-store-rollup.yaml --ref main
 ```
 
+### Cherry-pick a fix
+
+Use this when production needs a fix, but `main` has other changes that are not ready to
+ship. The fix goes out as an OTA update, from a branch that starts at what production
+runs now.
+
+1. **Start the branch:**
+
+   ```bash
+   npx eas-cli@latest workflow:run .eas/workflows/start-cherrypick.yaml \
+     --ref main -F runtime_version=1.6.0
+   ```
+
+   `start-cherrypick.yaml` finds the newest release for the runtime version: the binary
+   release, a `-rollup`, or an `-ota-` tag, whichever came last. It creates
+   `1.6.0-cherrypick` on that commit. It adds one commit that copies `.eas` from `main`,
+   because a push runs the workflow files of the pushed commit, and a release commit
+   can predate the cherry-pick workflow. App code stays exactly as released. The
+   workflow does not move a branch that already exists.
+2. **Cherry-pick and push:**
+
+   ```bash
+   git fetch origin
+   git switch 1.6.0-cherrypick
+   git cherry-pick <commit>
+   git push
+   ```
+
+3. `deploy-cherrypick.yaml` runs on each push to a `*-cherrypick` branch. It makes the
+   same check as `main`. On `update`, it publishes an OTA update to the `production`
+   channel and tags it `<runtime version>-ota-<group id>`. On `error`, it fails and
+   explains why. It also fails if the branch name does not match the runtime version
+   that the project resolves to.
+
+**Put each fix on `main` too.** The cherry-pick and `main` publish to the same channel,
+so the next update from `main` replaces the cherry-picked one.
+
+To start over, delete the branch, then run `start-cherrypick.yaml` again. The new branch
+starts from the newest release, which can be an `-ota-` tag from the cherry-pick lane.
+
 ## When a deploy fails
 
 `decide-deploy` writes the reason and the fix in the run's summary. The usual cases:
@@ -158,6 +202,7 @@ npx eas-cli@latest workflow:run .eas/workflows/weekly-store-rollup.yaml --ref ma
 | No release for the runtime version | Mint the pre-release, then run the deploy again. |
 | Both platforms match, but no release | Mint a pre-release, or create a full release if the binaries are already live. |
 | Release mode, and a platform does not match | Revert the native change, or bump the app version to start a new version. |
+| Cherry-pick on a pre-release | Merge the change to `main`. While the release is a pre-release, `main` replaces the store builds. |
 
 A store build does not match when the native layer changed. Common causes: a
 dependency with native code was added, removed, or upgraded; a config plugin, or a
@@ -167,8 +212,8 @@ changed.
 ## Setup
 
 - **`GH_TOKEN`** in the EAS `production` environment, with **write** access to
-  repository contents. The release lookup only reads. Minting, OTA tags, rollups, and
-  promotion all write.
+  repository contents. The release lookup only reads. Minting, OTA tags, rollups,
+  promotion, and cherry-pick branches all write.
 - **Store submission credentials** for both platforms. `eas.json` has no Android submit
   settings, so Android uploads use the default Google Play track.
 - **A production store build on both platforms** for the current runtime version. Until

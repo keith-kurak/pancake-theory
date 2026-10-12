@@ -1,0 +1,110 @@
+name: Find latest runtime release
+description: >-
+  Finds the newest GitHub release for a runtime version, and the commit it is
+  tagged on. That is what production runs right now: the binary release, a
+  weekly rollup, or an OTA update, whichever came last. Needs GH_TOKEN in the
+  calling job's environment, with read access to the repository's releases.
+
+# A release counts when its tag is one of the three forms RELEASE.md lists for
+# the runtime version, for example for 1.5.0:
+#   1.5.0 or v1.5.0     the binary release
+#   1.5.N-rollup        a weekly store rollup
+#   1.5.0-ota-<group>   an OTA update
+# Drafts are skipped: they have no tag, so no commit.
+
+inputs:
+  - name: runtime_version
+    type: string
+    required: true
+  - name: repository
+    type: string
+    default_value: keith-kurak/pancake-theory
+
+outputs:
+  tag:
+    value: ${{ steps.find.outputs.tag }}
+    description: The newest release's tag.
+  sha:
+    value: ${{ steps.find.outputs.sha }}
+    description: The commit the tag points at.
+  url:
+    value: ${{ steps.find.outputs.url }}
+    description: The newest release's HTML URL.
+
+runs:
+  steps:
+    - id: find
+      name: Find the newest release for this runtime version
+      run: |
+        set -euo pipefail
+        if [ -z "${GH_TOKEN:-}" ]; then
+          echo "GH_TOKEN is not set. It should come from the calling job's EAS"
+          echo "environment, and needs repository release read access."
+          exit 1
+        fi
+        REPO='${{ inputs.repository }}'
+        RUNTIME_VERSION='${{ inputs.runtime_version }}'
+        export REPO RUNTIME_VERSION
+
+        cat > /tmp/find-latest-runtime-release.js <<'NODE_EOF'
+        const { REPO: repo, RUNTIME_VERSION: rv, GH_TOKEN: token } = process.env;
+
+        async function gh(path) {
+          const res = await fetch(`https://api.github.com/repos/${repo}${path}`, {
+            headers: {
+              authorization: `Bearer ${token}`,
+              accept: 'application/vnd.github+json',
+              'x-github-api-version': '2022-11-28',
+              'user-agent': 'eas-workflow-find-latest-runtime-release',
+            },
+          });
+          if (!res.ok) {
+            throw new Error(`GitHub API ${res.status}: ${await res.text()}`);
+          }
+          return res.json();
+        }
+
+        function belongsToRuntime(tag) {
+          const m = /^(\d+)\.(\d+)\.\d+$/.exec(rv);
+          if (!m) throw new Error(`"${rv}" is not a runtime version like 1.5.0.`);
+          const [, major, minor] = m;
+          const esc = rv.replace(/\./g, '\\.');
+          return (
+            tag === rv ||
+            tag === `v${rv}` ||
+            new RegExp(`^${major}\\.${minor}\\.\\d+-rollup$`).test(tag) ||
+            new RegExp(`^${esc}-ota-[0-9a-f]+$`).test(tag)
+          );
+        }
+
+        async function main() {
+          let latest = null;
+          for (let page = 1; page <= 10; page++) {
+            const releases = await gh(`/releases?per_page=100&page=${page}`);
+            if (releases.length === 0) break;
+            for (const r of releases) {
+              if (r.draft || !belongsToRuntime(r.tag_name)) continue;
+              if (!latest || r.created_at > latest.created_at) latest = r;
+            }
+          }
+          if (!latest) {
+            throw new Error(`No published release is tagged for runtime version ${rv}.`);
+          }
+          // The commits endpoint resolves a tag to its commit, whether the tag
+          // is lightweight or annotated.
+          const commit = await gh(`/commits/${encodeURIComponent(latest.tag_name)}`);
+          console.log(`${latest.tag_name} ${commit.sha} ${latest.html_url}`);
+        }
+
+        main().catch((e) => {
+          console.error(e.message);
+          process.exit(1);
+        });
+        NODE_EOF
+
+        OUT=$(node /tmp/find-latest-runtime-release.js)
+        set -- $OUT
+        echo "Newest release for $RUNTIME_VERSION: $1 on $2"
+        set-output tag "$1"
+        set-output sha "$2"
+        set-output url "$3"
