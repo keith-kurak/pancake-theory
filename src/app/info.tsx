@@ -1,5 +1,6 @@
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { breakfastStore$, breakfastActions } from "@/store/breakfast-store";
 import { PressableWithOpacity } from "@/components/ui/PressableWithOpacity";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { showConfirmDialog } from "@/utils/confirm-dialog";
@@ -10,7 +11,8 @@ import * as Application from "expo-application";
 import { router } from "expo-router";
 import { useUpdates } from "expo-updates";
 import { useCallback, useRef, useState } from "react";
-import { ScrollView, StyleSheet } from "react-native";
+import { useValue } from "@legendapp/state/react";
+import { ScrollView, StyleSheet, Switch } from "react-native";
 
 function InfoRow({
   label,
@@ -42,6 +44,7 @@ export default function InfoScreen() {
   const tapCountRef = useRef(0);
   const lastTapRef = useRef(0);
   const tintColor = useThemeColor({}, "tint");
+  const useMetric = useValue(breakfastStore$.useMetric);
 
   const runtimeVersion =
     typeof currentlyRunning.runtimeVersion === "string"
@@ -110,6 +113,16 @@ export default function InfoScreen() {
             </ThemedText>
           ) : null}
         </PressableWithOpacity>
+      </ThemedView>
+
+      <ThemedView style={styles.row}>
+        <ThemedText style={styles.settingLabel}>Use metric units</ThemedText>
+        <Switch
+          testID="metric-units-switch"
+          accessibilityLabel="Use metric units"
+          value={useMetric}
+          onValueChange={breakfastActions.setUseMetric}
+        />
       </ThemedView>
 
       {devVisible && (
@@ -194,6 +207,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "rgba(128, 128, 128, 0.3)",
     backgroundColor: "transparent",
+  },
+  settingLabel: {
+    fontSize: 16,
   },
   label: {
     opacity: 0.6,
