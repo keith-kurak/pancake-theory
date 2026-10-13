@@ -1,8 +1,8 @@
 {
   "mcpServers": {
-    "argent": {
+    "agent-device": {
       "type": "stdio",
-      "command": "argent",
+      "command": "agent-device",
       "args": [
         "mcp"
       ]

@@ -9,7 +9,7 @@
 // INCONCLUSIVE amber, anything else red.
 //
 // Only media is copied into site/. The prompt, diff, raw JSONL transcript, and
-// the argent config also live in the evidence dir and must not be published —
+// the agent-device config also live in the evidence dir and must not be published —
 // the config carries a session bearer token.
 import { cpSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';

@@ -1,12 +1,12 @@
 ---
 name: remote-sim
-description: Run this app on a remote EAS Simulator with the latest iOS development build, connected to a local tunnelled dev server and driven by Argent. Use when the user wants to test on a remote simulator, share a live simulator session, start an EAS Simulator session, run the dev build somewhere other than a local simulator, or point Argent at a remote device.
+description: Run this app on a remote EAS Simulator with the latest iOS development build, connected to a local tunnelled dev server and driven by agent-device. Use when the user wants to test on a remote simulator, share a live simulator session, start an EAS Simulator session, run the dev build somewhere other than a local simulator, or point agent-device at a remote device.
 ---
 
 # Remote simulator with a live dev server
 
 Runs the **latest iOS development build** on a **remote EAS Simulator**, connects it to a
-**local dev server** over a tunnel, and points the **Argent** MCP tools at it.
+**local dev server** over a tunnel, and points the **agent-device** MCP tools at it.
 
 Three moving parts must line up:
 
@@ -14,7 +14,7 @@ Three moving parts must line up:
 |---|---|---|
 | Dev server | `npm run start-dev-for-sim` | Serves JS over a public tunnel |
 | Remote simulator | `npm run start-sim start` | Boots an EAS simulator, installs the dev build |
-| Argent link | done by `start-sim` | Routes MCP/CLI tools to the remote device |
+| agent-device link | done by `start-sim` | Routes MCP/CLI tools to the remote device |
 
 ## Order matters
 
@@ -75,14 +75,14 @@ Other options: `--build-id`, `--idle <minutes>` (default 5), `--name`, `--profil
 ### Never pipe `start` into `head`
 
 The script uses `set -o pipefail`. Truncating its output with `head` sends SIGPIPE and kills it
-**before the `argent link` step**, leaving a running session that no tool is pointed at. Use
+**before the `agent-device connect` step**, leaving a running session that no tool is pointed at. Use
 `tail`, redirect to a file, or let it print in full.
 
 ## Step 3 — verify
 
 ```bash
 npm run start-sim status          # session + link state
-argent run list-devices           # should show ~14 devices, not your ~120 local ones
+agent-device devices              # should show the session's devices, not your ~120 local ones
 ```
 
 A remote session shows one booted iPhone plus a few Apple TV runtimes. Your local machine has far
@@ -91,22 +91,22 @@ more devices — that count is the quickest way to tell which target you are on.
 Then screenshot to confirm the app loaded from the dev server:
 
 ```bash
-argent run screenshot --udid <booted-udid>
+agent-device screenshot --udid <booted-udid>
 ```
 
 A healthy result shows the app running, or the dev menu naming the build (`PK-DEV`) and its runtime
 version.
 
-## Step 4 — use the Argent MCP tools
+## Step 4 — use the agent-device MCP tools
 
-`start-sim` runs `argent link`, which is **global** (`~/.argent/link.json`). It redirects every
-Argent client on the machine, not just this project.
+`start-sim` runs `agent-device connect`, whose state is **machine-global**. It redirects every
+agent-device client on the machine, not just this project.
 
-**The MCP server caches its target at startup.** Already-running `mcp__argent__*` tools keep hitting
-local simulators until Claude Code / the editor is restarted. Either restart, or use the `argent run
+**The MCP server caches its target at startup.** Already-running `mcp__agent-device__*` tools keep hitting
+local simulators until Claude Code / the editor is restarted. Either restart, or use the `agent-device
 <tool>` CLI in the meantime — that picks up the link immediately.
 
-If `ARGENT_TOOLS_URL` is set in the shell it overrides the link file. The script warns when it
+If `AGENT_DEVICE_DAEMON_BASE_URL` is set in the shell it overrides the stored connection. The script warns when it
 detects a mismatch.
 
 ## Step 5 — tear down
@@ -115,7 +115,7 @@ detects a mismatch.
 npm run start-sim stop
 ```
 
-Stops the EAS session, runs `argent unlink`, and deletes `.env.eas-simulator`. Then stop the dev
+Stops the EAS session, runs `agent-device disconnect`, and deletes `.env.eas-simulator`. Then stop the dev
 server. Restart the editor again to return the MCP tools to local simulators.
 
 Sessions also self-stop after the idle timeout (default 5 minutes).
@@ -169,5 +169,5 @@ status` deliberately prints key names only.
 
 - Script: `scripts/remote-sim.sh` (`start` | `stop` | `status`)
 - npm: `start-sim`, `start-dev-for-sim`
-- Session type is `--type argent`; do **not** run `agent-device` commands against it
+- Session type is `--type agent-device`; drive it with `agent-device` commands
 - Docs: https://docs.expo.dev/preview/eas-simulator/run-and-control/

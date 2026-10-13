@@ -2,7 +2,10 @@ name: Build or Repack, then Maestro
 
 jobs:
   fingerprint:
-    environment: preview
+    # The e2e profiles extend production, so this needs the production
+    # environment for ANDROID_MINIFY. Nothing else: the e2e profiles are
+    # fingerprint-identical to production by design.
+    environment: production
     type: fingerprint
 
   android_get_build:
@@ -11,7 +14,7 @@ jobs:
     params:
       fingerprint_hash: ${{ needs.fingerprint.outputs.android_fingerprint_hash }}
       platform: android
-      profile: preview
+      profile: e2e-apk
 
   android_repack:
     needs: [android_get_build]
@@ -30,7 +33,7 @@ jobs:
       METRICS_ENV: e2e
     params:
       platform: android
-      profile: preview
+      profile: e2e-apk
 
   android_maestro:
     after: [android_repack, android_build]
@@ -48,7 +51,7 @@ jobs:
     params:
       fingerprint_hash: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
       platform: ios
-      profile: preview-simulator
+      profile: e2e-simulator
 
   ios_repack:
     needs: [ios_get_build]
@@ -67,7 +70,7 @@ jobs:
       METRICS_ENV: e2e
     params:
       platform: ios
-      profile: preview-simulator
+      profile: e2e-simulator
 
   ios_maestro:
     after: [ios_repack, ios_build]

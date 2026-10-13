@@ -356,7 +356,7 @@ binaries in your diffs and in the repo's object store permanently. Hosting the p
 instead costs nothing per run and keeps git clean.
 
 `build-evidence-site.mjs` copies **only media** into `site/`. The prompt, the diff, the
-transcript, and the argent config stay behind — that config holds a session bearer token
+transcript, and the agent-device config stay behind — that config holds a session bearer token
 and the site is public. Every string that reaches the page is HTML-escaped, because the
 verdict text is written by a model that has just read an untrusted PR diff.
 
@@ -538,7 +538,7 @@ worker, so this needs no Mac and no nested virtualisation — the job only runs 
 `eas` CLI, and Claude. The trade is that the remote simulator cannot see the worker's
 loopback, so Metro is published over a tunnel.
 
-It is a single job because Metro, the simulator session, and the `argent link` are live
+It is a single job because Metro, the simulator session, and the agent-device connection are live
 state. Separate EAS jobs get separate workers.
 
 EAS Workflows has no job timeout key, so the 30-minute cap is enforced inside
@@ -561,7 +561,7 @@ lines. Clear the backlog and this becomes a plain "lint must pass" check on its 
 This is the same path as local work, so the CI job **calls
 [`scripts/remote-sim.sh`](../../scripts/remote-sim.sh) directly** rather than
 reimplementing it. That script resolves the build, starts the session with the dev-server
-deep link, and runs `argent link`; `stop` reverses all three.
+deep link, and runs `agent-device connect`; `stop` reverses all three.
 
 Order matters. Metro starts **first**, because the session deep-links the dev build at the
 tunnel URL on launch — start the simulator first and the app sits on an empty launcher.
@@ -584,15 +584,15 @@ any of them:
 In practice a remote session shows only the first two, because EAS passes the deep link at
 launch via `--open-url` and never triggers the scheme confirmation. The third appears when
 a URL is opened into an already-running app. `sim_clear_startup_prompts` handles either
-case: it drains by label, taking coordinates from Argent's accessibility tree — never from
-a screenshot — and repeats until a full pass finds nothing, because each dialog only
+case: it drains by label, letting agent-device resolve each button from a selector — never
+from coordinates read off a screenshot — and repeats until a full pass finds nothing, because each dialog only
 appears once the previous is gone. The run then confirms
 `iOS Bundled` in the Metro log before handing over. Without that confirmation it reports
 "the app never loaded from the dev server" rather than letting Claude judge a launcher
 screen.
 
-Claude then drives the app through the Argent MCP tools and writes a verdict to
-`agent-out/validation.json`. It is told to discover elements before every tap and never
+Claude then drives the app through the agent-device MCP tools and writes a verdict to
+`agent-out/validation.json`. It is told to act on snapshot refs or selectors and never
 to read coordinates off a screenshot. It cannot edit source files in this phase — it
 judges, it does not repair.
 
@@ -629,7 +629,7 @@ The runner works outside EAS against a real PR — see
 | `scripts/agent/run-agent-pr.sh` | The run: phases, budget, publish. Both modes. |
 | `scripts/agent/lib/budget.sh` | Wall-clock watchdog; signals the whole process group. |
 | `scripts/agent/lib/gh.sh` | GitHub REST and GraphQL over `curl`. |
-| `scripts/agent/lib/sim.sh` | Tunnelled Metro, remote session, Argent, startup dialogs. |
+| `scripts/agent/lib/sim.sh` | Tunnelled Metro, remote session, agent-device, startup dialogs. |
 | `scripts/remote-sim.sh` | Session lifecycle. Shared with local work, called by the job. |
 | `.eas/workflows/agent-verify.yaml` | Verify trigger, plus the fingerprint and build jobs for a standalone run. |
 | `.eas/functions/agent-verify/function.yml` | The verify custom function. Called by all three agent workflows. |

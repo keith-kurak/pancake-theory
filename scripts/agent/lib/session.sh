@@ -54,7 +54,10 @@ print(next((g.get("group") for g in groups if g.get("group")), ""))
 
 # session_start <build_id> <update_group_id> <name>
 #
-# Boot the session and wait until argent sees a booted device. Sets SIM_UDID,
+# Honours SESSION_DEVICE: a simulator name to boot instead of the runner's
+# default. Used to verify a change on an iPad when the task is about one.
+#
+# Boot the session and wait until agent-device sees a booted device. Sets SIM_UDID,
 # AGENT_SIM_UDID, and SESSION_URL (the session page on expo.dev, which keeps the
 # session's recording and logs after it stops).
 session_start() {
@@ -71,9 +74,18 @@ session_start() {
     python3 -c 'import sys,urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "$target"
   )"
 
+  # SESSION_DEVICE names the simulator to boot, e.g. "iPad (A16)". Left empty
+  # the runner picks, which is the long-standing behaviour and an iPhone.
+  local device_args=()
+  if [ -n "${SESSION_DEVICE:-}" ]; then
+    device_args=(--device "$SESSION_DEVICE")
+    echo "session: requesting device \"$SESSION_DEVICE\"" >&2
+  fi
+
   echo "session: starting the EAS Simulator session" >&2
   if ! npx --yes eas-cli@latest simulator:start \
-      --platform ios --type argent \
+      --platform ios --type agent-device \
+      ${device_args[@]+"${device_args[@]}"} \
       --build-id "$build_id" \
       --open-url "$open_url" \
       --max-duration-minutes "${SESSION_MAX_MINUTES:-30}" \
@@ -108,24 +120,24 @@ except Exception:
   done
   [ -n "$live" ] || { SESSION_ERROR="the simulator session was not ready in time."; return 1; }
 
-  # An argent session writes its connection config to .env.eas-simulator.
-  # Exporting these routes every argent client in this process tree — CLI and
-  # MCP server alike — at the remote tool-server. Deliberately not `argent
-  # link`: that writes to ~/.argent/link.json, which is global to the machine.
+  # An agent-device session writes its connection config to .env.eas-simulator.
+  # Exporting these routes every agent-device client in this process tree — CLI
+  # and MCP server alike — at the remote daemon. Deliberately not
+  # `agent-device connect`: that stores state global to the machine.
   if [ -f "$PROJECT_ROOT/.env.eas-simulator" ]; then
     set -a
     # shellcheck disable=SC1091
     . "$PROJECT_ROOT/.env.eas-simulator"
     set +a
   fi
-  if [ -z "${ARGENT_TOOLS_URL:-}" ] || [ -z "${ARGENT_AUTH_TOKEN:-}" ]; then
-    SESSION_ERROR="the argent connection config was missing from the session."
+  if [ -z "${AGENT_DEVICE_DAEMON_BASE_URL:-}" ] || [ -z "${AGENT_DEVICE_DAEMON_AUTH_TOKEN:-}" ]; then
+    SESSION_ERROR="the agent-device connection config was missing from the session."
     return 1
   fi
-  export ARGENT_TOOLS_URL ARGENT_AUTH_TOKEN
+  export AGENT_DEVICE_DAEMON_BASE_URL AGENT_DEVICE_DAEMON_AUTH_TOKEN
 
   if ! sim_wait_for_device; then
-    SESSION_ERROR="argent never saw a booted device in the session."
+    SESSION_ERROR="agent-device never saw a booted device in the session."
     return 1
   fi
   export AGENT_SIM_UDID="$SIM_UDID"

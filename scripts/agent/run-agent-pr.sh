@@ -411,8 +411,8 @@ validate() {
   fi
 
   if ! sim_wait_for_device; then
-    STATUS_VALIDATE="skipped — Argent never saw the simulator"
-    note_blocker "Argent could not reach the remote simulator, so the app was not driven."
+    STATUS_VALIDATE="skipped — agent-device never saw the simulator"
+    note_blocker "agent-device could not reach the remote simulator, so the app was not driven."
     return 1
   fi
 
@@ -434,8 +434,8 @@ validate() {
   done
   log "The app loaded a bundle from Metro after ${bundle_waited}s"
 
-  local mcp_config="$AGENT_OUT/argent-mcp.json"
-  argent_mcp_config "$mcp_config" >/dev/null
+  local mcp_config="$AGENT_OUT/agent-device-mcp.json"
+  agent_device_mcp_config "$mcp_config" >/dev/null
 
   local slice
   slice="$(budget_for "$VALIDATE_BUDGET_SECONDS" "$PUBLISH_RESERVE_SECONDS")"
