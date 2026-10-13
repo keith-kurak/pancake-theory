@@ -5,6 +5,7 @@ import { useThemeColor } from "@/hooks/use-theme-color";
 import { showConfirmDialog } from "@/utils/confirm-dialog";
 import Sentry from "@/utils/sentry";
 import { getCriticalIndex } from "@/utils/update-utils";
+import { ReadableWidth } from "@/constants/sizes";
 import Constants from "expo-constants";
 import * as Application from "expo-application";
 import { router } from "expo-router";
@@ -154,6 +155,7 @@ export default function InfoScreen() {
 
 const styles = StyleSheet.create({
   container: {
+    ...ReadableWidth,
     padding: 16,
   },
   header: {

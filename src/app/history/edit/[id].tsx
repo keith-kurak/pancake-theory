@@ -5,6 +5,7 @@ import { useMarkRouteInteractive } from "@/hooks/use-mark-route-interactive";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { breakfastActions, breakfastStore$ } from "@/store/breakfast-store";
 import { showConfirmDialog } from "@/utils/confirm-dialog";
+import { ReadableWidth } from "@/constants/sizes";
 import { useValue } from "@legendapp/state/react";
 import * as Haptics from "expo-haptics";
 import { router, Stack, useLocalSearchParams } from "expo-router";
@@ -265,6 +266,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   container: {
+    ...ReadableWidth,
     padding: 24,
     gap: 16,
     paddingBottom: 24,

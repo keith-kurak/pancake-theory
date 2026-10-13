@@ -8,6 +8,7 @@ import { useThemeColor } from "@/hooks/use-theme-color";
 import { useMarkRouteInteractive } from "@/hooks/use-mark-route-interactive";
 import { breakfastStore$ } from "@/store/breakfast-store";
 import type { BreakfastType, Recipe } from "@/types/breakfast";
+import { ReadableWidth } from "@/constants/sizes";
 import { useValue } from "@legendapp/state/react";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
@@ -212,6 +213,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   listContent: {
+    ...ReadableWidth,
     padding: 16,
     paddingTop: 0,
   },

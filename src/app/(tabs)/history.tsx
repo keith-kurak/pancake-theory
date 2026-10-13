@@ -6,6 +6,7 @@ import { useMarkRouteInteractive } from "@/hooks/use-mark-route-interactive";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { breakfastStore$ } from "@/store/breakfast-store";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { ReadableWidth } from "@/constants/sizes";
 import { observer, useValue } from "@legendapp/state/react";
 import { Link } from "expo-router";
 import { useMemo, useState } from "react";
@@ -109,6 +110,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
+    ...ReadableWidth,
     padding: 16,
     paddingBottom: 8,
     alignItems: "center",
@@ -131,6 +133,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   listContent: {
+    ...ReadableWidth,
     padding: 16,
     paddingTop: 8,
   },
