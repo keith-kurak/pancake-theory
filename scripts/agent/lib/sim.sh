@@ -9,7 +9,7 @@
 #
 # Session lifecycle is delegated to scripts/remote-sim.sh, the same script used
 # for local work. It resolves a runtime-matched build, starts the session with
-# the dev-server deep link, and runs `argent link` so every argent client here
+# the dev-server deep link, and connects agent-device so every client here
 # targets the remote device.
 
 : "${METRO_PORT:=8081}"
@@ -46,7 +46,7 @@ sim_require_token() {
   return 1
 }
 
-_argent() { npx --yes @swmansion/argent@latest "$@"; }
+_agent_device() { npx --yes agent-device@latest "$@"; }
 
 # --- metro ------------------------------------------------------------------
 
@@ -100,7 +100,7 @@ metro_start() {
 
 # sim_start — start the EAS Simulator session pointed at METRO_URL.
 #
-# remote-sim.sh does the build resolution, the deep link, and `argent link`.
+# remote-sim.sh does the build resolution, the deep link, and the connect.
 # --max-duration is a billing backstop: a wedged session cannot outlive the run.
 sim_start() {
   [ -n "$METRO_URL" ] || { echo "sim: metro_start must run first" >&2; return 1; }
@@ -117,38 +117,38 @@ sim_start() {
     return 1
   fi
 
-  echo "sim: remote session started and argent linked" >&2
+  echo "sim: remote session started and agent-device connected" >&2
 }
 
 # sim_wait_for_device — set SIM_UDID from the linked session's booted iPhone.
 #
-# A remote argent session exposes one booted iOS device plus some Apple TV
+# A remote agent-device session exposes one booted iOS device plus some Apple TV
 # runtimes, so filter rather than taking the first entry.
 sim_wait_for_device() {
   local waited=0
   while [ "$waited" -lt 120 ]; do
-    SIM_UDID="$(_argent run list-devices --json 2>/dev/null | python3 -c '
+    SIM_UDID="$(_agent_device devices --json 2>/dev/null | python3 -c '
 import json, sys
 try:
-    devices = json.load(sys.stdin).get("devices", [])
+    devices = json.load(sys.stdin).get("data", {}).get("devices", [])
 except Exception:
     sys.exit(0)
 for d in devices:
     if (d.get("platform") == "ios"
-            and str(d.get("state", "")).lower() == "booted"
-            and d.get("runtimeKind") == "mobile"
-            and d.get("udid")):
-        print(d["udid"])
+            and d.get("booted") is True
+            and d.get("target") == "mobile"
+            and d.get("id")):
+        print(d["id"])
         break
 ')"
     if [ -n "$SIM_UDID" ]; then
-      echo "argent: booted device is $SIM_UDID" >&2
+      echo "agent-device: booted device is $SIM_UDID" >&2
       return 0
     fi
     sleep 5
     waited=$(( waited + 5 ))
   done
-  echo "argent: no booted iOS device appeared within ${waited}s" >&2
+  echo "agent-device: no booted iOS device appeared within ${waited}s" >&2
   return 1
 }
 
@@ -156,33 +156,16 @@ for d in devices:
 
 # sim_tap_button <label>
 #
-# Tap an AXButton by its exact label. Coordinates come from Argent's
-# accessibility tree, never from a guess or a screenshot. Returns non-zero when
-# the button is not on screen.
+# Tap a button by its exact accessibility label. agent-device resolves the
+# selector itself, so there is no accessibility tree to parse and no coordinate
+# to guess. Returns non-zero when the button is not on screen.
 sim_tap_button() {
-  local label="$1" centre x y
-  centre="$(_argent run describe --udid "$SIM_UDID" 2>/dev/null \
-    | python3 -c '
-import json, re, sys
-try:
-    text = json.load(sys.stdin).get("description", "")
-except Exception:
-    sys.exit(0)
-# A describe line may carry attributes between the label and the frame, e.g.
-#   AXButton "Close" id="xmark"  (0.856, 0.459, 0.086, 0.040)
-# so allow anything that is not a newline or an opening paren in between.
-pattern = (r"AXButton \"" + re.escape(sys.argv[1]) + r"\"[^\n(]*"
-           r"\(([\d.]+), ([\d.]+), ([\d.]+), ([\d.]+)\)")
-m = re.search(pattern, text)
-if m:
-    fx, fy, fw, fh = (float(g) for g in m.groups())
-    print(f"{fx + fw / 2:.4f} {fy + fh / 2:.4f}")
-' "$label")"
-
-  [ -n "$centre" ] || return 1
-  read -r x y <<< "$centre"
-  _argent run gesture-tap --udid "$SIM_UDID" --x "$x" --y "$y" >/dev/null 2>&1
-  echo "sim: tapped \"$label\" at ($x, $y)" >&2
+  local label="$1"
+  if _agent_device click "role=button label=\"$label\"" --udid "$SIM_UDID" --settle >/dev/null 2>&1; then
+    echo "sim: tapped \"$label\"" >&2
+    return 0
+  fi
+  return 1
 }
 
 # Buttons that stand between a cold simulator and a usable app, in the order
@@ -231,20 +214,20 @@ sim_clear_startup_prompts() {
   fi
 }
 
-# --- argent -----------------------------------------------------------------
+# --- agent-device -----------------------------------------------------------------
 
-# argent_mcp_config <path> — write the --mcp-config file Claude will load.
+# agent_device_mcp_config <path> — write the --mcp-config file Claude will load.
 #
-# The MCP server reads the global link written by `argent link` at startup, so
-# it targets the remote session without any extra wiring here.
-argent_mcp_config() {
+# The MCP server reads the connection stored by `agent-device connect` at
+# startup, so it targets the remote session without any extra wiring here.
+agent_device_mcp_config() {
   local path="$1"
   cat > "$path" <<'JSON'
 {
   "mcpServers": {
-    "argent": {
+    "agent-device": {
       "command": "npx",
-      "args": ["--yes", "@swmansion/argent@latest", "mcp"]
+      "args": ["--yes", "agent-device@latest", "mcp"]
     }
   }
 }

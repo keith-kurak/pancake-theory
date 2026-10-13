@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 #
 # Start (or stop) a remote EAS Simulator session running the latest Android
-# emulator development build, and point the local Argent CLI/MCP at it.
+# emulator development build, and point the local agent-device CLI/MCP at it.
 #
 #   ./scripts/remote-sim-android.sh start [--build-id <id>] [--idle <minutes>] [--name <name>]
 #   ./scripts/remote-sim-android.sh stop
 #   ./scripts/remote-sim-android.sh status
 #
 # This is the Android counterpart of scripts/remote-sim.sh. The two share the
-# same EAS session tracking file (.env.eas-simulator) and the same global argent
+# same EAS session tracking file (.env.eas-simulator) and the same global agent-device
 # link, so only one remote session — iOS or Android — is active at a time.
 # Starting one after the other stops tracking the first; stop it from expo.dev if
 # you started it in another shell.
@@ -17,13 +17,14 @@
 #   1. Resolves the newest finished, unexpired Android development build from the
 #      `development` EAS Build profile (unless --build-id is given). An
 #      internal-distribution APK from that profile installs on an emulator as-is.
-#   2. Runs `eas simulator:start --platform android --type argent`, which writes
-#      ARGENT_TOOLS_URL and ARGENT_AUTH_TOKEN to .env.eas-simulator.
-#   3. Runs `argent link` so local argent commands and the argent MCP server
+#   2. Runs `eas simulator:start --platform android --type agent-device`, which
+#      writes AGENT_DEVICE_DAEMON_BASE_URL and AGENT_DEVICE_DAEMON_AUTH_TOKEN
+#      to .env.eas-simulator.
+#   3. Runs `agent-device connect proxy` so local agent-device commands and the agent-device MCP server
 #      talk to the remote emulator instead of a local one.
 #
-# NOTE: `argent link` is GLOBAL (~/.argent/link.json). While a link is active,
-# every argent client on this machine targets the remote session. Run
+# NOTE: connection state is machine-global. While a session is connected,
+# every agent-device client on this machine targets it. Run
 # `./scripts/remote-sim-android.sh stop` when you are done.
 
 set -euo pipefail
@@ -72,7 +73,7 @@ read_env_var() {
 usage() {
   cat <<'EOF'
 Start (or stop) a remote EAS Simulator session running the latest Android
-emulator development build, and point the local Argent CLI/MCP at it.
+emulator development build, and point the local agent-device CLI/MCP at it.
 
 Usage:
   ./scripts/remote-sim-android.sh start [options]
@@ -100,13 +101,14 @@ Options (start):
 "start" does three things:
   1. Resolves the newest finished, unexpired Android development build from the
      build profile (unless --build-id is given).
-  2. Runs `eas simulator:start --platform android --type argent`, which writes
-     ARGENT_TOOLS_URL and ARGENT_AUTH_TOKEN to .env.eas-simulator.
-  3. Runs `argent link` so local argent commands and the argent MCP server
+  2. Runs `eas simulator:start --platform android --type agent-device`, which
+     writes AGENT_DEVICE_DAEMON_BASE_URL and AGENT_DEVICE_DAEMON_AUTH_TOKEN
+     to .env.eas-simulator.
+  3. Runs `agent-device connect proxy` so local agent-device commands and the agent-device MCP server
      talk to the remote emulator instead of a local one.
 
-NOTE: `argent link` is GLOBAL (~/.argent/link.json). While a link is active,
-every argent client on this machine targets the remote session. Run
+NOTE: connection state is machine-global. While a session is connected,
+every agent-device client on this machine targets it. Run
 `./scripts/remote-sim-android.sh stop` when you are done.
 EOF
   exit "${1:-0}"
@@ -126,7 +128,7 @@ EOF
 cmd_start() {
   require npx "Install Node.js."
   require python3 "Install Python 3."
-  require argent "Install it with: npm install --global @swmansion/argent"
+  require agent-device "Install it with: npm install --global agent-device"
 
   if [ -z "$BUILD_ID" ]; then
     BUILD_ID="$(resolve_build_id)"
@@ -165,7 +167,7 @@ cmd_start() {
   [ -n "$MAX_DURATION_MINUTES" ] && \
     max_duration_args=(--max-duration-minutes "$MAX_DURATION_MINUTES")
 
-  info "Starting remote EAS Simulator session (android, argent, idle timeout ${IDLE_MINUTES}m${MAX_DURATION_MINUTES:+, max ${MAX_DURATION_MINUTES}m})..."
+  info "Starting remote EAS Simulator session (android, agent-device, idle timeout ${IDLE_MINUTES}m${MAX_DURATION_MINUTES:+, max ${MAX_DURATION_MINUTES}m})..."
   local start_log
   # An explicit template, not `mktemp -t PREFIX`: BSD mktemp appends its own
   # suffix to a bare prefix, but GNU coreutils rejects it with "too few X's in
@@ -175,7 +177,7 @@ cmd_start() {
   # repeated in the summary below.
   $EAS simulator:start \
     --platform android \
-    --type argent \
+    --type agent-device \
     --name "$SESSION_NAME" \
     --non-interactive \
     --build-id "$BUILD_ID" \
@@ -188,26 +190,26 @@ cmd_start() {
   [ -f "$ENV_FILE" ] || { err "$ENV_FILE was not written. The session did not start."; exit 1; }
 
   local tools_url auth_token
-  tools_url="$(read_env_var ARGENT_TOOLS_URL || true)"
-  auth_token="$(read_env_var ARGENT_AUTH_TOKEN || true)"
+  daemon_url="$(read_env_var AGENT_DEVICE_DAEMON_BASE_URL || true)"
+  auth_token="$(read_env_var AGENT_DEVICE_DAEMON_AUTH_TOKEN || true)"
 
   if [ -z "$tools_url" ]; then
-    err "ARGENT_TOOLS_URL is missing from $ENV_FILE."
-    err "The session may not be an argent session. Check: $EAS simulator:list"
+    err "AGENT_DEVICE_DAEMON_BASE_URL is missing from $ENV_FILE."
+    err "The session may not be an agent-device session. Check: $EAS simulator:list"
     exit 1
   fi
 
-  info "Pointing the local argent client at the remote session..."
+  info "Pointing the local agent-device client at the remote session..."
   if [ -n "$auth_token" ]; then
-    argent link "$tools_url" --token "$auth_token" --yes
+    agent-device connect proxy --daemon-base-url "$daemon_url" --daemon-auth-token "$auth_token"
   else
-    argent link "$tools_url" --yes
+    agent-device connect proxy --daemon-base-url "$daemon_url"
   fi
 
-  # ARGENT_TOOLS_URL in the shell environment outranks ~/.argent/link.json and
-  # would silently send tools somewhere else.
-  if [ -n "${ARGENT_TOOLS_URL:-}" ] && [ "${ARGENT_TOOLS_URL}" != "$tools_url" ]; then
-    err "WARNING: ARGENT_TOOLS_URL is set in your shell to ${ARGENT_TOOLS_URL}."
+  # AGENT_DEVICE_DAEMON_BASE_URL in the shell environment outranks the stored
+  # connection and would silently send commands somewhere else.
+  if [ -n "${AGENT_DEVICE_DAEMON_BASE_URL:-}" ] && [ "${AGENT_DEVICE_DAEMON_BASE_URL}" != "$daemon_url" ]; then
+    err "WARNING: AGENT_DEVICE_DAEMON_BASE_URL is set in your shell to ${AGENT_DEVICE_DAEMON_BASE_URL}."
     err "That variable overrides the link. Unset it for the link to take effect."
   fi
 
@@ -231,12 +233,12 @@ cmd_start() {
 
   Next steps
   ----------
-  1. RESTART your editor / Claude Code session. A running \`argent mcp\` process
+  1. RESTART your editor / Claude Code session. A running \`agent-device mcp\` process
      caches its target at startup and keeps using the local emulator until it
      is relaunched.
   2. Verify the link resolves to the remote session:
-       argent tools
-       $EAS simulator:exec argent run list-devices
+       agent-device connection status
+       agent-device devices --platform android
   3. Watch session events:
        $EAS simulator:events --follow
   4. When you are done:
@@ -262,13 +264,13 @@ cmd_stop() {
     info "No $ENV_FILE found. Nothing to stop on EAS."
   fi
 
-  if command -v argent >/dev/null 2>&1; then
-    info "Restoring argent to local simulators..."
-    argent unlink --yes || true
+  if command -v agent-device >/dev/null 2>&1; then
+    info "Restoring agent-device to local emulators..."
+    agent-device disconnect || true
   fi
 
   rm -f "$ENV_FILE"
-  ok "Stopped. Restart your editor so argent MCP goes back to local simulators."
+  ok "Stopped. Restart your editor so the agent-device MCP server goes back to local emulators."
 }
 
 cmd_status() {
@@ -281,22 +283,17 @@ cmd_status() {
   fi
 
   echo
-  if [ -f "$HOME/.argent/link.json" ]; then
-    ok "argent is linked to a remote tool-server:"
-    python3 -c "
-import json
-d = json.load(open('$HOME/.argent/link.json'))
-print('  url:', d.get('url'))
-print('  token:', '<set>' if d.get('token') else '<none>')
-print('  created:', d.get('createdAt'))
-"
+  if command -v agent-device >/dev/null 2>&1; then
+    ok "agent-device connection:"
+    agent-device connection status 2>&1 | sed 's/^/  /' || \
+      info "  agent-device is not connected. It will use local emulators."
   else
-    info "argent is not linked. It will use local simulators."
+    info "agent-device is not installed."
   fi
 
-  if [ -n "${ARGENT_TOOLS_URL:-}" ]; then
+  if [ -n "${AGENT_DEVICE_DAEMON_BASE_URL:-}" ]; then
     echo
-    err "ARGENT_TOOLS_URL is set in this shell and overrides any link."
+    err "AGENT_DEVICE_DAEMON_BASE_URL is set in this shell and overrides the stored connection."
   fi
 
   echo

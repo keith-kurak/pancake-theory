@@ -25,6 +25,10 @@
 #           VERIFY_SINCE      `/agent` comments newer than this are the focus;
 #                             defaults to the branch's last commit time
 #           VERIFY_GATE_READY true to let the verdict set draft state
+#           VERIFY_DEVICE     simulator to boot, e.g. "iPad (A16)". Defaults to
+#                             an iPad when the task or a request mentions one,
+#                             and otherwise to the runner's choice of iPhone
+#           VERIFY_IPAD_DEVICE  which iPad that is; defaults to "iPad (A16)"
 #           PR_HEAD_REF       the branch; looked up from the PR when unset
 #
 # Local dry run:
@@ -206,6 +210,47 @@ if [ -s "$EVIDENCE_DIR/requests.md" ]; then
   sed 's/^/    /' "$EVIDENCE_DIR/requests.md" | head -n 20
 fi
 
+# ---------------------------------------------------------------------------
+# Pick the device
+# ---------------------------------------------------------------------------
+
+# A tablet layout cannot be judged on a phone. When the task or a reviewer's
+# request is about iPads, boot one; otherwise keep the runner's default, which
+# is an iPhone. VERIFY_DEVICE overrides both.
+: "${VERIFY_DEVICE:=}"
+: "${VERIFY_IPAD_DEVICE:=iPad (A16)}"
+
+# Intent only — the PR title, the task, and the reviewer's requests. The diff is
+# deliberately excluded: a stray "iPad" in a comment or a renamed asset should
+# not change which device the verdict is about.
+intent_text() {
+  printf '%s\n' "$PR_TITLE"
+  cat "$EVIDENCE_DIR/task.md" "$EVIDENCE_DIR/requests.md" 2>/dev/null || true
+}
+
+if [ -z "$VERIFY_DEVICE" ] && intent_text | grep -qiE '(^|[^a-z])(ipad|tablet)'; then
+  VERIFY_DEVICE="$VERIFY_IPAD_DEVICE"
+  log "  device: $VERIFY_DEVICE (the task or a request mentions iPad)"
+elif [ -n "$VERIFY_DEVICE" ]; then
+  log "  device: $VERIFY_DEVICE (VERIFY_DEVICE)"
+else
+  log "  device: the runner's default iPhone"
+fi
+export SESSION_DEVICE="$VERIFY_DEVICE"
+
+# app.json sets ios.supportsTablet false, so on an iPad this app runs in iPhone
+# compatibility mode: a scaled phone window, not a native iPad layout. Without
+# saying so, a verdict about "the iPad layout" would be about something that
+# does not exist yet.
+TABLET_NOTE=""
+if [ -n "$VERIFY_DEVICE" ] \
+  && ! node -e "process.exit(require('./app.json').expo.ios.supportsTablet ? 0 : 1)" 2>/dev/null; then
+  # Backticks here are Markdown for the brief, not command substitution.
+  # shellcheck disable=SC2016
+  TABLET_NOTE='This app sets `ios.supportsTablet: false`, so on an iPad it runs in iPhone compatibility mode — a scaled phone window, not a native iPad layout. Judge what is actually on screen, and say so if the request assumed otherwise.'
+  log "  note: supportsTablet is false — the iPad shows iPhone compatibility mode"
+fi
+
 # The diff is context for the verifier: it should test what changed, not the
 # whole app. Capped so a large PR cannot blow the prompt budget.
 gh_pr_diff > "$EVIDENCE_DIR/pr.diff" 2>/dev/null || : > "$EVIDENCE_DIR/pr.diff"
@@ -276,7 +321,7 @@ run_verifier() {
   # at all. If this is empty, no verdict from Claude would be worth reading.
   log "Snapshotting the launch state"
   local snapshot
-  snapshot="$(npx --yes @swmansion/argent@latest run describe --udid "$SIM_UDID" 2>/dev/null || true)"
+  snapshot="$(npx --yes agent-device@latest snapshot -i --udid "$SIM_UDID" 2>/dev/null || true)"
   printf '%s\n' "$snapshot" > "$EVIDENCE_DIR/launch-snapshot.txt"
   if [ -z "$snapshot" ] || ! printf '%s' "$snapshot" | grep -q 'ROOT'; then
     printf 'FAIL: the app produced no UI after launch — the update may not have loaded.\n' > "$VERDICT_FILE"
@@ -289,7 +334,9 @@ run_verifier() {
   {
     printf '\n---\n\n## This run\n\n'
     printf -- '- The PR under test is #%s: "%s".\n' "$PR_NUMBER" "$PR_TITLE"
-    printf -- '- Pass `udid: %s` to every argent tool.\n' "$SIM_UDID"
+    printf -- '- Pass `udid: %s` to every agent-device tool.\n' "$SIM_UDID"
+    printf -- '- The simulator is %s.\n' "${VERIFY_DEVICE:-an iPhone chosen by the runner}"
+    [ -n "$TABLET_NOTE" ] && printf -- '- %s\n' "$TABLET_NOTE"
     if gate_enabled; then
       printf -- '- An agent wrote this change and has already judged its own work as passing. Your verdict alone decides whether the PR is marked ready for review. Look for what the author missed.\n'
     fi
@@ -308,8 +355,8 @@ run_verifier() {
     fi
   } >> "$prompt"
 
-  local mcp_config="$EVIDENCE_DIR/argent-mcp.json"
-  argent_mcp_config "$mcp_config" >/dev/null
+  local mcp_config="$EVIDENCE_DIR/agent-device-mcp.json"
+  agent_device_mcp_config "$mcp_config" >/dev/null
 
   log "Running the verifier (timeout $CLAUDE_TIMEOUT)"
   # The verdict file is the contract, not Claude's exit code. timeout is the

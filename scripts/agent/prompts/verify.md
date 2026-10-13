@@ -17,8 +17,13 @@ think of. If you repeat their test, you add nothing.
 ## What is already running
 
 An iOS simulator on EAS, with a development build installed and launched, loading this
-PR's JavaScript as a published EAS Update. The Argent MCP tools are connected to it and
+PR's JavaScript as a published EAS Update. The agent-device MCP tools are connected to it and
 are your hands. Startup dialogs have already been dismissed.
+
+The device is named under **This run** below. It is an iPhone unless the task or a
+reviewer's request was about iPads, in which case an iPad was booted instead. Test the
+form factor you were given — if the request is about a tablet layout and you are on a
+phone, say so rather than guessing.
 
 `evidence/launch-snapshot.txt` holds the accessibility tree at launch.
 
@@ -49,7 +54,7 @@ Pick the ones that fit the change. Do not try all of them.
 
 - **Edge values**: empty input, zero, the maximum, a very long string, repeated taps.
 - **State that should persist**: leave the screen and come back, switch tabs, or
-  restart the app with `mcp__argent__restart-app`, then check the value is still there.
+  relaunch the app with `mcp__agent-device__open --relaunch`, then check the value is still there.
   A restart can land on the development client's launcher instead of the app. If it
   does, reopen the most recent project from the launcher. If that fails, record the
   persistence check as not exercised. The launcher is not a defect in this PR.
@@ -62,15 +67,21 @@ Pick the ones that fit the change. Do not try all of them.
 
 ## How to drive the app
 
-- **Never guess coordinates.** Before every tap, call a discovery tool and take
-  coordinates from its result: `mcp__argent__describe`, or
-  `mcp__argent__debugger-component-tree` for React Native components. A screenshot is
+- **Target by ref or selector, never by guessed coordinates.** `mcp__agent-device__open`
+  returns the first snapshot with `@refs`; act on those, or on a selector such as
+  `role=button label="Save"`. `mcp__agent-device__snapshot` with `-i` refreshes them, and
+  `mcp__agent-device__react-native` inspects React Native components. A screenshot is
   never enough to locate an element.
-- Re-run discovery after anything changes the screen. Positions move.
-- If a tap fails twice at the same point, stop retrying and re-run discovery.
-- Use `mcp__argent__await-ui-element` to wait for a screen to settle. Do not poll
-  `screenshot` in a loop.
-- Use `mcp__argent__run-sequence` for runs of steps you do not need to watch.
+- Pass `--settle` on `press`/`click`/`fill`/`longpress`/`scroll`/`back` and continue from
+  the diff it returns. Refresh with `snapshot -i` only when that diff lacks your next
+  target. Refs go stale after a mutation — copy them exactly, including any `~sN` pin.
+- Fall back to coordinates only when a snapshot reports no semantic target or warns that
+  refs are unavailable.
+- Use `mcp__agent-device__wait` for a screen that settles late. Do not poll `screenshot`
+  in a loop. A bare screenshot is not verification — confirm with `wait`, `is`, `get`, or
+  `find`.
+- Use `mcp__agent-device__batch` for runs of steps that do not need you to look between
+  them.
 
 ## Capture evidence as you go
 

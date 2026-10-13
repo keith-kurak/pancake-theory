@@ -262,7 +262,7 @@ run_reproducer() {
   # This is the pipeline's failure, not evidence about the bug.
   log "Snapshotting the launch state"
   local snapshot
-  snapshot="$(npx --yes @swmansion/argent@latest run describe --udid "$SIM_UDID" 2>/dev/null || true)"
+  snapshot="$(npx --yes agent-device@latest snapshot -i --udid "$SIM_UDID" 2>/dev/null || true)"
   printf '%s\n' "$snapshot" > "$EVIDENCE_DIR/launch-snapshot.txt"
   if [ -z "$snapshot" ] || ! printf '%s' "$snapshot" | grep -q 'ROOT'; then
     inconclusive "the app produced no UI after launch — the update may not have loaded."
@@ -274,7 +274,7 @@ run_reproducer() {
   {
     printf '\n---\n\n## This run\n\n'
     printf -- '- The issue is #%s.\n' "$ISSUE_NUMBER"
-    printf -- '- Pass `udid: %s` to every argent tool.\n' "$SIM_UDID"
+    printf -- '- Pass `udid: %s` to every agent-device tool.\n' "$SIM_UDID"
     printf -- '- The app is built from commit `%s` of the default branch.\n' \
       "$(git rev-parse --short HEAD 2>/dev/null || echo '?')"
     printf '\nFiles:\n\n'
@@ -287,8 +287,8 @@ run_reproducer() {
     fi
   } >> "$prompt"
 
-  local mcp_config="$EVIDENCE_DIR/argent-mcp.json"
-  argent_mcp_config "$mcp_config" >/dev/null
+  local mcp_config="$EVIDENCE_DIR/agent-device-mcp.json"
+  agent_device_mcp_config "$mcp_config" >/dev/null
 
   log "Running the reproducer (timeout $CLAUDE_TIMEOUT)"
   # The verdict file is the contract, not Claude's exit code. timeout is the

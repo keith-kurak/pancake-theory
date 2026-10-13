@@ -48,8 +48,8 @@ runs:
     # Both must be on PATH before verify-pr.sh starts. npm rather than bun:
     # global binary installs are the one case npm links more reliably on a CI
     # worker. Project dependencies still come from bun.
-    - name: Install argent and Claude Code
-      run: npm install --global @swmansion/argent@latest @anthropic-ai/claude-code@latest
+    - name: Install agent-device and Claude Code
+      run: npm install --global agent-device@latest @anthropic-ai/claude-code@latest
 
     # Only fixed values reach this command line: a build id, a timestamp,
     # and a boolean. Comment text is fetched by the script through

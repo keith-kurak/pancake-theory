@@ -16,7 +16,7 @@ closes a real bug. Both are expensive, so report only what you observed.
 
 An iOS simulator on EAS, with a development build installed and launched. It loads the
 JavaScript of the repository's default branch as a published EAS Update, so it is the
-**current** app, not the version the reporter used. The Argent MCP tools are connected
+**current** app, not the version the reporter used. The agent-device MCP tools are connected
 to it and are your hands. Startup dialogs have already been dismissed.
 
 `evidence/launch-snapshot.txt` holds the accessibility tree at launch.
@@ -45,21 +45,27 @@ The files for this run are listed at the end of this prompt.
 4. **Run the steps exactly as written**, capturing screenshots as you go.
 5. **If the bug did not appear, try up to three variations** that a real user could
    plausibly have done: a different value, a different order, leaving and returning to
-   the screen, restarting the app with `mcp__argent__restart-app`, rotating the device.
+   the screen, relaunching the app with `mcp__agent-device__open` and `--relaunch`, rotating the device.
    Record each variation and its result.
 6. **Write the verdict.**
 
 ## How to drive the app
 
-- **Never guess coordinates.** Before every tap, call a discovery tool and take
-  coordinates from its result: `mcp__argent__describe`, or
-  `mcp__argent__debugger-component-tree` for React Native components. A screenshot is
+- **Target by ref or selector, never by guessed coordinates.** `mcp__agent-device__open`
+  returns the first snapshot with `@refs`; act on those, or on a selector such as
+  `role=button label="Save"`. `mcp__agent-device__snapshot` with `-i` refreshes them, and
+  `mcp__agent-device__react-native` inspects React Native components. A screenshot is
   never enough to locate an element.
-- Re-run discovery after anything changes the screen. Positions move.
-- If a tap fails twice at the same point, stop retrying and re-run discovery.
-- Use `mcp__argent__await-ui-element` to wait for a screen to settle. Do not poll
-  `screenshot` in a loop.
-- Use `mcp__argent__run-sequence` for runs of steps you do not need to watch.
+- Pass `--settle` on `press`/`click`/`fill`/`longpress`/`scroll`/`back` and continue from
+  the diff it returns. Refresh with `snapshot -i` only when that diff lacks your next
+  target. Refs go stale after a mutation — copy them exactly, including any `~sN` pin.
+- Fall back to coordinates only when a snapshot reports no semantic target or warns that
+  refs are unavailable.
+- Use `mcp__agent-device__wait` for a screen that settles late. Do not poll `screenshot`
+  in a loop. A bare screenshot is not verification — confirm with `wait`, `is`, `get`, or
+  `find`.
+- Use `mcp__agent-device__batch` for runs of steps that do not need you to look between
+  them.
 - A restart can land on the development client's launcher instead of the app. If it
   does, reopen the most recent project from the launcher. The launcher is not the bug.
 
@@ -77,7 +83,7 @@ The number sets the order on the published evidence page, and the rest becomes t
 caption. Name them for what they show. The screenshot that shows the bug — or shows the
 expected result where the bug should have been — is the most important one. For a bug
 that is about motion, timing, or an animation, record a video with
-`mcp__argent__screen-recording-start` and `mcp__argent__screen-recording-stop` and save
+`mcp__agent-device__record` and save
 it into `evidence/` with the same naming.
 
 ## Judge

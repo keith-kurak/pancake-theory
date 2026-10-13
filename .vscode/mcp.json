@@ -4,9 +4,9 @@
       "url": "https://mcp.sentry.dev/mcp/keithexpo/pancake-theory",
       "type": "http"
     },
-    "argent": {
+    "agent-device": {
       "type": "stdio",
-      "command": "argent",
+      "command": "agent-device",
       "args": [
         "mcp"
       ]

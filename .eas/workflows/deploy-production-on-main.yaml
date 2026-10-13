@@ -29,7 +29,8 @@ name: Continuous deploy to production on main
 # Nothing that goes to a store is repacked. A repacked iOS build carries
 # CFBundleVersion "1", which App Store Connect rejects, and Android production
 # builds are app bundles (.aab), which repack cannot process. Only the Maestro
-# test builds are repacked.
+# test builds are repacked, and those use the e2e profiles, which are
+# fingerprint-identical to production so they share its build lineage.
 #
 # Uses the existing GH_TOKEN secret in the "production" EAS environment, which
 # needs read access to this repository's releases, plus contents write access so
@@ -162,7 +163,7 @@ jobs:
     type: get-build
     params:
       platform: ios
-      profile: production-simulator
+      profile: e2e-simulator
       fingerprint_hash: ${{ needs.decide.outputs.ios_fingerprint_hash }}
 
   ios_test_repack:
@@ -174,7 +175,7 @@ jobs:
       METRICS_ENV: e2e
     params:
       build_id: ${{ needs.ios_test_get_build.outputs.build_id }}
-      profile: production-simulator
+      profile: e2e-simulator
 
   ios_test_build:
     name: Build iOS simulator build for Maestro
@@ -185,7 +186,7 @@ jobs:
       METRICS_ENV: e2e
     params:
       platform: ios
-      profile: production-simulator
+      profile: e2e-simulator
 
   ios_maestro:
     name: Maestro on iOS
@@ -209,7 +210,7 @@ jobs:
     type: get-build
     params:
       platform: android
-      profile: production-apk
+      profile: e2e-apk
       fingerprint_hash: ${{ needs.decide.outputs.android_fingerprint_hash }}
 
   android_test_repack:
@@ -221,7 +222,7 @@ jobs:
       METRICS_ENV: e2e
     params:
       build_id: ${{ needs.android_test_get_build.outputs.build_id }}
-      profile: production-apk
+      profile: e2e-apk
 
   android_test_build:
     name: Build Android APK build for Maestro
@@ -232,7 +233,7 @@ jobs:
       METRICS_ENV: e2e
     params:
       platform: android
-      profile: production-apk
+      profile: e2e-apk
 
   android_maestro:
     name: Maestro on Android

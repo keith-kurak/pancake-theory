@@ -22,7 +22,15 @@ module.exports = ({ config }) => {
   // here made every production fingerprint job compute a config no production
   // build could ever have. ANDROID_MINIFY lives on the production environment,
   // which both a build and a fingerprint job load.
-  const isProduction = process.env.ANDROID_MINIFY === "1";
+  // The e2e profile is deliberately fingerprint-identical to production: it
+  // differs only in eas.json fields (channel, distribution, buildType,
+  // autoIncrement) and in EXPO_PUBLIC_METRICS_ENV, which reaches the JS bundle
+  // and not the native layer.
+  //
+  // Do NOT branch on METRICS_ENV here. Anything this file reads lands in the
+  // Expo config, which is hashed — an e2e build would then stop matching the
+  // production builds it is meant to reuse.
+  const minifyAndroid = process.env.ANDROID_MINIFY === "1";
 
   const isDevelopmentBuild = process.env.APP_VARIANT === "DEV";
 
@@ -37,7 +45,7 @@ module.exports = ({ config }) => {
         ...options,
         android: {
           ...options.android,
-          enableMinifyInReleaseBuilds: isProduction,
+          enableMinifyInReleaseBuilds: minifyAndroid,
         },
       },
     ];
