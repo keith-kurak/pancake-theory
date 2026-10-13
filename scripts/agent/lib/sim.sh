@@ -101,12 +101,16 @@ metro_start() {
 # sim_start — start the EAS Simulator session pointed at METRO_URL.
 #
 # remote-sim.sh does the build resolution, the deep link, and the connect.
+# SIM_BUILD_ID, when set, skips that resolution and uses the given build.
 # --max-duration is a billing backstop: a wedged session cannot outlive the run.
 sim_start() {
   [ -n "$METRO_URL" ] || { echo "sim: metro_start must run first" >&2; return 1; }
 
   SIM_STARTED=1
+  local build_args=()
+  [ -n "${SIM_BUILD_ID:-}" ] && build_args=(--build-id "$SIM_BUILD_ID")
   if ! ./scripts/remote-sim.sh start \
+      ${build_args[@]+"${build_args[@]}"} \
       --metro-url "$METRO_URL" \
       --idle "$SIM_IDLE_MINUTES" \
       --max-duration "$SIM_MAX_DURATION_MINUTES" \

@@ -566,11 +566,19 @@ deep link, and runs `agent-device connect`; `stop` reverses all three.
 Order matters. Metro starts **first**, because the session deep-links the dev build at the
 tunnel URL on launch — start the simulator first and the app sits on an empty launcher.
 
-The build chosen is the newest unexpired `development-simulator` build whose **runtime
-version** matches this working copy. That logic lives in
-`scripts/lib/resolve-sim-build.sh`, shared by both callers: a build on a different runtime
-crashes at startup when it loads JS from the dev server, and newest-by-date is not enough
-to avoid it.
+In `agent-start.yaml` and `agent-revise.yaml`, `fingerprint` → `get-build` → `build` jobs
+run before the agent. They find the `development-simulator` build for the base commit's
+fingerprint, or build one, and pass its id to the runner as `AGENT_BUILD_ID`. The runner
+hands the same id to the verify job, but only when the agent did not change the native
+fingerprint.
+
+Without a build id (a local run, or a failed build job), the build chosen is the newest
+unexpired `development-simulator` build whose **runtime version** matches this working
+copy. That logic lives in `scripts/lib/resolve-sim-build.sh`, shared by every caller: a
+build on a different runtime crashes at startup when it loads JS from the dev server, and
+newest-by-date is not enough to avoid it. Dev builds use the fingerprint runtime policy,
+so the resolver reads the runtime with `expo-updates runtimeversion:resolve`, not
+`expo config`.
 
 Up to three dialogs stand between a fresh session and a usable app, and nothing in CI taps
 any of them:

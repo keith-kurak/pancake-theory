@@ -73,6 +73,9 @@ mkdir -p "$AGENT_OUT"
 PLACEHOLDER=".agent-placeholder"
 # 1 when a verify job runs after this one and owns the ready/draft decision.
 : "${AGENT_VERIFY_FOLLOWS:=}"
+# A development-simulator build the workflow already matched to the base
+# commit's fingerprint, or built. Empty means resolve one here.
+: "${AGENT_BUILD_ID:=}"
 
 # Phase results, read by finish().
 STATUS_IMPLEMENT="not reached"
@@ -389,8 +392,13 @@ validate() {
 
   # Fail fast on a missing build. remote-sim.sh would resolve it again anyway,
   # but checking here turns a session-start failure into a clear explanation.
+  # The workflow's get-build/build jobs normally supply the id; resolving is
+  # the fallback for local runs and for a failed build job.
   BUILD_PROFILE=development-simulator
-  if ! resolve_build_id >/dev/null; then
+  if [ -n "$AGENT_BUILD_ID" ]; then
+    log "Using the workflow's development-simulator build: $AGENT_BUILD_ID"
+    SIM_BUILD_ID="$AGENT_BUILD_ID"
+  elif ! SIM_BUILD_ID="$(resolve_build_id)"; then
     STATUS_VALIDATE="skipped — no usable development-simulator build"
     note_blocker "No unexpired \`development-simulator\` build matches the current runtime, so the change was not exercised on a device. Build one with \`npx eas-cli@latest build --platform ios --profile development-simulator\`."
     return 1
@@ -702,6 +710,13 @@ main() {
     STATUS_VALIDATE="skipped — the change alters the native fingerprint"
     note_blocker "This change alters the iOS native fingerprint, so no existing development build can run it. Simulator validation was skipped. Build a new \`development-simulator\` build and re-apply the \`agent-start\` or \`agent-revise\` label to validate."
     return
+  fi
+
+  # Handed on so the verify job runs the same binary as this run. Only past
+  # the native gate: after a native change the base build is stale, and the
+  # verify job must resolve (and fail to find) a build on its own.
+  if command -v set-output >/dev/null 2>&1; then
+    set-output build_id "$AGENT_BUILD_ID"
   fi
 
   if ! validate; then

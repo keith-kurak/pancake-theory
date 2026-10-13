@@ -22,8 +22,38 @@ defaults:
     bun: 1.3.10
 
 jobs:
+  # The binary is resolved before the agent starts, so a fingerprint with no
+  # development-simulator build gets one instead of a skipped validation.
+  # These pre-packaged jobs use the triggering commit, which is the base the
+  # agent starts from. A native change the agent makes is caught later by the
+  # runner's own fingerprint gate.
+  fingerprint:
+    # Same draft gate as the agent job, so a no-op run builds nothing.
+    if: ${{ github.event.pull_request.draft }}
+    environment: development
+    type: fingerprint
+
+  get_build:
+    needs: [fingerprint]
+    type: get-build
+    params:
+      fingerprint_hash: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
+      platform: ios
+      profile: development-simulator
+
+  # Only when no build matches. A cold run then waits for a native build.
+  build:
+    needs: [get_build]
+    if: ${{ !needs.get_build.outputs.build_id }}
+    name: Build a matching simulator client
+    type: build
+    params:
+      platform: ios
+      profile: development-simulator
+
   agent:
     name: Implement, validate, publish
+    after: [get_build, build]
     # Draft only: a PR already in review must not be rewritten under the
     # reviewer, so re-labelling one is a no-op. The runner re-checks this
     # against the API too.
@@ -40,6 +70,7 @@ jobs:
     # verifier checks the same requests the agent applied.
     outputs:
       requests_since: ${{ steps.run.outputs.requests_since }}
+      build_id: ${{ steps.run.outputs.build_id }}
     env:
       AGENT_MODE: build
       AGENT_LABEL: agent-start
@@ -79,7 +110,9 @@ jobs:
       # Claude as a file, so it cannot reach the shell as code.
       - id: run
         name: Run agent
-        run: ./scripts/agent/run-agent-pr.sh
+        run: |
+          export AGENT_BUILD_ID='${{ needs.get_build.outputs.build_id || needs.build.outputs.build_id }}'
+          ./scripts/agent/run-agent-pr.sh
 
       - uses: eas/upload_artifact
         if: ${{ always() }}
@@ -117,6 +150,7 @@ jobs:
       - uses: ./.eas/functions/agent-verify
         with:
           requests_since: ${{ needs.agent.outputs.requests_since }}
+          build_id: ${{ needs.agent.outputs.build_id }}
           gate_ready: true
 
   # Last, and `after` rather than `needs`, so the label comes off whether the

@@ -64,19 +64,28 @@ shot()  { agent-device screenshot --out "$ARTIFACTS/$1.png" --normalize-status-b
 cleanup() { agent-device close >/dev/null 2>&1 || true; }
 trap cleanup EXIT
 
-# agent-device resolves a target against the CURRENT surface only: a control
-# below the fold simply is not there. The Maestro flow scrolls for the same
-# reason. Both helpers below scroll to reach their target, and the attempt count
-# is a bound rather than a timeout — a target that is genuinely absent fails the
-# run instead of scrolling forever.
+# --- helpers -----------------------------------------------------------------
+#
+# Two facts about agent-device shape every helper below.
+#
+# 1. It resolves a target against the CURRENT surface only. A control below the
+#    fold simply is not there, which is why the Maestro flow scrolls too. The
+#    attempt counts here are bounds, not timeouts: a target that is genuinely
+#    absent fails the run instead of scrolling forever.
+#
+# 2. `find ... click` reports success whenever it taps SOMETHING. It is not an
+#    assertion that the tap achieved anything, so a tap that lands on the wrong
+#    node passes here and fails several steps later on a screen the run never
+#    left. Every tap therefore waits for its target first and settles after, and
+#    every navigation asserts a landmark belonging to the destination.
 
-# tap <text> — click the first element matching this text, scrolling to reach
-# it. --first keeps a duplicate label from being ambiguous. The click succeeding
-# is itself the assertion that the control exists.
-tap() {
+# reach <text> — wait until this text is on the current surface, scrolling to
+# bring it into view. Also the settling point: a find issued before the screen
+# has rendered resolves against the outgoing one.
+reach() {
   local label="$1" _attempt
   for _attempt in 1 2 3 4 5 6; do
-    if agent-device find "$label" click --first >/dev/null 2>&1; then
+    if agent-device wait text "$label" >/dev/null 2>&1; then
       return 0
     fi
     agent-device scroll down --settle >/dev/null 2>&1 || true
@@ -86,16 +95,32 @@ tap() {
 }
 
 # see <text> — assert this text is reachable, without touching it.
-see() {
-  local label="$1" _attempt
-  for _attempt in 1 2 3; do
-    if agent-device wait text "$label" >/dev/null 2>&1; then
-      return 0
-    fi
-    agent-device scroll down --settle >/dev/null 2>&1 || true
-  done
-  printf '    not reachable: %s\n' "$label" >&2
-  return 1
+see() { reach "$1"; }
+
+# tap <text> — click the element matching this text.
+#
+# --last, NOT --first. A React Native screen hands the accessibility tree
+# ancestor nodes that repeat a descendant's label while spanning a much larger
+# frame. On the recipe list the outer wrapper around the whole scroll area
+# carries the FIRST card's label verbatim:
+#
+#   @e7  [other] "One-bowl Fluffy Pancakes, 9 ingredients, 9 steps"  <- whole list
+#     ...
+#       @e14 [other] "One-bowl Fluffy Pancakes, 9 ingredients, 9 steps"  <- the card
+#
+# The labels are identical, so no text can tell them apart. --first picks @e7
+# and taps its centre, which falls in the gap between two cards and does
+# nothing. --last picks the deepest match, and a deeper node's frame is always
+# inside its ancestors', so the tap lands on the thing itself.
+tap() {
+  local label="$1"
+  reach "$label" || return 1
+  agent-device find "$label" click --last >/dev/null 2>&1 || {
+    printf '    could not tap: %s\n' "$label" >&2
+    return 1
+  }
+  # --settle is rejected on find, so settle explicitly.
+  agent-device wait stable 300 5000 >/dev/null 2>&1 || true
 }
 
 # check_off <ingredient> — tap an ingredient row and say so.
@@ -131,9 +156,11 @@ shot 02-recipes
 
 step "Open Fluffy Pancakes and start it"
 tap "Fluffy Pancakes"
-# A landmark at the TOP of the detail screen. "Make it now?" is a button at the
-# bottom, so waiting on it here would time out before anything scrolled.
-see "ingredients"
+# A landmark at the TOP of the detail screen, and one that exists ONLY there.
+# "ingredients" is not: every card in the list reads "9 ingredients, 9 steps",
+# so it matches without leaving the list and reports a screen we never reached.
+# "Directions" is a tab on the detail screen and appears nowhere in the list.
+see "Directions"
 shot 03-detail
 
 tap "Make it now?"
@@ -170,7 +197,7 @@ shot 06-rate
 
 step "Rate it"
 # The five stars are identical unlabelled "*" glyphs, so only the first and last
-# are addressable. The Maestro flow taps the 4th ("Good"); this taps the 5th and
+# are addressable. --last here means the fifth star, not merely the deepest node. The Maestro flow taps the 4th ("Good"); this taps the 5th and
 # asserts "Perfect!" instead. Give the star buttons an accessibilityLabel and
 # this can target any of them.
 agent-device find "★" click --last >/dev/null

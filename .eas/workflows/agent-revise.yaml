@@ -26,8 +26,36 @@ defaults:
     bun: 1.3.10
 
 jobs:
+  # The binary is resolved before the agent starts, so a fingerprint with no
+  # development-simulator build gets one instead of a skipped validation.
+  # These pre-packaged jobs use the triggering commit, which is the base the
+  # agent starts from. A native change the agent makes is caught later by the
+  # runner's own fingerprint gate.
+  fingerprint:
+    environment: development
+    type: fingerprint
+
+  get_build:
+    needs: [fingerprint]
+    type: get-build
+    params:
+      fingerprint_hash: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
+      platform: ios
+      profile: development-simulator
+
+  # Only when no build matches. A cold run then waits for a native build.
+  build:
+    needs: [get_build]
+    if: ${{ !needs.get_build.outputs.build_id }}
+    name: Build a matching simulator client
+    type: build
+    params:
+      platform: ios
+      profile: development-simulator
+
   revise:
     name: Apply review comments, validate, publish
+    after: [get_build, build]
     # No draft gate, unlike agent-start — asking for changes is what a reviewer
     # does, on an open PR. No fork gate either: EAS blocks fork PRs in its
     # webhook handler, before a run is dispatched.
@@ -40,6 +68,7 @@ jobs:
     # verifier checks the same requests the agent applied.
     outputs:
       requests_since: ${{ steps.run.outputs.requests_since }}
+      build_id: ${{ steps.run.outputs.build_id }}
     env:
       AGENT_MODE: revise
       AGENT_LABEL: agent-revise
@@ -76,7 +105,9 @@ jobs:
       # author_association, so only collaborators can instruct the agent.
       - id: run
         name: Run agent
-        run: ./scripts/agent/run-agent-pr.sh
+        run: |
+          export AGENT_BUILD_ID='${{ needs.get_build.outputs.build_id || needs.build.outputs.build_id }}'
+          ./scripts/agent/run-agent-pr.sh
 
       - uses: eas/upload_artifact
         if: ${{ always() }}
@@ -114,6 +145,7 @@ jobs:
       - uses: ./.eas/functions/agent-verify
         with:
           requests_since: ${{ needs.revise.outputs.requests_since }}
+          build_id: ${{ needs.revise.outputs.build_id }}
           gate_ready: true
 
   # Last, and `after` rather than `needs`, so the label comes off whether the

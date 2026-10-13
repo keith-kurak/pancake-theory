@@ -103,6 +103,10 @@ jobs:
     steps:
       - uses: eas/checkout
 
+      # `eas simulator:start` reads the app config, and that resolves the
+      # config plugins (expo-router, ...) from node_modules.
+      - uses: eas/install_node_modules
+
       - id: ios
         name: iOS preview
         run: |
