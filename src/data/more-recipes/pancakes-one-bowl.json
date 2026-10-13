@@ -3,15 +3,15 @@
   "type": "pancakes",
   "name": "One-bowl Fluffy Pancakes",
   "ingredients": [
-    { "name": "All-purpose flour", "amount": 2, "unit": "cups", "category": "flour" },
-    { "name": "Granulated sugar or sweetener", "amount": 0.25, "unit": "cups", "category": "other" },
-    { "name": "Baking powder", "amount": 4, "unit": "tsp", "category": "other" },
-    { "name": "Baking soda", "amount": 0.25, "unit": "tsp", "category": "other" },
-    { "name": "Salt", "amount": 0.5, "unit": "tsp", "category": "other" },
-    { "name": "Milk", "amount": 1.75, "unit": "cups", "category": "liquid" },
-    { "name": "Butter (melted)", "amount": 0.25, "unit": "cups", "category": "other" },
-    { "name": "Vanilla extract", "amount": 2, "unit": "tsp", "category": "other" },
-    { "name": "Egg", "amount": 1, "unit": "large", "category": "eggs" }
+    { "name": "All-purpose flour", "amount": 2, "unit": "cups", "metricAmount": 250, "metricUnit": "g", "category": "flour" },
+    { "name": "Granulated sugar or sweetener", "amount": 0.25, "unit": "cups", "metricAmount": 50, "metricUnit": "g", "category": "other" },
+    { "name": "Baking powder", "amount": 4, "unit": "tsp", "metricAmount": 18, "metricUnit": "g", "category": "other" },
+    { "name": "Baking soda", "amount": 0.25, "unit": "tsp", "metricAmount": 1.2, "metricUnit": "g", "category": "other" },
+    { "name": "Salt", "amount": 0.5, "unit": "tsp", "metricAmount": 3, "metricUnit": "g", "category": "other" },
+    { "name": "Milk", "amount": 1.75, "unit": "cups", "metricAmount": 420, "metricUnit": "ml", "category": "liquid" },
+    { "name": "Butter (melted)", "amount": 0.25, "unit": "cups", "metricAmount": 57, "metricUnit": "g", "category": "other" },
+    { "name": "Vanilla extract", "amount": 2, "unit": "tsp", "metricAmount": 10, "metricUnit": "ml", "category": "other" },
+    { "name": "Egg", "amount": 1, "unit": "large", "metricAmount": 50, "metricUnit": "g", "category": "eggs" }
   ],
   "directions": [
     "In a large bowl, whisk together the flour, sugar, baking powder, baking soda, and salt.",

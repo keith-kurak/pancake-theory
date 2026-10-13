@@ -61,3 +61,14 @@ export function formatAmount(amount: number): string {
     return amount.toFixed(2).replace(/\.?0+$/, '');
   }
 }
+
+
+/**
+ * Format a scaled metric amount: whole numbers at 10 and above,
+ * one decimal below 10 (e.g. 2.5 g)
+ */
+export function formatMetricAmount(amount: number): string {
+  if (amount === 0) return '0';
+  if (amount >= 10) return Math.round(amount).toString();
+  return (Math.round(amount * 10) / 10).toString();
+}
