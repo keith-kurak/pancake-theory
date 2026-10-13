@@ -1,8 +1,40 @@
-// The widget ships on iOS only. expo-widgets is excluded from Android autolinking
-// (see `expo.autolinking.android.exclude` in package.json), so the Android bundle must
-// never import `@/widgets/BreakfastWidget` — `createWidget` resolves the native module
-// at import time and would throw on startup.
+import { breakfastStore$ } from "@/store/breakfast-store";
+import BreakfastWidget from "@/widgets/BreakfastWidget";
+import { observe } from "@legendapp/state";
+import { Platform } from "react-native";
 
-export function updateBreakfastWidget() {}
+function pushSnapshot() {
+  const pending = breakfastStore$.pendingRecipe.peek();
 
-export function setupWidgetObserver() {}
+  if (pending) {
+    BreakfastWidget.updateSnapshot({
+      isActive: true,
+      recipeId: pending.recipeId,
+      recipeName: pending.recipeName,
+      recipeType: pending.recipeType,
+      // Glance cannot render a live relative timer the way the iOS widget
+      // does, and widget code cannot format a date, so send a formatted
+      // absolute time. See BreakfastWidget.android.tsx.
+      startedAtLabel: new Date(pending.startTime).toLocaleTimeString(undefined, {
+        hour: "numeric",
+        minute: "2-digit",
+      }),
+    });
+  } else {
+    BreakfastWidget.updateSnapshot({ isActive: false });
+  }
+}
+
+export function updateBreakfastWidget() {
+  if (Platform.OS !== "android") return;
+  pushSnapshot();
+}
+
+export function setupWidgetObserver() {
+  if (Platform.OS !== "android") return;
+
+  observe(() => {
+    breakfastStore$.pendingRecipe.get();
+    pushSnapshot();
+  });
+}
