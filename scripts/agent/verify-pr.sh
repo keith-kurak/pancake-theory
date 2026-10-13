@@ -21,6 +21,8 @@
 # Required: PR_NUMBER, GH_REPO, GH_TOKEN, EXPO_TOKEN_SIMULATOR,
 #           CLAUDE_CODE_OAUTH_TOKEN
 # Optional: VERIFY_BUILD_ID   build to use; resolved by runtime when empty
+#           VERIFY_BUILD_IF_MISSING  true to run `eas build` for this checkout
+#                             when no build matches, instead of INCONCLUSIVE
 #           UPDATE_GROUP_ID   update to load; published from the checkout when empty
 #           VERIFY_SINCE      `/agent` comments newer than this are the focus;
 #                             defaults to the branch's last commit time
@@ -58,6 +60,7 @@ VERDICT_FILE="$PROJECT_ROOT/evidence/verdict.md"
 : "${UPDATE_GROUP_ID:=}"
 : "${VERIFY_SINCE:=}"
 : "${VERIFY_GATE_READY:=false}"
+: "${VERIFY_BUILD_IF_MISSING:=false}"
 : "${CLAUDE_TIMEOUT:=20m}"
 : "${SESSION_MAX_MINUTES:=30}"
 : "${RUN_URL:=}"
@@ -271,12 +274,43 @@ publish_update() {
   session_publish_update "$PR_HEAD_REF" "Verify PR #$PR_NUMBER" "$EVIDENCE_DIR/update.log"
 }
 
+# build_for_checkout — build a development-simulator client from this checkout
+# and set VERIFY_BUILD_ID. The pre-packaged `build` job always builds the commit
+# that triggered the workflow; after an agent pushes, that is the wrong commit,
+# so the chained verify job builds the branch head itself. Slow (a native
+# build), but only when no existing build matches.
+build_for_checkout() {
+  log "No matching build; building development-simulator from this checkout"
+  local out
+  out="$(npx --yes eas-cli@latest build \
+    --platform ios \
+    --profile development-simulator \
+    --non-interactive --wait --json 2>>"$EVIDENCE_DIR/build.log")" || {
+      warn "eas build failed; see build.log in the run artifacts"
+      return 1
+    }
+  VERIFY_BUILD_ID="$(printf '%s' "$out" | python3 -c '
+import json, sys
+raw = sys.stdin.read()
+start = raw.find("[")
+try:
+    builds = json.loads(raw[start:]) if start >= 0 else []
+except Exception:
+    builds = []
+print(next((b.get("id") for b in builds if b.get("status") == "FINISHED"), ""))
+' 2>/dev/null || echo "")"
+  [ -n "$VERIFY_BUILD_ID" ]
+}
+
 resolve_inputs() {
   if [ -z "$VERIFY_BUILD_ID" ]; then
     # The same resolver the agent's validate phase uses, so a chained verify
     # runs on the binary the agent validated against.
     BUILD_PROFILE=development-simulator
     VERIFY_BUILD_ID="$(resolve_build_id 2>>"$EVIDENCE_DIR/build-resolve.log")" || VERIFY_BUILD_ID=""
+    if [ -z "$VERIFY_BUILD_ID" ] && [ "$VERIFY_BUILD_IF_MISSING" = true ]; then
+      build_for_checkout
+    fi
     if [ -z "$VERIFY_BUILD_ID" ]; then
       inconclusive "no unexpired development-simulator build matches this runtime, so nothing could run."
       return 1

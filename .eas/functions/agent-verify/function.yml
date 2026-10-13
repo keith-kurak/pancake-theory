@@ -21,6 +21,12 @@ inputs:
   - name: build_id
     type: string
     default_value: ''
+  # When true and no build matches the checkout, build one from it instead of
+  # returning INCONCLUSIVE. The agent workflows set this: their pre-packaged
+  # jobs could only build the commit before the agent pushed.
+  - name: build_if_missing
+    type: boolean
+    default_value: false
   # `/agent` comments newer than this ISO timestamp are the verifier's focus.
   # When empty, the branch's last commit time is the boundary.
   - name: requests_since
@@ -52,7 +58,7 @@ runs:
       run: npm install --global agent-device@latest @anthropic-ai/claude-code@latest
 
     # Only fixed values reach this command line: a build id, a timestamp,
-    # and a boolean. Comment text is fetched by the script through
+    # and booleans. Comment text is fetched by the script through
     # the API and filtered by author_association.
     - id: verify
       name: Verify
@@ -60,6 +66,7 @@ runs:
         export VERIFY_BUILD_ID='${{ inputs.build_id }}'
         export VERIFY_SINCE='${{ inputs.requests_since }}'
         export VERIFY_GATE_READY='${{ inputs.gate_ready }}'
+        export VERIFY_BUILD_IF_MISSING='${{ inputs.build_if_missing }}'
         ./scripts/agent/verify-pr.sh
 
     # The evidence site is the reviewer-facing artifact, but keep the raw

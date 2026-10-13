@@ -204,11 +204,12 @@ cmd_start() {
   fi
 
   info "Pointing the local agent-device client at the remote session..."
-  if [ -n "$auth_token" ]; then
-    agent-device connect proxy --daemon-base-url "$daemon_url" --daemon-auth-token "$auth_token"
-  else
-    agent-device connect proxy --daemon-base-url "$daemon_url"
-  fi
+  # --session default: without it, connect makes a fresh named session, and
+  # every later command (and the MCP server) that does not pass that name keeps
+  # using local devices. --force replaces a stale connection a failed stop left.
+  local connect_args=(--daemon-base-url "$daemon_url" --session default --force)
+  [ -n "$auth_token" ] && connect_args+=(--daemon-auth-token "$auth_token")
+  agent-device connect proxy "${connect_args[@]}"
 
   # AGENT_DEVICE_DAEMON_BASE_URL in the shell environment outranks the stored
   # connection and would silently send commands somewhere else.

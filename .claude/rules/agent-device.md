@@ -113,12 +113,14 @@ This repo runs remote EAS Simulator sessions through `npm run sim` (see
 
 ```
 eas simulator:start --type agent-device        # writes AGENT_DEVICE_DAEMON_BASE_URL + _AUTH_TOKEN
-agent-device connect proxy --daemon-base-url <url> --daemon-auth-token <token>
+agent-device connect proxy --daemon-base-url <url> --daemon-auth-token <token> --session default --force
 agent-device disconnect
 ```
 
-Two things to know:
+Three things to know:
 
+- `--session default` matters. Without it, `connect` makes a fresh named session, and any
+  command that does not pass that name with `--session` still targets local devices.
 - `connect` state is machine-global. While a session is connected, every agent-device client on this
   machine targets it. Run `agent-device connection status` if you are unsure what you are driving.
 - The MCP server does not expose `connect` / `disconnect`. The CLI must connect first; the MCP tools

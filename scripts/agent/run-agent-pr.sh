@@ -11,6 +11,8 @@
 #   2. Gate        — recompute the fingerprint; a native change skips phase 3.
 #   3. Validate    — publish Metro over a tunnel, start a remote EAS Simulator
 #                    session pointed at it, and let Claude drive the real app.
+#                    Skipped when a verify job follows (AGENT_VERIFY_FOLLOWS):
+#                    the device check then belongs to that job alone.
 #   4. Publish     — commit, push, rewrite the PR description, and either flip
 #                    the PR to ready or leave it in draft with the blockers.
 #
@@ -21,10 +23,11 @@
 # will not open a PR with no diff; the first commit with real changes deletes
 # it, so no task file ever reaches main.
 #
-# With AGENT_VERIFY_FOLLOWS=1 (set by both workflows), a pass does not flip the
-# PR to ready. The next job runs the shared verify function against the pushed
-# commit, and its verdict decides draft state. That keeps "ready for review"
-# meaning "independently verified", and the PR changes state once per run.
+# With AGENT_VERIFY_FOLLOWS=1 (set by both workflows), this job only implements:
+# no simulator, and a pass does not flip the PR to ready. The next job runs the
+# shared verify function against the pushed commit, exactly as the standalone
+# agent-verify workflow does, and its verdict decides draft state. A failed
+# implement job and a failed verify job are then two different jobs in the run.
 #
 # The whole run is capped at AGENT_TOTAL_BUDGET_SECONDS (default 1800). EAS
 # Workflows has no job timeout, so the cap is enforced here by run_with_budget.
@@ -73,8 +76,8 @@ mkdir -p "$AGENT_OUT"
 PLACEHOLDER=".agent-placeholder"
 # 1 when a verify job runs after this one and owns the ready/draft decision.
 : "${AGENT_VERIFY_FOLLOWS:=}"
-# A development-simulator build the workflow already matched to the base
-# commit's fingerprint, or built. Empty means resolve one here.
+# A development-simulator build for phase 3 to use as-is. Empty means resolve
+# one here. Only local runs reach phase 3.
 : "${AGENT_BUILD_ID:=}"
 
 # Phase results, read by finish().
@@ -537,7 +540,7 @@ EOF
 results_markdown() {
   local icon source
   if [ "$VERDICT" = pass ] && [ -n "$AGENT_VERIFY_FOLLOWS" ]; then
-    icon="🔎 Validated — sent to independent verification"
+    icon="🔎 Implemented — sent to independent verification"
   elif [ "$VERDICT" = pass ]; then
     icon="✅ Ready for review"
   elif [ "$AGENT_MODE" = revise ]; then
@@ -601,9 +604,8 @@ if errors:
     printf '🖼️ **[Screenshots from the run](%s)**\n\n' "$EVIDENCE_URL"
   fi
 
-  # The validation above ran against a dev bundle over Metro, judged by an agent
-  # that had just read its own implementation notes. The verify job re-tests the
-  # published update, from the task alone, and tries to break it.
+  # The verify job tests the published update from the task alone, and tries
+  # to break it.
   if [ "$VERDICT" = pass ] && [ -n "$AGENT_VERIFY_FOLLOWS" ]; then
     printf 'An independent verifier runs next and posts its verdict as a comment. This PR is marked ready for review only if it passes.\n\n'
   elif [ "$VERDICT" = pass ]; then
@@ -706,17 +708,22 @@ main() {
 
   run_checks || true   # a failing check is a blocker, not a reason to stop
 
+  # The verify job finds or builds a client for the pushed commit, so neither
+  # the simulator nor a native change is this job's concern.
+  if [ -n "$AGENT_VERIFY_FOLLOWS" ]; then
+    if native_changed; then
+      STATUS_VALIDATE="left to the verify job, which builds a new client (native change)"
+    else
+      STATUS_VALIDATE="left to the verify job"
+    fi
+    [ -z "$BLOCKERS" ] && VERDICT="pass"
+    return
+  fi
+
   if native_changed; then
     STATUS_VALIDATE="skipped — the change alters the native fingerprint"
     note_blocker "This change alters the iOS native fingerprint, so no existing development build can run it. Simulator validation was skipped. Build a new \`development-simulator\` build and re-apply the \`agent-start\` or \`agent-revise\` label to validate."
     return
-  fi
-
-  # Handed on so the verify job runs the same binary as this run. Only past
-  # the native gate: after a native change the base build is stale, and the
-  # verify job must resolve (and fail to find) a build on its own.
-  if command -v set-output >/dev/null 2>&1; then
-    set-output build_id "$AGENT_BUILD_ID"
   fi
 
   if ! validate; then

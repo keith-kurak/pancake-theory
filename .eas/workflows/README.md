@@ -90,8 +90,8 @@ label, and fails. No branch, no PR, no EAS run. The rules:
 | Only the description counts | Headings inside code blocks and `/agent` comments are ignored |
 
 The fit criteria then travel with the task into the PR description. The implement
-phase must cover each one in its validation plan, the validate phase fails a missed
-one, and the verifier treats each one as a requirement.
+phase must cover each one in its validation plan, and the verifier treats each one as a
+requirement.
 
 Optionally, steer the build with a comment on the issue:
 
@@ -340,10 +340,8 @@ check missed:
 
 ## Screenshots without bloating the repo
 
-All three workflows publish one. `agent-start` and `agent-revise` already drove the app
-and captured screenshots during their validate phase — those were previously only
-reachable by downloading the run's tarball. They now go to
-`pr-<N>-agent`, and verify's to `pr-<N>-verify`, so the two never clobber each other.
+Every verify run publishes one, to `pr-<N>-verify`. A local agent run that reaches its
+validate phase publishes its own to `pr-<N>-agent`, so the two never clobber each other.
 
 
 The evidence page is deployed to **EAS Hosting** under a per-PR alias
@@ -367,14 +365,14 @@ Screenshot filenames drive the page: `2-ratios-adjusted.png` becomes item 2, cap
 
 This used to be a manual step, for three reasons. Each now has an answer:
 
-- **"It re-tests the same change."** It does not, now. The validate phase checks the
-  author's own plan against a Metro bundle. The verifier plans from the intent alone,
-  tries to break the change, and loads the published update. It is a second opinion,
-  not a repeat.
-- **"It roughly doubles the cost."** Still true: another simulator session and another
-  Claude run. It runs only after the agent's own validation passed, because a failing
-  run already reports its blockers and screenshots. A native change stops the agent run
-  before validation, so it never reaches a verify job that has no build to run.
+- **"It re-tests the same change."** It does not, now. In CI the agent job does not
+  touch a device at all; the verify job is the only device check. It plans from the
+  intent alone, tries to break the change, and loads the published update.
+- **"It roughly doubles the cost."** Not any more: the agent job no longer starts its own
+  simulator session. Verify runs only when implementation, lint, and tests passed. A
+  native change does not stop the run: verify builds a client for the new fingerprint.
+- **"It is hard to see what failed."** Implementation and verification are separate jobs,
+  so a run shows whether the code or the device check failed.
 - **"The states fight."** Solved by giving one job the decision. With
   `AGENT_VERIFY_FOLLOWS=1`, the agent job never marks the PR ready. The verify job does,
   on `PASS` only. On any other verdict it keeps the PR in draft, or moves an open PR
@@ -396,7 +394,9 @@ branch head:
 
 - It publishes the checkout with `eas update --branch <pr-branch> --platform ios`.
 - When no `build_id` input is given, it resolves the build with
-  `scripts/lib/resolve-sim-build.sh`, the resolver the validate phase uses.
+  `scripts/lib/resolve-sim-build.sh`. With `build_if_missing: true` (the chained call),
+  it runs `eas build --profile development-simulator --wait` on the checkout when no
+  build matches, so a native change gets a client instead of an INCONCLUSIVE verdict.
 
 ## How the PR's code reaches the simulator
 
@@ -405,7 +405,7 @@ is faster: **no Metro and no tunnel.**
 
 | Piece | Where it comes from |
 |---|---|
-| The binary | Standalone: a fingerprint-matched `development-simulator` build, built only when none matches. Chained: the runtime-matched build the validate phase used |
+| The binary | Standalone: a fingerprint-matched `development-simulator` build, built only when none matches. Chained: the runtime-matched build for the branch head, built from the checkout when none matches |
 | The JavaScript | An EAS Update the verify function publishes from the checked-out branch, per run |
 
 The job then deep-links the build at that one update group:
@@ -419,7 +419,7 @@ named after the PR branch, which a `preview`-channel build would never resolve t
 pointing the shared `preview` channel at a PR branch would break previews for everyone
 else. The deep link sidesteps both: it loads exactly that update and nothing else.
 
-In a standalone run, a native change means no build matches the fingerprint, so a fresh
+In both kinds of run, a native change means no build matches the fingerprint, so a fresh
 `development-simulator` build runs first. That makes the run long rather than making it
 lie.
 
@@ -521,25 +521,20 @@ Reporter images are downloaded only from GitHub's own attachment hosts, at most 
 
 Agent Start and Agent Revise share `scripts/agent/run-agent-pr.sh`, switched by
 `AGENT_MODE`. Only the source of the task and the prompt differ; the checks, the
-fingerprint gate, the simulator validation, and the publish step are identical. The
-verify job that follows is a separate job and script — it has no implement phase and
-never touches the branch.
+fingerprint gate, and the publish step are identical. The verify job that follows is a
+separate job and script — it has no implement phase and never touches the branch.
+Because a verify job follows (`AGENT_VERIFY_FOLLOWS=1`), the agent job skips phase 3:
+it never starts Metro or a simulator.
 
 | Phase | Budget | Detail |
 |---|---|---|
 | 0. Preflight | ~1 min | Check secrets, read the task, record the iOS fingerprint |
 | 1. Implement | 15 min | Claude writes the code, then lint and `bun test` |
 | 2. Gate | seconds | Recompute the fingerprint |
-| 3. Validate | 10 min | Publish Metro over a tunnel, start a remote EAS Simulator on it, drive the app |
+| 3. Validate | 10 min | Local runs only. Publish Metro over a tunnel, start a remote EAS Simulator on it, drive the app |
 | 4. Publish | 4 min | Commit, push, rewrite the PR description. Draft state is left to the verify job |
 
-Everything runs in one `linux-medium` job. The simulator runs **on EAS**, not on the
-worker, so this needs no Mac and no nested virtualisation — the job only runs Metro, the
-`eas` CLI, and Claude. The trade is that the remote simulator cannot see the worker's
-loopback, so Metro is published over a tunnel.
-
-It is a single job because Metro, the simulator session, and the agent-device connection are live
-state. Separate EAS jobs get separate workers.
+In CI the agent job runs on `linux-medium` and only runs Claude, lint, and tests.
 
 EAS Workflows has no job timeout key, so the 30-minute cap is enforced inside
 `scripts/agent/run-agent-pr.sh`. Each phase runs under a watchdog that signals its whole
@@ -556,9 +551,10 @@ phase 1 compares against it. Only an *increase* is a blocker.
 Counts are keyed on file and rule, not line number, because the agent's edits shift
 lines. Clear the backlog and this becomes a plain "lint must pass" check on its own.
 
-### Phase 3 in detail
+### Phase 3 in detail (local runs only)
 
-This is the same path as local work, so the CI job **calls
+CI skips this phase; the verify job does the device check instead. A local run without
+`AGENT_VERIFY_FOLLOWS` still uses it. This is the same path as local work, so it **calls
 [`scripts/remote-sim.sh`](../../scripts/remote-sim.sh) directly** rather than
 reimplementing it. That script resolves the build, starts the session with the dev-server
 deep link, and runs `agent-device connect`; `stop` reverses all three.
@@ -566,13 +562,7 @@ deep link, and runs `agent-device connect`; `stop` reverses all three.
 Order matters. Metro starts **first**, because the session deep-links the dev build at the
 tunnel URL on launch — start the simulator first and the app sits on an empty launcher.
 
-In `agent-start.yaml` and `agent-revise.yaml`, `fingerprint` → `get-build` → `build` jobs
-run before the agent. They find the `development-simulator` build for the base commit's
-fingerprint, or build one, and pass its id to the runner as `AGENT_BUILD_ID`. The runner
-hands the same id to the verify job, but only when the agent did not change the native
-fingerprint.
-
-Without a build id (a local run, or a failed build job), the build chosen is the newest
+`AGENT_BUILD_ID` names a build to use as-is. Without it, the build chosen is the newest
 unexpired `development-simulator` build whose **runtime version** matches this working
 copy. That logic lives in `scripts/lib/resolve-sim-build.sh`, shared by every caller: a
 build on a different runtime crashes at startup when it loads JS from the dev server, and
@@ -606,7 +596,7 @@ judges, it does not repair.
 
 ### When validation is skipped
 
-Simulator validation is skipped, and the PR left in draft, when:
+In a local run, simulator validation is skipped, and the PR left in draft, when:
 
 - **The change alters the native fingerprint.** Every existing development build
   predates the change, so running against one would prove nothing. Build a fresh
