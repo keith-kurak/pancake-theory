@@ -5,7 +5,7 @@ name: Deploy a cherry-pick branch
 #
 # Same check as an update from main (deploy-production-on-main.yaml), through
 # the same decide-deploy function. The difference: this lane never builds.
-# allow_build is false, so a pre-release is an error, not build-or-repack.
+# allow_build is false, so a pre-release is an error, not build.
 #
 #   full release, both platforms match -> publish an EAS Update to production,
 #                                         then tag it "<rv>-ota-<group id>"

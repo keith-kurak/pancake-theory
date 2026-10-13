@@ -20,8 +20,8 @@ inputs:
     type: string
     default_value: ''
   # False on lanes that may only publish updates, such as a cherry-pick branch.
-  # Then a pre-release is an error rather than build-or-repack: replacing the
-  # store builds is main's job.
+  # Then a pre-release is an error rather than build: replacing the store
+  # builds is main's job.
   - name: allow_build
     type: boolean
     default_value: true
@@ -43,16 +43,10 @@ outputs:
   action:
     value: ${{ steps.decide.outputs.action }}
     description: >-
-      "build-or-repack" when the release is still pre-release, so the store
-      builds can be replaced. "update" when the release is live and both
+      "build" when the release is still pre-release, so both platforms build
+      in full and replace the store builds. "update" when the release is live and both
       platforms match, so an over-the-air update is safe. "error" when nothing
       can ship.
-  ios_repack_build_id:
-    value: ${{ steps.decide.outputs.ios_repack_build_id }}
-    description: >-
-      For build-or-repack: the iOS build to repack, set only when BOTH
-      platforms match. Empty means iOS needs a full build. Android always
-      builds in full, because repack cannot process an .aab.
   reason:
     value: ${{ steps.decide.outputs.reason }}
     description: For error, one line on why nothing can ship. Empty otherwise.
@@ -105,7 +99,6 @@ runs:
         if [ -n "$IOS" ] && [ -n "$ANDROID" ]; then BOTH_MATCH=true; fi
 
         ACTION=error
-        REPACK=''
         REASON=''
         FIX=''
         if [ "$STATE" = "prerelease" ] && [ "$ALLOW_BUILD" != "true" ]; then
@@ -117,13 +110,11 @@ runs:
             REASON="Runtime version $RV is still pre-release. This lane only publishes updates to a live release, and it does not replace store builds."
             FIX="Merge the change to main, which replaces the store builds while the release is pre-release."
             ;;
-          prerelease:true)
-            ACTION=build-or-repack
-            REPACK="$IOS"
-            ;;
-          prerelease:false)
-            # The first merge after an app version bump: nothing to repack onto.
-            ACTION=build-or-repack
+          prerelease:*)
+            # A full build whether or not the store builds match. A repack
+            # writes CFBundleVersion "1", which App Store Connect rejects as a
+            # duplicate, and Android app bundles cannot be repacked at all.
+            ACTION=build
             ;;
           released:true)
             ACTION=update
@@ -147,7 +138,7 @@ runs:
         esac
 
         echo "Release: $STATE. iOS match: ${IOS:-none}. Android match: ${ANDROID:-none}."
-        echo "Action: $ACTION${REPACK:+ (repack iOS $REPACK)}"
+        echo "Action: $ACTION"
         [ -n "$REASON" ] && echo "Reason: $REASON"
         # set-output exits non-zero on an empty value. An output that is never
         # set reads as empty downstream, so skip the empty ones.
@@ -159,6 +150,5 @@ runs:
         [ -z "$ANDROID" ] || set-output android_build_id "$ANDROID"
         [ -z "$IOS_FP" ] || set-output ios_fingerprint_hash "$IOS_FP"
         [ -z "$ANDROID_FP" ] || set-output android_fingerprint_hash "$ANDROID_FP"
-        [ -z "$REPACK" ] || set-output ios_repack_build_id "$REPACK"
         [ -z "$REASON" ] || set-output reason "$REASON"
         [ -z "$FIX" ] || set-output fix "$FIX"

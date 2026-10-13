@@ -11,14 +11,10 @@ name: Continuous deploy to production on main
 #      and then the only safe change is an over-the-air update.
 #   2. Does main still fingerprint-match the production store builds for that
 #      same runtime version, on BOTH platforms? If either one fails to match,
-#      the native layer changed and neither a repack nor an update can carry the
-#      change. Both platforms are decided together, so one store never moves
+#      the native layer changed and an update cannot carry the change. Both platforms are decided together, so one store never moves
 #      without the other.
 #
-#   pre-release, both match   -> iOS: repack the store build, resubmit
-#                                Android: build and submit (see below)
-#   pre-release, not both     -> build both and submit: the first build of a
-#                                version whose release already exists
+#   pre-release               -> build both platforms in full and submit
 #   full release, both match  -> publish an EAS Update to production, then
 #                                tag it as a GitHub release
 #                                "<runtime version>-ota-<group id>"
@@ -30,8 +26,10 @@ name: Continuous deploy to production on main
 # Before any of it ships, the make-fluffy-pancakes Maestro flow must pass on
 # iOS and Android. See the maestro section below.
 #
-# Android production builds are app bundles (.aab), which repack cannot
-# process. So on a pre-release, Android always gets a full build.
+# Nothing that goes to a store is repacked. A repacked iOS build carries
+# CFBundleVersion "1", which App Store Connect rejects, and Android production
+# builds are app bundles (.aab), which repack cannot process. Only the Maestro
+# test builds are repacked.
 #
 # Uses the existing GH_TOKEN secret in the "production" EAS environment, which
 # needs read access to this repository's releases, plus contents write access so
@@ -126,7 +124,6 @@ jobs:
     needs: [release_state, fingerprint, ios_get_build, android_get_build]
     outputs:
       action: ${{ steps.decide.outputs.action }}
-      ios_repack_build_id: ${{ steps.decide.outputs.ios_repack_build_id }}
       reason: ${{ steps.decide.outputs.reason }}
       fix: ${{ steps.decide.outputs.fix }}
       runtime_version: ${{ steps.decide.outputs.runtime_version }}
@@ -151,7 +148,7 @@ jobs:
 
   # --- maestro: test this commit before anything ships. ----------------------
   #
-  # Runs for build-or-repack and update; an error ships nothing, so it skips.
+  # Runs for build and update; an error ships nothing, so it skips.
   # Store builds cannot run on an emulator or simulator, so these are
   # production-apk and production-simulator builds of the same fingerprint:
   # repacked when one exists, built when not. A Maestro job runs only when its
@@ -260,70 +257,42 @@ jobs:
     needs: [decide, ios_maestro, android_maestro]
     outputs:
       action: ${{ steps.ship.outputs.action }}
-      ios_repack_build_id: ${{ steps.ship.outputs.ios_repack_build_id }}
       runtime_version: ${{ steps.ship.outputs.runtime_version }}
     steps:
       - id: ship
         run: |
           ACTION='${{ needs.decide.outputs.action }}'
-          REPACK='${{ needs.decide.outputs.ios_repack_build_id }}'
           RV='${{ needs.decide.outputs.runtime_version }}'
-          # An output decide never set renders as "undefined".
-          case "$REPACK" in undefined|null) REPACK='' ;; esac
-          echo "Maestro passed on iOS and Android. Action: $ACTION${REPACK:+ (repack iOS $REPACK)}"
+          echo "Maestro passed on iOS and Android. Action: $ACTION"
           set-output action "$ACTION"
           set-output runtime_version "$RV"
-          [ -z "$REPACK" ] || set-output ios_repack_build_id "$REPACK"
 
-  # --- build-or-repack: pre-release, so the store builds can be replaced. -----
+  # --- build: pre-release, so the store builds can be replaced. ---------------
 
-  ios_repack:
-    name: Repack iOS build for pre-release
-    needs: [ship]
-    if: ${{ needs.ship.outputs.action == 'build-or-repack' && needs.ship.outputs.ios_repack_build_id }}
-    type: repack
-    params:
-      build_id: ${{ needs.ship.outputs.ios_repack_build_id }}
-      profile: production
-      message: Repack of ${{ github.sha }} for runtime ${{ needs.ship.outputs.runtime_version }}
-
-  submit_ios:
-    name: Submit repacked build to TestFlight
-    needs: [ios_repack]
-    type: submit
-    params:
-      build_id: ${{ needs.ios_repack.outputs.build_id }}
-      profile: production
-
-  # Nothing to repack onto: the first merge after an app version bump, or a
-  # merge where only one platform matched. Later merges find this build and go
-  # back to repacking it.
   ios_build:
     name: Build iOS for pre-release
     needs: [ship]
-    if: ${{ needs.ship.outputs.action == 'build-or-repack' && !needs.ship.outputs.ios_repack_build_id }}
+    if: ${{ needs.ship.outputs.action == 'build' }}
     type: build
     params:
       platform: ios
       profile: production
       message: Build of ${{ github.sha }} for runtime ${{ needs.ship.outputs.runtime_version }}
 
-  # Same destination as the repack lane: App Store Connect, which is what puts
-  # the build in front of TestFlight testers.
-  submit_ios_build:
-    name: Submit full build to TestFlight
+  # App Store Connect, which is what puts the build in front of TestFlight
+  # testers.
+  submit_ios:
+    name: Submit iOS build to TestFlight
     needs: [ios_build]
     type: submit
     params:
       build_id: ${{ needs.ios_build.outputs.build_id }}
       profile: production
 
-  # Repack cannot process an .aab, so every pre-release merge builds Android in
-  # full.
   android_build:
     name: Build Android for pre-release
     needs: [ship]
-    if: ${{ needs.ship.outputs.action == 'build-or-repack' }}
+    if: ${{ needs.ship.outputs.action == 'build' }}
     type: build
     params:
       platform: android
