@@ -8,10 +8,15 @@ will know it is done.
 The description needs two headings, at any level, each with content under it:
 
     ## User story
-    As a <who>, I want <what>, so that <why>.
+    <who wants what, and why>
 
     ## Fit criteria
     - <an observable result that shows the story is done>
+
+This is a structural check, not a style check. It does not police how the story
+is worded: "As a user, I want X so that Y" and "As a user, I'd like X so I can
+Y" are both fine, and so is a plain paragraph. Only an empty section or one that
+still holds the template's own placeholders is rejected.
 
 Reads the description from the ISSUE_BODY environment variable, or from stdin.
 Exits 0 when both are present. Otherwise exits 1 and prints a markdown message
@@ -30,13 +35,6 @@ HEADING = re.compile(r"^\s{0,3}#{1,6}\s+(.+?)\s*#*\s*$")
 LIST_ITEM = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+(?:\[[ xX]\]\s*)?\S")
 STORY_HEADING = re.compile(r"\buser\s+stor(?:y|ies)\b", re.IGNORECASE)
 FIT_HEADING = re.compile(r"\bfit\s+criteri(?:a|on)\b", re.IGNORECASE)
-
-# The three parts of a Connextra user story, in order. "so that" is the part
-# most often dropped, and it is the part that says why the work matters.
-STORY = re.compile(
-    r"\bas\s+(?:a|an|the)\b.+?\bi\s+(?:want|need)\b.+?\bso\s+that\b\s*\S",
-    re.IGNORECASE | re.DOTALL,
-)
 
 # The template's own placeholders, such as "<who>". A story or criterion that
 # still contains one was never filled in.
@@ -100,11 +98,6 @@ def check(body):
         problems.append("The **User story** section is empty.")
     elif PLACEHOLDER.search("\n".join(story)):
         problems.append("The **User story** still has template placeholders such as `<who>`.")
-    elif not STORY.search("\n".join(story)):
-        problems.append(
-            "The **User story** section does not read "
-            "\"As a …, I want …, so that …\". All three parts are needed."
-        )
 
     fit = first(found, FIT_HEADING)
     if fit is None:
