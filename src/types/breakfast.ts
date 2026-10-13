@@ -30,6 +30,8 @@ export interface Ingredient {
   name: string;
   amount: number;
   unit: string;
+  metricAmount?: number | null; // Hand-written per recipe, not converted
+  metricUnit?: string | null;
   category: IngredientCategory;
 }
 

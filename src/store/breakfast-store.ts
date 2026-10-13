@@ -26,6 +26,8 @@ interface BreakfastStore {
   // new recipe notes (notes log items per recipe)
   userRecipesData: Record<string, UserRecipeData>;
   pendingRecipe: PendingRecipe | null;
+  // optional: stores persisted before this setting existed lack it
+  useMetric?: boolean;
 }
 
 const initialState: BreakfastStore = {
@@ -96,6 +98,10 @@ function getUserRecipeData(recipeId: string): Observable<UserRecipeData> {
 
 // Actions for managing history, recipe notes, and pending recipes
 export const breakfastActions = {
+  setUseMetric: (useMetric: boolean) => {
+    breakfastStore$.useMetric.set(useMetric);
+  },
+
   addToHistory: (
     entry: Omit<HistoryEntry, "id" | "timestamp"> & { timestamp?: number },
   ): string => {

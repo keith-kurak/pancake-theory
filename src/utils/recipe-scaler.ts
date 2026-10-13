@@ -18,6 +18,15 @@ export function scaleIngredient(
 }
 
 /**
+ * Format a scaled metric amount: whole numbers from 10 up, one decimal below
+ */
+export function formatMetricAmount(amount: number): string {
+  if (amount === 0) return '0';
+  if (amount >= 10) return Math.round(amount).toString();
+  return parseFloat(amount.toFixed(1)).toString();
+}
+
+/**
  * Format a scaled amount to a readable string with fractions
  */
 export function formatAmount(amount: number): string {
