@@ -124,6 +124,12 @@ sim_start() {
     return 1
   fi
 
+  # Kept for the evidence page, which needs the session id after teardown has
+  # stopped the session and cleared .env.eas-simulator.
+  EAS_SIMULATOR_SESSION_ID="$(sed -n 's/^EAS_SIMULATOR_SESSION_ID=//p' .env.eas-simulator 2>/dev/null \
+    | tr -d "\"'" | tail -n 1)"
+  export EAS_SIMULATOR_SESSION_ID
+
   echo "sim: remote session started and agent-device connected" >&2
 }
 

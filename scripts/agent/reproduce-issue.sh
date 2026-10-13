@@ -325,7 +325,12 @@ session_stop
 # ---------------------------------------------------------------------------
 
 log "Publishing the evidence site"
-EVIDENCE_URL="$(publish_evidence "$EVIDENCE_DIR" "Issue #${ISSUE_NUMBER}" "$VERDICT_LINE" "issue-${ISSUE_NUMBER}-repro" "reproduction")"
+# The page colours REPLICATED and NOT-REPLICATED; it reads REPRODUCED and
+# NOT_REPRODUCED as an unknown keyword. Translate a copy, not the original.
+sed -e '1s/^NOT_REPRODUCED\([^A-Za-z_]\)/NOT-REPLICATED\1/' \
+    -e '1s/^REPRODUCED\([^A-Za-z_]\)/REPLICATED\1/' \
+  "$VERDICT_FILE" > "$EVIDENCE_DIR/verdict-page.md"
+EVIDENCE_URL="$(publish_evidence "$EVIDENCE_DIR" "Issue #${ISSUE_NUMBER}" "$EVIDENCE_DIR/verdict-page.md" "issue-${ISSUE_NUMBER}-repro" "$REPRO_BUILD_ID")"
 if [ -n "$EVIDENCE_URL" ]; then
   log "Evidence: $EVIDENCE_URL"
 else
@@ -338,7 +343,7 @@ REPORT="$(tail -n +2 "$VERDICT_FILE")"
 # Built before the heredoc, not inside it: bash 3.2 on macOS mis-parses a
 # command substitution nested in a heredoc inside a command substitution.
 LINKS=""
-[ -n "$EVIDENCE_URL" ] && LINKS="🖼️ **[Evidence](${EVIDENCE_URL})** — screenshots from the run"
+[ -n "$EVIDENCE_URL" ] && LINKS="🖼️ **[Evidence](${EVIDENCE_URL})** — screenshots, every tap, performance, and the recording"
 if [ -n "$SESSION_URL" ]; then
   [ -n "$LINKS" ] && LINKS="$LINKS · "
   LINKS="${LINKS}📱 **[Simulator session](${SESSION_URL})** — recording and logs on expo.dev"

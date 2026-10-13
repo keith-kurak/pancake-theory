@@ -628,8 +628,18 @@ publish() {
   # alone they are only reachable by downloading the run's tarball, so publish
   # them the same way the verify workflow does. Non-fatal: losing the pictures
   # must not lose the verdict.
+  # The page wants "KEYWORD: sentence" on line 1. STATUS_VALIDATE reads
+  # "pass — ...", "fail — ...", or "skipped — ...".
+  local verdict_file="$AGENT_OUT/verdict-page.md" keyword
+  case "$STATUS_VALIDATE" in
+    pass*) keyword=PASS ;;
+    fail*) keyword=FAIL ;;
+    *)     keyword=INCONCLUSIVE ;;
+  esac
+  printf '%s: %s\n' "$keyword" "$(printf '%s' "$STATUS_VALIDATE" | sed 's/^[a-z]* — //')" > "$verdict_file"
+  [ -f "$AGENT_OUT/implement-summary.md" ] && cat "$AGENT_OUT/implement-summary.md" >> "$verdict_file"
   EVIDENCE_URL="$(publish_evidence "$AGENT_OUT" "PR #${PR_NUMBER}" \
-    "$STATUS_VALIDATE" "pr-${PR_NUMBER}-agent")"
+    "$verdict_file" "pr-${PR_NUMBER}-agent" "${SIM_BUILD_ID:-}")"
   [ -n "$EVIDENCE_URL" ] && log "Evidence: $EVIDENCE_URL"
 
   results="$(results_markdown)"

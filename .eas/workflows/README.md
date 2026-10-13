@@ -340,9 +340,18 @@ check missed:
 
 ## Screenshots without bloating the repo
 
-Every verify run publishes one, to `pr-<N>-verify`. A local agent run that reaches its
-validate phase publishes its own to `pr-<N>-agent`, so the two never clobber each other.
+Every verify run (chained after `agent-start` or `agent-revise`, or standalone)
+publishes an evidence page to `pr-<N>-verify`, and its PR comment links to it. A
+reproduction publishes to `issue-<N>-repro`. A local agent run that reaches its validate
+phase publishes to `pr-<N>-agent`, so none of them clobber each other.
 
+The page is built by
+[eas-simulator-evidence](https://github.com/jacobhammerle/eas-simulator-evidence),
+pinned in `scripts/agent/lib/evidence.sh`. After the session stops, it pulls the
+session's own data and shows the verdict, the agent's report, the screenshots with taps
+marked, every device command with its timing, CPU and memory charts, and the recording.
+The verifier's screenshots are taken through the remote daemon and never land in
+`evidence/`, so `--screenshots` downloads the session's captures instead.
 
 The evidence page is deployed to **EAS Hosting** under a per-PR alias
 (`pr-<N>-verify`), and the comment links to it.
@@ -353,13 +362,11 @@ render as broken images. The alternative — committing PNGs so a raw URL exists
 binaries in your diffs and in the repo's object store permanently. Hosting the page
 instead costs nothing per run and keeps git clean.
 
-`build-evidence-site.mjs` copies **only media** into `site/`. The prompt, the diff, the
-transcript, and the agent-device config stay behind — that config holds a session bearer token
-and the site is public. Every string that reaches the page is HTML-escaped, because the
-verdict text is written by a model that has just read an untrusted PR diff.
-
-Screenshot filenames drive the page: `2-ratios-adjusted.png` becomes item 2, captioned
-"Ratios adjusted".
+The tool copies **only media and session data** into `site/`. The prompt, the diff, the
+transcript, and `.env.eas-simulator` stay behind — that file holds a session bearer token
+and the site is public. The tool escapes every string that reaches the page, which
+matters because the verdict text is written by a model that has just read an untrusted
+PR diff.
 
 ## Why verify runs after every passing agent run
 
@@ -633,7 +640,7 @@ The runner works outside EAS against a real PR — see
 | `.eas/functions/agent-verify/function.yml` | The verify custom function. Called by all three agent workflows. |
 | `.eas/functions/remove-pr-label/function.yml` | Removes the trigger label. The last job of all three agent workflows. |
 | `scripts/agent/verify-pr.sh` | The verification run: publish, boot, verify, report, draft gate. |
-| `scripts/agent/build-evidence-site.mjs` | Screenshots to a static page for EAS Hosting. |
+| `scripts/agent/lib/evidence.sh` | Builds and deploys the evidence page with eas-simulator-evidence. |
 | `.github/workflows/agent-reproduce-from-issue.yml` | Reproduce trigger: access check, then `eas workflow:run`. |
 | `.eas/workflows/agent-reproduce.yaml` | Reproduce workflow: build resolution, the run, label removal. |
 | `scripts/agent/reproduce-issue.sh` | The reproduction run: read the issue, publish, boot, reproduce, report. |
