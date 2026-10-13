@@ -357,7 +357,10 @@ run_verifier() {
   local snapshot
   snapshot="$(npx --yes agent-device@latest snapshot -i --udid "$SIM_UDID" 2>"$EVIDENCE_DIR/launch-snapshot.log" || true)"
   printf '%s\n' "$snapshot" > "$EVIDENCE_DIR/launch-snapshot.txt"
-  if [ -z "$snapshot" ] || ! printf '%s' "$snapshot" | grep -q 'ROOT'; then
+  # An element line starts with a ref such as "@e1". Older agent-device output
+  # had a ROOT node instead; checking for that word failed every run once the
+  # format changed, even when the app had rendered.
+  if [ -z "$snapshot" ] || ! printf '%s' "$snapshot" | grep -q '^@e[0-9]'; then
     printf 'FAIL: the app produced no UI after launch — the update may not have loaded.\n' > "$VERDICT_FILE"
     fail "empty UI snapshot after launch"
     return 0

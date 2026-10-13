@@ -182,11 +182,21 @@ sim_open_app() {
 
 # --- startup dialogs --------------------------------------------------------
 
+# sim_visible_buttons — print the label of each button on screen, one a line.
+#
+# One snapshot per pass, instead of a blind click per known label. A click on a
+# button that is not there fails, and each failure shows as a red error in the
+# EAS session timeline, which made a healthy run look broken.
+sim_visible_buttons() {
+  _agent_device snapshot -i --udid "$SIM_UDID" 2>/dev/null \
+    | sed -n 's/^@e[0-9][^ ]* \[button\] "\([^"]*\)".*/\1/p'
+}
+
 # sim_tap_button <label>
 #
 # Tap a button by its exact accessibility label. agent-device resolves the
-# selector itself, so there is no accessibility tree to parse and no coordinate
-# to guess. Returns non-zero when the button is not on screen.
+# selector itself, so no coordinate is guessed. Returns non-zero when the tap
+# fails.
 sim_tap_button() {
   local label="$1"
   if _agent_device click "role=button label=\"$label\"" --udid "$SIM_UDID" --settle >/dev/null 2>&1; then
@@ -209,37 +219,38 @@ SIM_STARTUP_BUTTONS=(Open Continue Close)
 
 # sim_clear_startup_prompts [limit_seconds]
 #
-# Drain the list until a full pass finds nothing, so a dialog that only appears
-# after the previous one is dismissed is still caught. Nothing here is fatal on
-# its own — a future iOS or dev-client may drop a prompt — and the caller still
-# fails honestly if the app never loads a bundle.
+# Drain the list until a pass finds none of the buttons, so a dialog that only
+# appears after the previous one is dismissed is still caught. Stops early once
+# a pass shows other buttons and none of these: the app is up and unobstructed.
+# The limit is wall-clock time, agent-device calls included. Nothing here is
+# fatal on its own; the caller still fails honestly if the app never loads.
 sim_clear_startup_prompts() {
-  local limit="${1:-90}" waited=0 tapped_any=0 tapped_this_pass label
+  local limit="${1:-90}" start=$SECONDS tapped_any=0 buttons label
 
-  while [ "$waited" -lt "$limit" ]; do
-    tapped_this_pass=0
+  while [ $(( SECONDS - start )) -lt "$limit" ]; do
+    buttons="$(sim_visible_buttons)"
+    local tapped_this_pass=0
     for label in "${SIM_STARTUP_BUTTONS[@]}"; do
-      if sim_tap_button "$label"; then
+      if printf '%s\n' "$buttons" | grep -qxF "$label" && sim_tap_button "$label"; then
         tapped_this_pass=1
         tapped_any=1
         sleep 2
       fi
     done
 
-    if [ "$tapped_this_pass" -eq 0 ] && [ "$tapped_any" -eq 1 ]; then
-      echo "sim: startup prompts cleared after ${waited}s" >&2
+    if [ "$tapped_this_pass" -eq 0 ] && [ -n "$buttons" ]; then
+      if [ "$tapped_any" -eq 1 ]; then
+        echo "sim: startup prompts cleared after $(( SECONDS - start ))s" >&2
+      else
+        echo "sim: no startup prompts; the app is showing its own buttons" >&2
+      fi
       return 0
     fi
 
     sleep 3
-    waited=$(( waited + 3 ))
   done
 
-  if [ "$tapped_any" -eq 1 ]; then
-    echo "sim: still seeing startup prompts after ${limit}s; continuing anyway" >&2
-  else
-    echo "sim: no startup prompts appeared within ${limit}s" >&2
-  fi
+  echo "sim: startup prompts not settled after ${limit}s; continuing anyway" >&2
 }
 
 # --- agent-device -----------------------------------------------------------------
