@@ -365,3 +365,5 @@ npx tsc --noEmit  # Check types without building
 - **EAS Project ID**: 1de013cf-b8b2-4ac3-9e4d-dd70bfd4892e
 - **Owner**: expo-production
 - **Custom URL Scheme**: pancaketheory://
+
+@AGENTS.md
