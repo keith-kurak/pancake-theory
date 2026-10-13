@@ -1,3 +1,5 @@
+import type { Ingredient } from "@/types/breakfast";
+
 /**
  * Scale an ingredient amount by a given factor
  * Eggs are always rounded up to whole numbers
@@ -60,4 +62,38 @@ export function formatAmount(amount: number): string {
     // Round to 2 decimal places if no fraction match
     return amount.toFixed(2).replace(/\.?0+$/, '');
   }
+}
+
+/**
+ * Format a scaled metric amount: whole numbers for larger values, one decimal under 10
+ */
+export function formatMetricAmount(amount: number): string {
+  if (amount === 0) return '0';
+  if (amount >= 10) return Math.round(amount).toString();
+  return amount.toFixed(1).replace(/\.0$/, '');
+}
+
+/**
+ * Scaled amount and unit text for an ingredient in the chosen unit system.
+ * Falls back to the imperial values when the recipe has no metric value.
+ */
+export function getIngredientDisplay(
+  ingredient: Ingredient,
+  scaleFactor: number,
+  useMetric: boolean,
+): { amount: string; unit: string } {
+  if (useMetric && ingredient.metricAmount != null && ingredient.metricUnit) {
+    return {
+      amount: formatMetricAmount(
+        scaleIngredient(ingredient.metricAmount, scaleFactor, ingredient.category),
+      ),
+      unit: ingredient.metricUnit,
+    };
+  }
+  return {
+    amount: formatAmount(
+      scaleIngredient(ingredient.amount, scaleFactor, ingredient.category),
+    ),
+    unit: ingredient.unit,
+  };
 }

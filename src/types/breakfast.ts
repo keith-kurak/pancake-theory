@@ -30,6 +30,9 @@ export interface Ingredient {
   name: string;
   amount: number;
   unit: string;
+  // Authored per recipe (not converted); absent when the imperial amount has no metric form
+  metricAmount?: number | null;
+  metricUnit?: string | null;
   category: IngredientCategory;
 }
 

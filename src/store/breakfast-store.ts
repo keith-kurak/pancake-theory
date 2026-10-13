@@ -26,6 +26,7 @@ interface BreakfastStore {
   // new recipe notes (notes log items per recipe)
   userRecipesData: Record<string, UserRecipeData>;
   pendingRecipe: PendingRecipe | null;
+  settings: { useMetric: boolean };
 }
 
 const initialState: BreakfastStore = {
@@ -33,6 +34,7 @@ const initialState: BreakfastStore = {
   recipeNotes: {},
   pendingRecipe: null,
   userRecipesData: {},
+  settings: { useMetric: false },
 };
 
 //test
@@ -146,6 +148,10 @@ export const breakfastActions = {
   getRecipeNotes: (recipeId: string): RecipeNote[] => {
     const userRecipeData = getUserRecipeData(recipeId);
     return userRecipeData.notes.get();
+  },
+
+  setUseMetric: (useMetric: boolean) => {
+    breakfastStore$.settings.useMetric.set(useMetric);
   },
 
   // Pending recipe actions
