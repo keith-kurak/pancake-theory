@@ -426,7 +426,7 @@ session_stop
 # ---------------------------------------------------------------------------
 
 log "Publishing the evidence site"
-EVIDENCE_URL="$(publish_evidence "$EVIDENCE_DIR" "PR #${PR_NUMBER}" "$VERDICT_LINE" "pr-${PR_NUMBER}-verify")"
+EVIDENCE_URL="$(publish_evidence "$EVIDENCE_DIR" "PR #${PR_NUMBER}" "$VERDICT_FILE" "pr-${PR_NUMBER}-verify" "$VERIFY_BUILD_ID")"
 if [ -n "$EVIDENCE_URL" ]; then
   log "Evidence: $EVIDENCE_URL"
 else
@@ -447,7 +447,7 @@ REPORT="$(tail -n +2 "$VERDICT_FILE")"
 # on the Linux worker handles it, so this only broke local runs.
 EVIDENCE_LINE=""
 if [ -n "$EVIDENCE_URL" ]; then
-  EVIDENCE_LINE="$(printf '\n🖼️ **[Evidence](%s)** — screenshots from the run\n' "$EVIDENCE_URL")"
+  EVIDENCE_LINE="$(printf '\n🖼️ **[Evidence](%s)** — screenshots, every tap, performance, and the recording\n' "$EVIDENCE_URL")"
 fi
 UPDATE_NOTE="${UPDATE_GROUP_ID:+ · JS from update group \`${UPDATE_GROUP_ID}\`}"
 
