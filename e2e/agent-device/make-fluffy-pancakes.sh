@@ -125,10 +125,41 @@ tap() {
   return 1
 }
 
-# check_off <index> <name> — tap an ingredient row by index and say which.
+# check_off <index> <name> — check an ingredient row off, and verify it stuck.
+#
+# `click` reports success whenever it resolves a node, and every row resolves
+# whether or not it is on screen — agent-device's `visible` predicate is an
+# accessibility flag, not a question about the viewport, and it answers true for
+# a row well below the fold. So a click aimed at an off-screen row returns 0
+# while delivering no press. That is how the last ingredient stayed unchecked
+# through a run that reported checking all nine, leaving "I made it!" unrendered
+# three steps later.
+#
+# The row's own label is the ground truth: checking one off prefixes it with
+# "selected, " ("1 large Egg" becomes "selected, 1 large Egg"). This taps only
+# while that prefix is missing, so it is safe to retry — a second tap on a
+# checked row would toggle it back off.
 check_off() {
-  tap "ingredient-$1" || return 1
-  printf '    checked off: %s\n' "$2" >&2
+  local idx="$1" name="$2" sel _attempt
+  sel="id=\"ingredient-$idx\""
+  for _attempt in 1 2 3 4 5 6; do
+    case "$(agent-device get text "$sel" 2>/dev/null)" in
+      selected,*)
+        printf '    checked off: %s\n' "$name" >&2
+        return 0
+        ;;
+    esac
+    agent-device click "$sel" --settle >/dev/null 2>&1 || true
+    case "$(agent-device get text "$sel" 2>/dev/null)" in
+      selected,*)
+        printf '    checked off: %s\n' "$name" >&2
+        return 0
+        ;;
+    esac
+    agent-device scroll down --settle >/dev/null 2>&1 || true
+  done
+  printf '    could not check off: %s\n' "$name" >&2
+  return 1
 }
 
 # --- install and launch -----------------------------------------------------
