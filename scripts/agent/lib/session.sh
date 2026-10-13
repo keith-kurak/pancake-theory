@@ -70,7 +70,17 @@ session_start() {
   # that update instead of whatever its channel would resolve to.
   local target open_url
   target="${UPDATES_URL}/group/${group_id}"
-  open_url="${APP_SCHEME}://expo-development-client/?url=$(
+  # expo-dev-menu reads reserved `__expo_*` params off the launch URL. Without
+  # these the dev build opens its menu sheet with the one-time onboarding
+  # explainer on top of the app, and an automated run spends minutes tapping it
+  # away before it can see anything. Nothing here needs a rebuild; the params
+  # are read at launch.
+  #
+  #   disable_onboarding — the "This is the developer menu" explainer
+  #   disable_auto_launch — opening the menu at launch at all
+  #   disable_fab — the floating gear button, which can sit over a tap target
+  local dev_menu_off="__expo_disable_onboarding=1&__expo_disable_auto_launch=1&__expo_disable_fab=1"
+  open_url="${APP_SCHEME}://expo-development-client/?${dev_menu_off}&url=$(
     python3 -c 'import sys,urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "$target"
   )"
 

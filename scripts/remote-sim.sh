@@ -139,7 +139,11 @@ cmd_start() {
     esac
     local encoded
     encoded="$(python3 -c 'import sys,urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "$METRO_URL")"
-    OPEN_URL="${APP_SCHEME}://expo-development-client/?url=${encoded}"
+    # Reserved `__expo_*` launch params, read by expo-dev-menu at launch — no
+    # rebuild needed. The onboarding explainer and the menu-at-launch are pure
+    # noise on a session someone is about to drive. The floating gear button is
+    # left on, because a human may want it.
+    OPEN_URL="${APP_SCHEME}://expo-development-client/?__expo_disable_onboarding=1&__expo_disable_auto_launch=1&url=${encoded}"
     info "Will open: $OPEN_URL"
   fi
 
