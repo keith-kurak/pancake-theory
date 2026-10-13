@@ -20,7 +20,9 @@ set -euo pipefail
 PLATFORM="${1:?usage: simulator-preview.sh <ios|android> <build-id>}"
 BUILD_ID="${2:?usage: simulator-preview.sh <ios|android> <build-id>}"
 IDLE_MINUTES="${PREVIEW_IDLE_MINUTES:-30}"
-MAX_MINUTES="${PREVIEW_MAX_MINUTES:-120}"
+# EAS also caps this per account (115 minutes here); a larger value fails
+# `simulator:start` outright.
+MAX_MINUTES="${PREVIEW_MAX_MINUTES:-30}"
 NAME="${PREVIEW_NAME:-Simulator preview}"
 
 # Simulator sessions are actor-gated: the restricted EXPO_TOKEN that EAS injects

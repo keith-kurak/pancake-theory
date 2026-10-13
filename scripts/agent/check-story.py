@@ -36,10 +36,18 @@ LIST_ITEM = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+(?:\[[ xX]\]\s*)?\S")
 STORY_HEADING = re.compile(r"\buser\s+stor(?:y|ies)\b", re.IGNORECASE)
 FIT_HEADING = re.compile(r"\bfit\s+criteri(?:a|on)\b", re.IGNORECASE)
 
-# The template's own placeholders, such as "<who>". A story or criterion that
-# still contains one was never filled in.
+# The templates' own placeholders. A story or criterion that still contains one
+# was never filled in. Two templates are in use and they mark their blanks
+# differently: .github/ISSUE_TEMPLATE/agent-task.md uses angle brackets, while
+# agent-ready-change-request.md writes its blanks as ordinary prose. The prose
+# ones are anchored to end of line so they match only the untouched template:
+# "As a user, I'd like to..." is a blank, "As a user, I'd like to switch to
+# metric units..." is a filled-in story.
 PLACEHOLDER = re.compile(
-    r"<(?:who|what|why|an observable result[^>]*|another one)>", re.IGNORECASE
+    r"<(?:who|what|why|an observable result[^>]*|another one)>"
+    r"|as a user, i'd like to\.\.\.[ \t]*$"
+    r"|^[ \t]*(?:[-*+]|\d+[.)])[ \t]*fit criteria \d+[ \t]*$",
+    re.IGNORECASE | re.MULTILINE,
 )
 
 TEMPLATE = """\
@@ -97,7 +105,10 @@ def check(body):
     elif not "\n".join(story).strip():
         problems.append("The **User story** section is empty.")
     elif PLACEHOLDER.search("\n".join(story)):
-        problems.append("The **User story** still has template placeholders such as `<who>`.")
+        problems.append(
+            "The **User story** is still the template's placeholder text "
+            "(`<who>`, or \"As a user, I'd like to...\"). Fill it in."
+        )
 
     fit = first(found, FIT_HEADING)
     if fit is None:

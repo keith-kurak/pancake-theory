@@ -66,22 +66,33 @@ trap cleanup EXIT
 
 # --- helpers -----------------------------------------------------------------
 #
-# Two facts about agent-device shape every helper below.
+# Targeting rule: tap by testID, assert by text.
 #
-# 1. It resolves a target against the CURRENT surface only. A control below the
-#    fold simply is not there, which is why the Maestro flow scrolls too. The
-#    attempt counts here are bounds, not timeouts: a target that is genuinely
-#    absent fails the run instead of scrolling forever.
+# Text is fine for an assertion, because an assertion only asks whether a string
+# is on screen. It is not fine for a tap. This app's list screens hand the
+# accessibility tree an ancestor that repeats a descendant's label while
+# spanning a far larger frame — on the recipe list the wrapper around the whole
+# scroll area carries the FIRST card's label verbatim:
 #
-# 2. `find ... click` reports success whenever it taps SOMETHING. It is not an
-#    assertion that the tap achieved anything, so a tap that lands on the wrong
-#    node passes here and fails several steps later on a screen the run never
-#    left. Every tap therefore waits for its target first and settles after, and
-#    every navigation asserts a landmark belonging to the destination.
+#   @e7  [other] "One-bowl Fluffy Pancakes, 9 ingredients, 9 steps"  <- whole list
+#     ...
+#       @e14 [other] "One-bowl Fluffy Pancakes, 9 ingredients, 9 steps"  <- the card
+#
+# The labels are identical, so no text can separate them, and which one a text
+# search resolves to varies run to run: measured over repeated cold starts, the
+# same command tapped the card at (201, 308) on some runs and the wrapper's
+# centre at (201, 581) on others. The wrapper's centre falls in the gap between
+# two cards, so the tap does nothing, and the run fails several steps later on a
+# screen it never left. An id resolves to one node every time.
+#
+# This is why the components this flow drives carry testIDs. Adding one is the
+# correct fix for a target this script cannot hit; adding retries is not.
 
 # reach <text> — wait until this text is on the current surface, scrolling to
-# bring it into view. Also the settling point: a find issued before the screen
-# has rendered resolves against the outgoing one.
+# bring it into view. agent-device resolves against the CURRENT surface only, so
+# a control below the fold simply is not there; the Maestro flow scrolls for the
+# same reason. The attempt count is a bound, not a timeout: a target that is
+# genuinely absent fails the run instead of scrolling forever.
 reach() {
   local label="$1" _attempt
   for _attempt in 1 2 3 4 5 6; do
@@ -90,54 +101,50 @@ reach() {
     fi
     agent-device scroll down --settle >/dev/null 2>&1 || true
   done
-  printf '    could not reach: %s\n' "$label" >&2
+  printf '    not reachable: %s\n' "$label" >&2
   return 1
 }
 
 # see <text> — assert this text is reachable, without touching it.
 see() { reach "$1"; }
 
-# tap <text> — click the element matching this text.
+# tap <testID> — click the element with this id, scrolling to reach it.
 #
-# --last, NOT --first. A React Native screen hands the accessibility tree
-# ancestor nodes that repeat a descendant's label while spanning a much larger
-# frame. On the recipe list the outer wrapper around the whole scroll area
-# carries the FIRST card's label verbatim:
-#
-#   @e7  [other] "One-bowl Fluffy Pancakes, 9 ingredients, 9 steps"  <- whole list
-#     ...
-#       @e14 [other] "One-bowl Fluffy Pancakes, 9 ingredients, 9 steps"  <- the card
-#
-# The labels are identical, so no text can tell them apart. --first picks @e7
-# and taps its centre, which falls in the gap between two cards and does
-# nothing. --last picks the deepest match, and a deeper node's frame is always
-# inside its ancestors', so the tap lands on the thing itself.
+# A tap is never its own assertion: `click` reports success whenever it hits
+# something. Each navigation below therefore asserts a landmark that belongs to
+# the destination and nowhere else.
 tap() {
-  local label="$1"
-  reach "$label" || return 1
-  agent-device find "$label" click --last >/dev/null 2>&1 || {
-    printf '    could not tap: %s\n' "$label" >&2
-    return 1
-  }
-  # --settle is rejected on find, so settle explicitly.
-  agent-device wait stable 300 5000 >/dev/null 2>&1 || true
+  local id="$1" _attempt
+  for _attempt in 1 2 3 4 5 6; do
+    if agent-device click "id=\"$id\"" --settle >/dev/null 2>&1; then
+      return 0
+    fi
+    agent-device scroll down --settle >/dev/null 2>&1 || true
+  done
+  printf '    could not tap: %s\n' "$id" >&2
+  return 1
 }
 
-# check_off <ingredient> — tap an ingredient row and say so.
+# check_off <index> <name> — tap an ingredient row by index and say which.
 check_off() {
-  tap "$1" || return 1
-  printf '    checked off: %s\n' "$1" >&2
+  tap "ingredient-$1" || return 1
+  printf '    checked off: %s\n' "$2" >&2
 }
 
 # --- install and launch -----------------------------------------------------
 
 step "Boot $DEVICE and install $APP_ID"
 agent-device boot "${TARGET[@]}" >/dev/null
-agent-device install "$APP_ID" "$APP_PATH" "${TARGET[@]}" >/dev/null
+# reinstall, not install: it replaces the app AND discards its data. The recipe
+# in progress is persisted to disk, so a run that failed partway through leaves
+# a half-checked recipe behind, and the next run opens to "Cancel Recipe" with
+# no "Make it now?" anywhere. A cold start does not clear that — only a wipe
+# does. On a fresh CI worker this is a no-op; on a reused device it is what
+# makes the run deterministic.
+agent-device reinstall "$APP_ID" "$APP_PATH" "${TARGET[@]}" >/dev/null
 
 step "Open the app"
-# --relaunch guarantees a cold start, so a session left over from an earlier
-# shard cannot carry a half-finished recipe into this run.
+# --relaunch forces a cold start, so no screen survives from an earlier shard.
 agent-device open "$APP_ID" "${TARGET[@]}" --relaunch --foreground >/dev/null
 
 # --- smoke: chooser to recipe list ------------------------------------------
@@ -148,22 +155,22 @@ step "Chooser is up"
 agent-device wait text "Make it" >/dev/null
 shot 01-chooser
 
-tap "Make it"
+tap "make-it-button"
 see "Fluffy Pancakes"
 shot 02-recipes
 
 # --- start the recipe -------------------------------------------------------
 
 step "Open Fluffy Pancakes and start it"
-tap "Fluffy Pancakes"
-# A landmark at the TOP of the detail screen, and one that exists ONLY there.
-# "ingredients" is not: every card in the list reads "9 ingredients, 9 steps",
-# so it matches without leaving the list and reports a screen we never reached.
+tap "recipe-card-pancakes-one-bowl"
+# A landmark at the TOP of the detail screen that exists ONLY there. Not
+# "ingredients": every card in the list reads "9 ingredients, 9 steps", so it
+# matches without leaving the list and reports a screen we never reached.
 # "Directions" is a tab on the detail screen and appears nowhere in the list.
 see "Directions"
 shot 03-detail
 
-tap "Make it now?"
+tap "make-it-now-button"
 # "Cancel Recipe" only exists once the recipe is active, so it is the assertion
 # that the tap did something, not just that the screen still renders.
 see "Cancel Recipe"
@@ -172,39 +179,41 @@ shot 04-active
 # --- check off every ingredient ---------------------------------------------
 
 step "Check off all 9 ingredients"
+# Indexes, not names, and in the order IngredientsTab renders them. Names are
+# ambiguous in both directions here: "sugar" is really "Granulated sugar or
+# sweetener" and "Butter" is "Butter (melted)", so a literal name matches
+# nothing while a partial one risks matching a neighbour.
 INGREDIENTS=(
   "All-purpose flour"
-  "sugar"
+  "Granulated sugar or sweetener"
   "Baking powder"
   "Baking soda"
   "Salt"
   "Milk"
-  "Butter"
+  "Butter (melted)"
   "Vanilla extract"
   "Egg"
 )
-for ingredient in "${INGREDIENTS[@]}"; do
-  check_off "$ingredient"
+for i in "${!INGREDIENTS[@]}"; do
+  check_off "$i" "${INGREDIENTS[$i]}"
 done
 shot 05-ingredients-checked
 
 # --- finish and rate --------------------------------------------------------
 
 step "Finish the recipe"
-tap "I made it!"
+tap "i-made-it-button"
 see "Tap to rate"
 shot 06-rate
 
 step "Rate it"
-# The five stars are identical unlabelled "*" glyphs, so only the first and last
-# are addressable. --last here means the fifth star, not merely the deepest node. The Maestro flow taps the 4th ("Good"); this taps the 5th and
-# asserts "Perfect!" instead. Give the star buttons an accessibilityLabel and
-# this can target any of them.
-agent-device find "★" click --last >/dev/null
-see "Perfect!"
+# The stars are identical unlabelled glyphs, so they are only separable by id.
+# This taps the 4th and asserts "Good", matching .maestro/make-fluffy-pancakes.yaml.
+tap "rating-star-4"
+see "Good"
 shot 07-rated
 
-tap "Done"
+tap "feedback-done-button"
 
 # --- land on history --------------------------------------------------------
 

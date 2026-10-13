@@ -295,6 +295,7 @@ export default function RecipeDetailScreen() {
             style={[styles.buttonContainer, { marginBottom: insets.bottom }]}
           >
             <Pressable
+              testID="make-it-now-button"
               onPress={handleMakeItNow}
               style={[styles.actionButton, { backgroundColor: tintColor }]}
             >
@@ -313,6 +314,7 @@ export default function RecipeDetailScreen() {
             >
               {allIngredientsChecked ? (
                 <Pressable
+                  testID="i-made-it-button"
                   onPress={handleMadeIt}
                   style={[styles.actionButton, { backgroundColor: tintColor }]}
                 >
@@ -322,6 +324,7 @@ export default function RecipeDetailScreen() {
                 </Pressable>
               ) : (
                 <Pressable
+                  testID="cancel-recipe-button"
                   onPress={handleCancelRecipe}
                   style={[
                     styles.actionButton,
@@ -347,6 +350,7 @@ export default function RecipeDetailScreen() {
             style={[styles.buttonContainer, { marginBottom: insets.bottom }]}
           >
             <Pressable
+              testID="make-it-now-button"
               onPress={handleMakeItNow}
               style={[styles.actionButton, { backgroundColor: tintColor }]}
             >
