@@ -9,19 +9,52 @@
 #
 #   ./e2e/agent-device/make-fluffy-pancakes.sh <path-to-app-artifact>
 #
-# Overridable by environment: E2E_APP_ID, E2E_PLATFORM, E2E_DEVICE,
-# E2E_ARTIFACTS.
+# Overridable by environment: E2E_APP_ID, E2E_PLATFORM, E2E_ARTIFACTS, and
+# E2E_DEVICE — which, left unset, is discovered from the machine.
 
 set -euo pipefail
 
 APP_PATH="${1:?usage: make-fluffy-pancakes.sh <path-to-.app-or-.apk>}"
 APP_ID="${E2E_APP_ID:-com.keithkurak.pancaketheory}"
 PLATFORM="${E2E_PLATFORM:-ios}"
-DEVICE="${E2E_DEVICE:-iPhone 17 Pro Max}"
+DEVICE="${E2E_DEVICE:-}"
 ARTIFACTS="${E2E_ARTIFACTS:-agent-out/e2e}"
 
-TARGET=(--platform "$PLATFORM" --device "$DEVICE")
 mkdir -p "$ARTIFACTS"
+
+# Resolve the device instead of hardcoding one. A fixed name is a portability
+# trap: the simulators on an EAS macOS worker are not the ones on a laptop, and
+# a name that exists in one place fails with DEVICE_NOT_FOUND in the other.
+# Newest iPhone first, so the choice is stable across runs on the same image.
+if [ -z "$DEVICE" ]; then
+  # ${...} and $1 below are JS, not shell.
+  # shellcheck disable=SC2016
+  DEVICE="$(agent-device devices --json 2>/dev/null | node -e '
+let d = "";
+process.stdin.on("data", (c) => (d += c)).on("end", () => {
+  let devices = [];
+  try { devices = JSON.parse(d).data.devices || []; } catch {}
+  const sims = devices.filter(
+    (x) => x.platform === "ios" && x.kind === "simulator" && x.target === "mobile"
+  );
+  const phones = sims.filter((x) => /^iPhone/.test(x.name));
+  // Rank by model number, so "iPhone 17 Pro Max" beats "iPhone SE". A plain
+  // string sort puts SE on top, which is the smallest screen available.
+  const model = (n) => (n.match(/^iPhone (\d+)/) ? Number(RegExp.$1) : -1);
+  const pick = (phones.length ? phones : sims).sort(
+    (a, b) => model(b.name) - model(a.name) || b.name.localeCompare(a.name)
+  )[0];
+  process.stdout.write(pick ? pick.name : "");
+});')"
+fi
+
+if [ -z "$DEVICE" ]; then
+  echo "no bootable iOS simulator on this machine. agent-device sees:" >&2
+  agent-device devices >&2 || true
+  exit 1
+fi
+
+TARGET=(--platform "$PLATFORM" --device "$DEVICE")
 
 step()  { printf '\n=== %s\n' "$*" >&2; }
 shot()  { agent-device screenshot --out "$ARTIFACTS/$1.png" --normalize-status-bar >/dev/null; }

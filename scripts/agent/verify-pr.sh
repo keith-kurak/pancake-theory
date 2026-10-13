@@ -433,7 +433,11 @@ EOF
 )" && COMMENT_POSTED=1 || warn "could not post the comment"
 
 if command -v set-output >/dev/null 2>&1; then
-  set-output evidence_url "$EVIDENCE_URL"
+  # set-output rejects an empty VALUE with "Usage: set-output NAME VALUE".
+  # The evidence site is allowed not to publish — a run with no screenshots has
+  # no site — so only set it when there is one. An unset output reads as empty
+  # downstream, which is what the function already documents.
+  [ -n "$EVIDENCE_URL" ] && set-output evidence_url "$EVIDENCE_URL"
   set-output verdict "$VERDICT_LINE"
 fi
 
