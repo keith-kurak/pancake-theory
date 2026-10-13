@@ -64,26 +64,44 @@ shot()  { agent-device screenshot --out "$ARTIFACTS/$1.png" --normalize-status-b
 cleanup() { agent-device close >/dev/null 2>&1 || true; }
 trap cleanup EXIT
 
-# tap <text> — click the first element matching this text.
-#
-# `find` resolves against the current snapshot, so it fails rather than guessing
-# when the label is absent. --first keeps a duplicate label from being ambiguous.
-tap() { agent-device find "$1" click --first >/dev/null; }
+# agent-device resolves a target against the CURRENT surface only: a control
+# below the fold simply is not there. The Maestro flow scrolls for the same
+# reason. Both helpers below scroll to reach their target, and the attempt count
+# is a bound rather than a timeout — a target that is genuinely absent fails the
+# run instead of scrolling forever.
 
-# check_off <ingredient> — tap an ingredient row, scrolling down until it is on
-# screen. The attempt count is a bound, not a timeout: a missing ingredient
-# fails the run instead of scrolling forever.
-check_off() {
+# tap <text> — click the first element matching this text, scrolling to reach
+# it. --first keeps a duplicate label from being ambiguous. The click succeeding
+# is itself the assertion that the control exists.
+tap() {
   local label="$1" _attempt
   for _attempt in 1 2 3 4 5 6; do
     if agent-device find "$label" click --first >/dev/null 2>&1; then
-      printf '    checked off: %s\n' "$label" >&2
       return 0
     fi
-    agent-device scroll down --settle >/dev/null
+    agent-device scroll down --settle >/dev/null 2>&1 || true
   done
-  printf '    could not reach ingredient: %s\n' "$label" >&2
+  printf '    could not reach: %s\n' "$label" >&2
   return 1
+}
+
+# see <text> — assert this text is reachable, without touching it.
+see() {
+  local label="$1" _attempt
+  for _attempt in 1 2 3; do
+    if agent-device wait text "$label" >/dev/null 2>&1; then
+      return 0
+    fi
+    agent-device scroll down --settle >/dev/null 2>&1 || true
+  done
+  printf '    not reachable: %s\n' "$label" >&2
+  return 1
+}
+
+# check_off <ingredient> — tap an ingredient row and say so.
+check_off() {
+  tap "$1" || return 1
+  printf '    checked off: %s\n' "$1" >&2
 }
 
 # --- install and launch -----------------------------------------------------
@@ -100,24 +118,28 @@ agent-device open "$APP_ID" "${TARGET[@]}" --relaunch --foreground >/dev/null
 # --- smoke: chooser to recipe list ------------------------------------------
 
 step "Chooser is up"
+# A real wait, not `see`: the app may still be launching, and this label is at
+# the top of the first screen, so there is nothing to scroll to.
 agent-device wait text "Make it" >/dev/null
 shot 01-chooser
 
 tap "Make it"
-agent-device wait text "Fluffy Pancakes" >/dev/null
+see "Fluffy Pancakes"
 shot 02-recipes
 
 # --- start the recipe -------------------------------------------------------
 
 step "Open Fluffy Pancakes and start it"
 tap "Fluffy Pancakes"
-agent-device wait text "Make it now?" >/dev/null
+# A landmark at the TOP of the detail screen. "Make it now?" is a button at the
+# bottom, so waiting on it here would time out before anything scrolled.
+see "ingredients"
 shot 03-detail
 
 tap "Make it now?"
 # "Cancel Recipe" only exists once the recipe is active, so it is the assertion
 # that the tap did something, not just that the screen still renders.
-agent-device wait text "Cancel Recipe" >/dev/null
+see "Cancel Recipe"
 shot 04-active
 
 # --- check off every ingredient ---------------------------------------------
@@ -142,9 +164,8 @@ shot 05-ingredients-checked
 # --- finish and rate --------------------------------------------------------
 
 step "Finish the recipe"
-agent-device wait text "I made it!" >/dev/null
 tap "I made it!"
-agent-device wait text "Tap to rate" >/dev/null
+see "Tap to rate"
 shot 06-rate
 
 step "Rate it"
@@ -153,7 +174,7 @@ step "Rate it"
 # asserts "Perfect!" instead. Give the star buttons an accessibilityLabel and
 # this can target any of them.
 agent-device find "★" click --last >/dev/null
-agent-device wait text "Perfect!" >/dev/null
+see "Perfect!"
 shot 07-rated
 
 tap "Done"
@@ -161,7 +182,7 @@ tap "Done"
 # --- land on history --------------------------------------------------------
 
 step "Back on the history tab"
-agent-device wait text "History" >/dev/null
+see "History"
 shot 08-history
 
 printf '\n=== passed: screenshots in %s\n' "$ARTIFACTS" >&2
