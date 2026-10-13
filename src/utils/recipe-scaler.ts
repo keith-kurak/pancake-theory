@@ -61,3 +61,11 @@ export function formatAmount(amount: number): string {
     return amount.toFixed(2).replace(/\.?0+$/, '');
   }
 }
+
+/**
+ * Format a metric amount: whole numbers from 10 up, one decimal below that
+ */
+export function formatMetricAmount(amount: number): string {
+  if (amount >= 10) return Math.round(amount).toString();
+  return amount.toFixed(1).replace(/\.0$/, '');
+}

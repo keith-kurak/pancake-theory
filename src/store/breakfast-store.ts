@@ -2,6 +2,7 @@ import type {
     HistoryEntry,
     PendingRecipe,
     RecipeNote,
+    UnitSystem,
     UserRecipeData,
 } from "@/types/breakfast";
 import { observable, Observable, syncState, when } from "@legendapp/state";
@@ -26,6 +27,7 @@ interface BreakfastStore {
   // new recipe notes (notes log items per recipe)
   userRecipesData: Record<string, UserRecipeData>;
   pendingRecipe: PendingRecipe | null;
+  settings?: { unitSystem?: UnitSystem };
 }
 
 const initialState: BreakfastStore = {
@@ -33,6 +35,7 @@ const initialState: BreakfastStore = {
   recipeNotes: {},
   pendingRecipe: null,
   userRecipesData: {},
+  settings: { unitSystem: "imperial" },
 };
 
 //test
@@ -96,6 +99,10 @@ function getUserRecipeData(recipeId: string): Observable<UserRecipeData> {
 
 // Actions for managing history, recipe notes, and pending recipes
 export const breakfastActions = {
+  setUnitSystem: (unitSystem: UnitSystem) => {
+    breakfastStore$.settings.set({ unitSystem });
+  },
+
   addToHistory: (
     entry: Omit<HistoryEntry, "id" | "timestamp"> & { timestamp?: number },
   ): string => {

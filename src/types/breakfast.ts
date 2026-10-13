@@ -30,8 +30,12 @@ export interface Ingredient {
   name: string;
   amount: number;
   unit: string;
+  metricAmount?: number | null; // hand-authored for each recipe, not converted
+  metricUnit?: string | null;
   category: IngredientCategory;
 }
+
+export type UnitSystem = 'imperial' | 'metric';
 
 export interface Recipe {
   id: string;

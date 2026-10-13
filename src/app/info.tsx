@@ -1,16 +1,18 @@
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { PressableWithOpacity } from "@/components/ui/PressableWithOpacity";
+import { breakfastActions, breakfastStore$ } from "@/store/breakfast-store";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { showConfirmDialog } from "@/utils/confirm-dialog";
 import Sentry from "@/utils/sentry";
 import { getCriticalIndex } from "@/utils/update-utils";
 import Constants from "expo-constants";
 import * as Application from "expo-application";
+import { useValue } from "@legendapp/state/react";
 import { router } from "expo-router";
 import { useUpdates } from "expo-updates";
 import { useCallback, useRef, useState } from "react";
-import { ScrollView, StyleSheet } from "react-native";
+import { ScrollView, StyleSheet, Switch } from "react-native";
 
 function InfoRow({
   label,
@@ -42,6 +44,7 @@ export default function InfoScreen() {
   const tapCountRef = useRef(0);
   const lastTapRef = useRef(0);
   const tintColor = useThemeColor({}, "tint");
+  const isMetric = useValue(breakfastStore$.settings.unitSystem) === "metric";
 
   const runtimeVersion =
     typeof currentlyRunning.runtimeVersion === "string"
@@ -110,6 +113,23 @@ export default function InfoScreen() {
             </ThemedText>
           ) : null}
         </PressableWithOpacity>
+      </ThemedView>
+
+      <ThemedView style={styles.section}>
+        <ThemedText type="subtitle" style={styles.sectionTitle}>
+          Settings
+        </ThemedText>
+        <ThemedView style={styles.row}>
+          <ThemedText style={styles.settingLabel}>Use metric units</ThemedText>
+          <Switch
+            testID="metric-switch"
+            accessibilityLabel="Use metric units"
+            value={isMetric}
+            onValueChange={(value) =>
+              breakfastActions.setUnitSystem(value ? "metric" : "imperial")
+            }
+          />
+        </ThemedView>
       </ThemedView>
 
       {devVisible && (
@@ -198,6 +218,9 @@ const styles = StyleSheet.create({
   label: {
     opacity: 0.6,
     fontSize: 15,
+  },
+  settingLabel: {
+    fontSize: 16,
   },
   value: {
     fontSize: 15,

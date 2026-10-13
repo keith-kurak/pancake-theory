@@ -3,7 +3,9 @@ import { RecipeTimer } from "@/components/recipe-timer";
 import { ScaleSlider } from "@/components/scale-slider";
 import { ThemedView } from "@/components/themed-view";
 import { Recipe } from "@/types/breakfast";
-import { formatAmount, scaleIngredient } from "@/utils/recipe-scaler";
+import { breakfastStore$ } from "@/store/breakfast-store";
+import { formatAmount, formatMetricAmount, scaleIngredient } from "@/utils/recipe-scaler";
+import { useValue } from "@legendapp/state/react";
 import { ScrollView, StyleSheet } from "react-native";
 
 interface IngredientsTabProps {
@@ -33,6 +35,7 @@ export function IngredientsTab({
   onSwitchToPrep,
   backgroundColor,
 }: IngredientsTabProps) {
+  const unitSystem = useValue(breakfastStore$.settings.unitSystem);
   return (
     <ScrollView style={styles.content}>
       <ThemedView style={{ backgroundColor }}>
@@ -54,7 +57,21 @@ export function IngredientsTab({
               scaleFactor,
               ingredient.category,
             );
-            const formattedAmount = formatAmount(scaledAmount);
+            const useMetric =
+              unitSystem === "metric" &&
+              ingredient.metricAmount != null &&
+              !!ingredient.metricUnit;
+            let formattedAmount = formatAmount(scaledAmount);
+            let unit = ingredient.unit;
+            if (useMetric) {
+              // Eggs scale in whole eggs, so keep the grams in step with that count
+              const metricScaled =
+                ingredient.category === "eggs" && ingredient.amount
+                  ? ingredient.metricAmount! * (scaledAmount / ingredient.amount)
+                  : ingredient.metricAmount! * scaleFactor;
+              formattedAmount = formatMetricAmount(metricScaled);
+              unit = ingredient.metricUnit!;
+            }
 
             return (
               <IngredientItem
@@ -62,7 +79,7 @@ export function IngredientsTab({
                 testID={`ingredient-${index}`}
                 name={ingredient.name}
                 amount={formattedAmount}
-                unit={ingredient.unit}
+                unit={unit}
                 checked={checkedIngredients.has(index)}
                 onToggle={() => onToggleIngredient(index)}
               />
