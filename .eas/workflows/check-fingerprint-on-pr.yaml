@@ -99,8 +99,8 @@ jobs:
 
         `main` is expected to match both, so this PR does not match `main`.
 
-        The native layer changed. Merging this PR would leave `main` unable to repack the
-        store builds and unable to deliver an update to them, so
+        The native layer changed. Merging this PR would leave `main` unable to deliver an
+        update to the store builds, so
         `deploy-production-on-main.yaml` would fail on the merge.
 
         Common causes:

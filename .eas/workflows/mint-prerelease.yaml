@@ -78,7 +78,7 @@ jobs:
           prerelease: true
           body: |
             Pre-release for runtime version ${{ steps.resolve.outputs.runtime_version }}.
-            While this release is a pre-release, each merge to `main` builds or repacks the store binaries and submits them. It becomes a full release when App Store Connect reports the version ready for distribution. See RELEASE.md.
+            While this release is a pre-release, each merge to `main` builds the store binaries and submits them. It becomes a full release when App Store Connect reports the version ready for distribution. See RELEASE.md.
 
   summary:
     name: Summary

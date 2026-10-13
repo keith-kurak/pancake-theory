@@ -48,17 +48,18 @@ builds:
 
 | Release state | Both platforms match? | `action` |
 | --- | --- | --- |
-| Pre-release | Yes | `build-or-repack`: repack iOS, build Android |
-| Pre-release | No | `build-or-repack`: build iOS and Android |
+| Pre-release | Yes or no | `build`: build iOS and Android |
 | Release | Yes | `update` |
 | Release | No | `error`: the native layer changed |
 | None | Yes or no | `error`: there is no release to decide from |
 
-Android always gets a full build. Production Android builds are app bundles (`.aab`),
-and repack cannot process them.
+A build that goes to a store is always a full build. A repacked iOS build carries
+`CFBundleVersion` `1`, which App Store Connect rejects as a duplicate. Production
+Android builds are app bundles (`.aab`), and repack cannot process them. Only the
+Maestro test builds are repacked.
 
 The cherry-pick lane never builds. It sets `allow_build: false`, so for a pre-release it
-gets `error` in place of `build-or-repack`.
+gets `error` in place of `build`.
 
 ## Pre-release mode
 
@@ -92,10 +93,9 @@ workflows can replace them.
 
 ### Each merge to `main`
 
-`deploy-production-on-main.yaml` gets `build-or-repack`:
+`deploy-production-on-main.yaml` gets `build`:
 
-- **iOS:** repack the matching store build, or make a full build when the platforms do
-  not both match. Then submit it to App Store Connect, for TestFlight.
+- **iOS:** make a full build, and submit it to App Store Connect, for TestFlight.
 - **Android:** make a full build, and submit it to Google Play.
 
 A native change is allowed in this mode, because the next build carries it. But
@@ -139,10 +139,10 @@ keep that list short, `weekly-store-rollup.yaml` runs on Mondays at 14:17 GMT:
 1. It skips if `main` has no commits since the last rollup, or since the binary release
    if there is no rollup yet.
 2. It asks `decide-deploy` for the same decision as the deploy. It continues only on
-   `update`. On `build-or-repack` (pre-release) it skips, and on `error` it fails.
+   `update`. On `build` (pre-release) it skips, and on `error` it fails.
 3. It takes the next patch version: `1.6.0`, then `1.6.1`, then `1.6.2`. The runtime
    version does not change, so the new binary gets the same updates.
-4. It repacks iOS and builds Android at that version, and submits both.
+4. It builds iOS and Android at that version, and submits both.
 5. After both submits succeed, it creates the release `1.6.N-rollup`.
 
 As with any upload, send the rollup builds for review in each store yourself.
