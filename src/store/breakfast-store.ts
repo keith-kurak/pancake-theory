@@ -26,6 +26,8 @@ interface BreakfastStore {
   // new recipe notes (notes log items per recipe)
   userRecipesData: Record<string, UserRecipeData>;
   pendingRecipe: PendingRecipe | null;
+  // show recipe ingredients in metric units; may be undefined in older persisted state
+  metricUnits?: boolean;
 }
 
 const initialState: BreakfastStore = {
@@ -33,6 +35,7 @@ const initialState: BreakfastStore = {
   recipeNotes: {},
   pendingRecipe: null,
   userRecipesData: {},
+  metricUnits: false,
 };
 
 //test
@@ -106,6 +109,10 @@ export const breakfastActions = {
     };
     breakfastStore$.history.unshift(newEntry);
     return newEntry.id;
+  },
+
+  setMetricUnits: (value: boolean) => {
+    breakfastStore$.metricUnits.set(value);
   },
 
   clearHistory: () => {

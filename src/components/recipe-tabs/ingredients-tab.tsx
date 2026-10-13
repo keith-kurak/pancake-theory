@@ -2,8 +2,14 @@ import { IngredientItem } from "@/components/ingredient-item";
 import { RecipeTimer } from "@/components/recipe-timer";
 import { ScaleSlider } from "@/components/scale-slider";
 import { ThemedView } from "@/components/themed-view";
+import { breakfastStore$ } from "@/store/breakfast-store";
 import { Recipe } from "@/types/breakfast";
-import { formatAmount, scaleIngredient } from "@/utils/recipe-scaler";
+import {
+  formatAmount,
+  formatMetricAmount,
+  scaleIngredient,
+} from "@/utils/recipe-scaler";
+import { useValue } from "@legendapp/state/react";
 import { ScrollView, StyleSheet } from "react-native";
 
 interface IngredientsTabProps {
@@ -33,6 +39,7 @@ export function IngredientsTab({
   onSwitchToPrep,
   backgroundColor,
 }: IngredientsTabProps) {
+  const metricUnits = useValue(() => breakfastStore$.metricUnits.get() ?? false);
   return (
     <ScrollView style={styles.content}>
       <ThemedView style={{ backgroundColor }}>
@@ -49,12 +56,30 @@ export function IngredientsTab({
 
         <ThemedView style={styles.ingredientsList}>
           {recipe.ingredients.map((ingredient, index) => {
-            const scaledAmount = scaleIngredient(
-              ingredient.amount,
-              scaleFactor,
-              ingredient.category,
-            );
-            const formattedAmount = formatAmount(scaledAmount);
+            const metricAmount = ingredient.metricAmount;
+            const useMetric =
+              metricUnits && metricAmount != null && !!ingredient.metricUnit;
+            let displayAmount: number;
+            if (useMetric && ingredient.category === "eggs" && ingredient.amount) {
+              // scale whole eggs, then use the authored weight per egg
+              displayAmount =
+                scaleIngredient(ingredient.amount, scaleFactor, "eggs") *
+                (metricAmount / ingredient.amount);
+            } else if (useMetric) {
+              displayAmount = metricAmount * scaleFactor;
+            } else {
+              displayAmount = scaleIngredient(
+                ingredient.amount ?? 0,
+                scaleFactor,
+                ingredient.category,
+              );
+            }
+            const formattedAmount = useMetric
+              ? formatMetricAmount(displayAmount)
+              : formatAmount(displayAmount);
+            const unit = useMetric
+              ? (ingredient.metricUnit as string)
+              : ingredient.unit;
 
             return (
               <IngredientItem
@@ -62,7 +87,7 @@ export function IngredientsTab({
                 testID={`ingredient-${index}`}
                 name={ingredient.name}
                 amount={formattedAmount}
-                unit={ingredient.unit}
+                unit={unit}
                 checked={checkedIngredients.has(index)}
                 onToggle={() => onToggleIngredient(index)}
               />

@@ -61,3 +61,11 @@ export function formatAmount(amount: number): string {
     return amount.toFixed(2).replace(/\.?0+$/, '');
   }
 }
+
+/**
+ * Format a metric amount as a decimal (no fractions), at most one decimal place
+ */
+export function formatMetricAmount(amount: number): string {
+  if (amount === 0) return '0';
+  return String(Math.round(amount * 10) / 10);
+}
