@@ -6,6 +6,7 @@ import { BREAKFAST_TYPES } from "@/constants/breakfast-ratios";
 import type { Ratios } from "@/types/breakfast";
 import { useMarkRouteInteractive } from "@/hooks/use-mark-route-interactive";
 import { findClosestBreakfast } from "@/utils/ratio-matcher";
+import { ReadableWidth } from "@/constants/sizes";
 import { useMemo, useState } from "react";
 import { Platform, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -110,10 +111,12 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   cardContainer: {
+    ...ReadableWidth,
     flex: 1,
     justifyContent: "center",
   },
   slidersContainer: {
+    ...ReadableWidth,
     //marginTop: 24,
     padding: 16,
     gap: 8,

@@ -2,6 +2,7 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { PressableWithOpacity } from "@/components/ui/PressableWithOpacity";
 import { useThemeColor } from "@/hooks/use-theme-color";
+import { ReadableWidth } from "@/constants/sizes";
 import { useUpdates } from "expo-updates";
 import { useCallback, useState } from "react";
 import { ScrollView, StyleSheet, TextInput } from "react-native";
@@ -91,6 +92,7 @@ export default function ChannelSurfScreen() {
 
 const styles = StyleSheet.create({
   container: {
+    ...ReadableWidth,
     padding: 16,
   },
   section: {

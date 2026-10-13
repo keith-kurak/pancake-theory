@@ -6,6 +6,7 @@ import { useMarkRouteInteractive } from "@/hooks/use-mark-route-interactive";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { breakfastStore$ } from "@/store/breakfast-store";
 import type { RecipeNote } from "@/types/breakfast";
+import { ReadableWidth } from "@/constants/sizes";
 import { useValue } from "@legendapp/state/react";
 import * as Haptics from "expo-haptics";
 import { router, Stack, useLocalSearchParams } from "expo-router";
@@ -203,6 +204,7 @@ export default function HistoryDetailScreen() {
 
 const styles = StyleSheet.create({
   container: {
+    ...ReadableWidth,
     padding: 16,
     gap: 16,
   },

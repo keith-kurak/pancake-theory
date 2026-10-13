@@ -3,6 +3,7 @@ import { ThemedView } from "@/components/themed-view";
 import { useMarkRouteInteractive } from "@/hooks/use-mark-route-interactive";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { breakfastActions, breakfastStore$ } from "@/store/breakfast-store";
+import { ReadableWidth } from "@/constants/sizes";
 import { useValue } from "@legendapp/state/react";
 import * as Haptics from "expo-haptics";
 import { Observe } from "expo-observe";
@@ -168,6 +169,7 @@ export default function FeedbackScreen() {
 
 const styles = StyleSheet.create({
   container: {
+    ...ReadableWidth,
     padding: 24,
     gap: 24,
   },

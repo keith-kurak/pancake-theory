@@ -9,6 +9,7 @@ import { useMarkRouteInteractive } from "@/hooks/use-mark-route-interactive";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { breakfastActions, breakfastStore$ } from "@/store/breakfast-store";
 import { showConfirmDialog } from "@/utils/confirm-dialog";
+import { ReadableWidth } from "@/constants/sizes";
 import { Observe } from "expo-observe";
 import { useValue } from "@legendapp/state/react";
 import * as Haptics from "expo-haptics";
@@ -365,6 +366,7 @@ export default function RecipeDetailScreen() {
 
 const styles = StyleSheet.create({
   container: {
+    ...ReadableWidth,
     flex: 1,
   },
   tabBar: {

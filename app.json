@@ -2,13 +2,14 @@
   "expo": {
     "name": "Pancake Theory",
     "slug": "pancake-theory",
-    "version": "1.5.0",
+    "version": "1.6.0",
     "orientation": "portrait",
     "icon": "./assets/build/ios-light.png",
     "scheme": "pancaketheory",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": false,
+      "supportsTablet": true,
+      "requireFullScreen": true,
       "icon": {
         "light": "./assets/build/ios-light.png",
         "dark": "./assets/build/ios-dark.png",

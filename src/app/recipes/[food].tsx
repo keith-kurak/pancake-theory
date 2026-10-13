@@ -5,6 +5,7 @@ import { BREAKFAST_TYPES } from "@/constants/breakfast-ratios";
 import { getRecipesByType } from "@/data/recipes";
 import { useMarkRouteInteractive } from "@/hooks/use-mark-route-interactive";
 import type { BreakfastType } from "@/types/breakfast";
+import { ReadableWidth } from "@/constants/sizes";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { FlatList, StyleSheet } from "react-native";
 
@@ -62,6 +63,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listContent: {
+    ...ReadableWidth,
     padding: 16,
   },
   tipsContainer: {
