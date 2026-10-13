@@ -419,8 +419,8 @@ validate() {
   fi
 
   if ! sim_wait_for_device; then
-    STATUS_VALIDATE="skipped — agent-device never saw the simulator"
-    note_blocker "agent-device could not reach the remote simulator, so the app was not driven."
+    STATUS_VALIDATE="skipped — agent-device could not attach to the app"
+    note_blocker "agent-device could not find the remote simulator or open a session on the app, so the app was not driven. See the job log."
     return 1
   fi
 

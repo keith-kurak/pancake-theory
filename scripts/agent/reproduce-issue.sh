@@ -262,7 +262,7 @@ run_reproducer() {
   # This is the pipeline's failure, not evidence about the bug.
   log "Snapshotting the launch state"
   local snapshot
-  snapshot="$(npx --yes agent-device@latest snapshot -i --udid "$SIM_UDID" 2>/dev/null || true)"
+  snapshot="$(npx --yes agent-device@latest snapshot -i --udid "$SIM_UDID" 2>"$EVIDENCE_DIR/launch-snapshot.log" || true)"
   printf '%s\n' "$snapshot" > "$EVIDENCE_DIR/launch-snapshot.txt"
   if [ -z "$snapshot" ] || ! printf '%s' "$snapshot" | grep -q 'ROOT'; then
     inconclusive "the app produced no UI after launch — the update may not have loaded."

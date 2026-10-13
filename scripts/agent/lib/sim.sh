@@ -16,6 +16,9 @@
 : "${AGENT_OUT:=agent-out}"
 : "${SIM_IDLE_MINUTES:=5}"
 : "${SIM_MAX_DURATION_MINUTES:=25}"
+# The development build's bundle id: app.config.js appends the lowercased
+# APP_VARIANT ("DEV") to the base id in app.json.
+: "${SIM_APP_BUNDLE_ID:=com.keithkurak.pancaketheorydev}"
 
 METRO_PID=""
 METRO_URL=""
@@ -147,12 +150,33 @@ for d in devices:
 ')"
     if [ -n "$SIM_UDID" ]; then
       echo "agent-device: booted device is $SIM_UDID" >&2
-      return 0
+      sim_open_app
+      return
     fi
     sleep 5
     waited=$(( waited + 5 ))
   done
   echo "agent-device: no booted iOS device appeared within ${waited}s" >&2
+  return 1
+}
+
+# sim_open_app — start an agent-device session on the running app.
+#
+# Every agent-device command except `devices` needs an open session; without
+# one, `click` and `snapshot` fail with SESSION_NOT_FOUND. That made the
+# startup-prompt pass tap nothing and the launch snapshot come back empty, so a
+# verify run reported "no UI" for an app that had loaded fine. No --relaunch:
+# the app is already running the update or dev server the launch URL chose.
+sim_open_app() {
+  local log="${AGENT_OUT:-.}/agent-device-open.log"
+  mkdir -p "$(dirname "$log")"
+  if _agent_device open "$SIM_APP_BUNDLE_ID" --platform ios --udid "$SIM_UDID" \
+      > "$log" 2>&1; then
+    echo "agent-device: session open on $SIM_APP_BUNDLE_ID" >&2
+    return 0
+  fi
+  echo "agent-device: could not open $SIM_APP_BUNDLE_ID. Last lines:" >&2
+  tail -n 10 "$log" >&2
   return 1
 }
 

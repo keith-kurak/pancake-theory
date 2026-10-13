@@ -147,7 +147,7 @@ except Exception:
   export AGENT_DEVICE_DAEMON_BASE_URL AGENT_DEVICE_DAEMON_AUTH_TOKEN
 
   if ! sim_wait_for_device; then
-    SESSION_ERROR="agent-device never saw a booted device in the session."
+    SESSION_ERROR="agent-device found no booted device, or could not open a session on the app."
     return 1
   fi
   export AGENT_SIM_UDID="$SIM_UDID"
