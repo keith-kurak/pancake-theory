@@ -7,14 +7,7 @@ import {
   widgetURL,
 } from "@expo/ui/swift-ui/modifiers";
 import { createWidget, type WidgetEnvironment } from "expo-widgets";
-
-type BreakfastWidgetProps = {
-  isActive: boolean;
-  recipeId?: string;
-  recipeName?: string;
-  recipeType?: string;
-  startTime?: number;
-};
+import type { BreakfastWidgetProps } from "./breakfast-widget-props";
 
 const BreakfastWidget = (
   props: BreakfastWidgetProps,
