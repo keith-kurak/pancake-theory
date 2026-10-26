@@ -1,4 +1,7 @@
-appId: com.keithkurak.pancaketheorypreview
+# The e2e build profile uses production's bundle identifier, so that is the
+# default. MAESTRO_APP_ID still overrides it for a run against another variant.
+# Quoted because the " : " in the expression is a YAML mapping separator.
+appId: "${typeof MAESTRO_APP_ID !== 'undefined' ? MAESTRO_APP_ID : 'com.keithkurak.pancaketheory'}"
 ---
 - launchApp
 

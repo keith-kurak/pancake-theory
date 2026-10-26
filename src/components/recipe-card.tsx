@@ -30,6 +30,10 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
 
   return (
     <Pressable
+      // The recipe list wraps this card in an accessibility ancestor carrying
+      // the same label, so no text selector can name the card alone. e2e taps
+      // it by id. See e2e/agent-device/make-fluffy-pancakes.sh.
+      testID={`recipe-card-${recipe.id}`}
       onPress={handlePress}
       style={({ pressed }) => [
         styles.container,

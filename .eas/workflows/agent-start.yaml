@@ -1,9 +1,12 @@
 name: Agent Start
 
-# Label a draft PR that carries a PR-TODO.md task file with `agent-start`, and
-# this workflow implements it, proves it runs on a simulator, commits it, and
-# flips the PR to ready. Pairs with agent-revise.yaml, which applies review
-# comments afterwards. See .eas/workflows/README.md for setup and behaviour.
+# Label a draft PR whose description is the task with `agent-start`, and this
+# workflow writes an implementation plan into the description, implements it,
+# and commits it. A separate job then runs the shared verify function, the
+# same independent and adversarial check as agent-verify.yaml, on a cloud
+# simulator, and only its PASS flips the PR to ready. Pairs with
+# agent-revise.yaml, which applies `/agent` review comments afterwards. See
+# .eas/workflows/README.md for setup and behaviour.
 
 on:
   pull_request_labeled:
@@ -20,7 +23,7 @@ defaults:
 
 jobs:
   agent:
-    name: Implement, validate, publish
+    name: Implement and publish
     # Draft only: a PR already in review must not be rewritten under the
     # reviewer, so re-labelling one is a no-op. The runner re-checks this
     # against the API too.
@@ -28,10 +31,15 @@ jobs:
     # There is no fork check. EAS blocks fork PRs in its webhook handler, before
     # a run is ever dispatched — see the note in README.md.
     if: ${{ github.event.pull_request.draft }}
-    # The simulator runs on EAS, not here, so this job needs no Mac and no
-    # nested virtualisation. It only runs Metro, the eas CLI, and Claude.
+    # Implementation only: lint, unit tests, and Claude. No simulator; the
+    # verify job below owns every device check.
     runs_on: linux-medium
     environment: development
+    # Where the verifier starts reading `/agent` comments. In revise mode it
+    # is the boundary the change requests were collected from, so the
+    # verifier checks the same requests the agent applied.
+    outputs:
+      requests_since: ${{ steps.run.outputs.requests_since }}
     env:
       AGENT_MODE: build
       AGENT_LABEL: agent-start
@@ -46,6 +54,8 @@ jobs:
       GH_REPO: ${{ github.repository || 'keith-kurak/pancake-theory' }}
       RUN_URL: ${{ workflow.url }}
       AGENT_TOTAL_BUDGET_SECONDS: '1800'
+      # The verify job below owns the ready/draft decision.
+      AGENT_VERIFY_FOLLOWS: '1'
     steps:
       # The default checkout lands on a detached HEAD at the PR's recorded
       # commit. `ref` puts us on the branch itself, which is what the run needs
@@ -56,18 +66,17 @@ jobs:
 
       - uses: eas/install_node_modules
 
-      # Both must be on PATH before the runner starts: it invokes `claude`
-      # directly, and remote-sim.sh needs `argent` (whose `argent link` must be
-      # the same install the MCP server later reads). npm rather than bun here:
-      # global binary installs are the one case npm links more reliably on a CI
-      # worker. Project dependencies still come from bun.
-      - name: Install argent and Claude Code
-        run: npm install --global @swmansion/argent@latest @anthropic-ai/claude-code@latest
+      # On PATH before the runner starts, which invokes `claude` directly. npm
+      # rather than bun here: global binary installs are the one case npm links
+      # more reliably on a CI worker. Project dependencies still come from bun.
+      - name: Install Claude Code
+        run: npm install --global @anthropic-ai/claude-code@latest
 
-      # The PR body and PR-TODO.md are user-written text. Neither is
-      # interpolated into this file — the script reads them through the GitHub
-      # API and from disk, so they cannot reach the shell as code.
-      - name: Run agent
+      # The PR description is user-written text. It is not interpolated into
+      # this file — the script reads it through the GitHub API and hands it to
+      # Claude as a file, so it cannot reach the shell as code.
+      - id: run
+        name: Run agent
         run: ./scripts/agent/run-agent-pr.sh
 
       - uses: eas/upload_artifact
@@ -77,3 +86,50 @@ jobs:
           name: agent-run
           path: |
             agent-out/**/*
+
+  # The device check, kept in its own job so a run shows at a glance whether
+  # the implementation or the verification failed. It is the same function
+  # agent-verify.yaml runs. `needs`, so it runs only when implementation, lint,
+  # and tests passed: verifying code that did not get that far learns nothing.
+  #
+  # A custom job, not the pre-packaged fingerprint/get-build/build jobs
+  # agent-verify.yaml uses. Those always use the commit that triggered the
+  # workflow, which is the commit before the agent pushed. This checkout takes
+  # the branch head, and build_if_missing builds a client from it when no
+  # existing build matches (for example, after the agent changed native code).
+  verify:
+    name: Verify independently
+    needs: [agent]
+    runs_on: linux-medium
+    environment: development
+    env:
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      PR_HEAD_REF: ${{ github.event.pull_request.head.ref || github.ref_name }}
+      GH_REPO: ${{ github.repository || 'keith-kurak/pancake-theory' }}
+      RUN_URL: ${{ workflow.url }}
+    steps:
+      - uses: eas/checkout
+        with:
+          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
+
+      # gate_ready: the agent job left the PR's draft state alone, so this
+      # verdict alone decides it. The PR is flipped once, not twice.
+      - uses: ./.eas/functions/agent-verify
+        with:
+          requests_since: ${{ needs.agent.outputs.requests_since }}
+          build_if_missing: true
+          gate_ready: true
+
+  # Last, and `after` rather than `needs`, so the label comes off whether the
+  # jobs above passed, failed, or were skipped. Adding the label again then
+  # starts a new run. That includes a PR that is not a draft, where the agent
+  # job is skipped and no script runs to take the label off.
+  remove_label:
+    name: Remove the agent-start label
+    after: [agent, verify]
+    environment: development # GH_TOKEN
+    steps:
+      - uses: eas/checkout
+      - uses: ./.eas/functions/remove-pr-label
+        with:
+          label: agent-start

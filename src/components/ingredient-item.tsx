@@ -6,6 +6,7 @@ import * as Haptics from "expo-haptics";
 import { Pressable, StyleSheet } from "react-native";
 
 interface IngredientItemProps {
+  testID?: string;
   name: string;
   amount: string;
   unit: string;
@@ -14,6 +15,7 @@ interface IngredientItemProps {
 }
 
 export function IngredientItem({
+  testID,
   name,
   amount,
   unit,
@@ -29,7 +31,7 @@ export function IngredientItem({
   };
 
   return (
-    <Pressable onPress={handlePress} style={styles.container}>
+    <Pressable testID={testID} onPress={handlePress} style={styles.container}>
       <ThemedView
         style={[
           styles.checkbox,

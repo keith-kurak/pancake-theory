@@ -1,0 +1,154 @@
+name: Decide deploy
+description: >-
+  Decides what a merge to main does with production, from the runtime version's
+  release state and the production store builds that match main. Keeps every
+  branch of that decision in one place, so the workflow only reads `action`.
+
+inputs:
+  - name: runtime_version
+    type: string
+    required: true
+  # The `state` output of find-github-release: prerelease, released, or none.
+  - name: release_state
+    type: string
+    required: true
+  # The matching production store builds from get-build. Empty means no match.
+  - name: ios_build_id
+    type: string
+    default_value: ''
+  - name: android_build_id
+    type: string
+    default_value: ''
+  # False on lanes that may only publish updates, such as a cherry-pick branch.
+  # Then a pre-release is an error rather than build: replacing the store
+  # builds is main's job.
+  - name: allow_build
+    type: boolean
+    default_value: true
+  # Not used in the decision. Passed through so later jobs can read the
+  # release from `decide` alone.
+  - name: release_url
+    type: string
+    default_value: ''
+  # Not used in the decision either. Passed through so later jobs can find
+  # test builds of the same fingerprint from `decide` alone.
+  - name: ios_fingerprint_hash
+    type: string
+    default_value: ''
+  - name: android_fingerprint_hash
+    type: string
+    default_value: ''
+
+outputs:
+  action:
+    value: ${{ steps.decide.outputs.action }}
+    description: >-
+      "build" when the release is still pre-release, so both platforms build
+      in full and replace the store builds. "update" when the release is live and both
+      platforms match, so an over-the-air update is safe. "error" when nothing
+      can ship.
+  reason:
+    value: ${{ steps.decide.outputs.reason }}
+    description: For error, one line on why nothing can ship. Empty otherwise.
+  fix:
+    value: ${{ steps.decide.outputs.fix }}
+    description: For error, one line on what to do about it. Empty otherwise.
+  # The inputs this decision was made from, passed through unchanged, so later
+  # jobs need only `decide`.
+  runtime_version:
+    value: ${{ steps.decide.outputs.runtime_version }}
+  release_state:
+    value: ${{ steps.decide.outputs.release_state }}
+  release_url:
+    value: ${{ steps.decide.outputs.release_url }}
+  # The matching store builds, with a missing get-build output read as empty.
+  ios_build_id:
+    value: ${{ steps.decide.outputs.ios_build_id }}
+  android_build_id:
+    value: ${{ steps.decide.outputs.android_build_id }}
+  ios_fingerprint_hash:
+    value: ${{ steps.decide.outputs.ios_fingerprint_hash }}
+  android_fingerprint_hash:
+    value: ${{ steps.decide.outputs.android_fingerprint_hash }}
+
+runs:
+  steps:
+    - id: decide
+      name: Decide what this merge does
+      run: |
+        set -euo pipefail
+        RV='${{ inputs.runtime_version }}'
+        STATE='${{ inputs.release_state }}'
+        IOS='${{ inputs.ios_build_id }}'
+        ANDROID='${{ inputs.android_build_id }}'
+        ALLOW_BUILD='${{ inputs.allow_build }}'
+        URL='${{ inputs.release_url }}'
+        IOS_FP='${{ inputs.ios_fingerprint_hash }}'
+        ANDROID_FP='${{ inputs.android_fingerprint_hash }}'
+
+        # A get-build job that finds no match has no build_id output, and the
+        # expression renders that as the text "undefined", which is not empty.
+        # Left alone, it reads as a match and lets an update go out with no
+        # store build behind it.
+        case "$IOS" in undefined|null) IOS='' ;; esac
+        case "$ANDROID" in undefined|null) ANDROID='' ;; esac
+
+        # Both platforms are decided together, so one store never moves
+        # without the other.
+        BOTH_MATCH=false
+        if [ -n "$IOS" ] && [ -n "$ANDROID" ]; then BOTH_MATCH=true; fi
+
+        ACTION=error
+        REASON=''
+        FIX=''
+        if [ "$STATE" = "prerelease" ] && [ "$ALLOW_BUILD" != "true" ]; then
+          STATE=prerelease-no-build
+        fi
+
+        case "$STATE:$BOTH_MATCH" in
+          prerelease-no-build:*)
+            REASON="Runtime version $RV is still pre-release. This lane only publishes updates to a live release, and it does not replace store builds."
+            FIX="Merge the change to main, which replaces the store builds while the release is pre-release."
+            ;;
+          prerelease:*)
+            # A full build whether or not the store builds match. A repack
+            # writes CFBundleVersion "1", which App Store Connect rejects as a
+            # duplicate, and Android app bundles cannot be repacked at all.
+            ACTION=build
+            ;;
+          released:true)
+            ACTION=update
+            ;;
+          released:false)
+            REASON="Runtime version $RV is released, but this commit does not fingerprint-match a production store build on both platforms. The native layer changed, so the released binaries cannot be replaced and this commit cannot reach them as an update."
+            FIX="Drop the native change. To ship it anyway, bump the app version, which starts a new runtime version with its own release."
+            ;;
+          none:true)
+            REASON="This commit matches the production store builds for runtime version $RV, but no GitHub release is tagged for that version, so nothing says whether to replace the builds or publish an update."
+            FIX="Create a GitHub release tagged $RV. Make it draft or pre-release while the version is being assembled (merges replace and resubmit the store builds), or a full release once it is live (merges publish an update)."
+            ;;
+          none:false)
+            REASON="No GitHub release is tagged $RV (or v$RV), and the production store builds do not both match. The runtime version changed, and nothing says what the new version is for."
+            FIX="Create a GitHub release tagged $RV, marked draft or pre-release, then push to main again. That merge builds both platforms and submits them. Clear both release flags once the version is live."
+            ;;
+          *)
+            REASON="Unknown release state \"$STATE\" for runtime version $RV."
+            FIX="Check the find-github-release step in the release_state job."
+            ;;
+        esac
+
+        echo "Release: $STATE. iOS match: ${IOS:-none}. Android match: ${ANDROID:-none}."
+        echo "Action: $ACTION"
+        [ -n "$REASON" ] && echo "Reason: $REASON"
+        # set-output exits non-zero on an empty value. An output that is never
+        # set reads as empty downstream, so skip the empty ones.
+        set-output action "$ACTION"
+        set-output runtime_version "$RV"
+        set-output release_state '${{ inputs.release_state }}'
+        [ -z "$URL" ] || set-output release_url "$URL"
+        [ -z "$IOS" ] || set-output ios_build_id "$IOS"
+        [ -z "$ANDROID" ] || set-output android_build_id "$ANDROID"
+        [ -z "$IOS_FP" ] || set-output ios_fingerprint_hash "$IOS_FP"
+        [ -z "$ANDROID_FP" ] || set-output android_fingerprint_hash "$ANDROID_FP"
+        [ -z "$REASON" ] || set-output reason "$REASON"
+        [ -z "$FIX" ] || set-output fix "$FIX"

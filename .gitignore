@@ -53,3 +53,14 @@ temp.json
 agent-out/
 # PR verification run artifacts
 evidence/
+# @generated expo skills start
+.agents/skills/dotenv
+.agents/skills/dotenvx
+.agents/skills/expo-sqlite
+.claude/skills/dotenv
+.claude/skills/dotenvx
+.claude/skills/expo-sqlite
+.grok/skills/dotenv
+.grok/skills/dotenvx
+.grok/skills/expo-sqlite
+# @generated expo skills end

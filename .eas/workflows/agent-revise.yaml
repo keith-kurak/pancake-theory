@@ -3,12 +3,14 @@ name: Agent Revise
 # Ask for changes to an open PR by commenting `/agent <what to change>`, then
 # applying the `agent-revise` label.
 #
-# EAS Workflows has no comment trigger — the full list is workflow_dispatch,
-# push, ref_delete, pull_request, pull_request_labeled, app_store_connect, and
-# schedule. So the comment carries the request and the label starts the run. The
-# job removes the label when it finishes, so the next request is one click.
+# Every agent instruction is an `/agent` comment; the label decides what is done
+# with it. EAS now has a pull_request_comment trigger, but the label stays the
+# trigger on purpose: a reviewer can leave several `/agent` comments and start
+# one run for the batch, and the same comment syntax serves every workflow. The
+# last job removes the label, so the next request is one click.
 #
-# See .eas/workflows/README.md.
+# A passing run ends with the shared verify function, which decides whether the
+# PR stays open for review. See .eas/workflows/README.md.
 
 on:
   pull_request_labeled:
@@ -25,14 +27,19 @@ defaults:
 
 jobs:
   revise:
-    name: Apply review comments, validate, publish
+    name: Apply review comments and publish
     # No draft gate, unlike agent-start — asking for changes is what a reviewer
     # does, on an open PR. No fork gate either: EAS blocks fork PRs in its
     # webhook handler, before a run is dispatched.
-    # The simulator runs on EAS, not here, so this job needs no Mac and no
-    # nested virtualisation. It only runs Metro, the eas CLI, and Claude.
+    # Implementation only: lint, unit tests, and Claude. No simulator; the
+    # verify job below owns every device check.
     runs_on: linux-medium
     environment: development
+    # Where the verifier starts reading `/agent` comments. In revise mode it
+    # is the boundary the change requests were collected from, so the
+    # verifier checks the same requests the agent applied.
+    outputs:
+      requests_since: ${{ steps.run.outputs.requests_since }}
     env:
       AGENT_MODE: revise
       AGENT_LABEL: agent-revise
@@ -47,6 +54,8 @@ jobs:
       GH_REPO: ${{ github.repository || 'keith-kurak/pancake-theory' }}
       RUN_URL: ${{ workflow.url }}
       AGENT_TOTAL_BUDGET_SECONDS: '1800'
+      # The verify job below owns the ready/draft decision.
+      AGENT_VERIFY_FOLLOWS: '1'
     steps:
       - uses: eas/checkout
         with:
@@ -54,18 +63,17 @@ jobs:
 
       - uses: eas/install_node_modules
 
-      # Both must be on PATH before the runner starts: it invokes `claude`
-      # directly, and remote-sim.sh needs `argent` (whose `argent link` must be
-      # the same install the MCP server later reads). npm rather than bun here:
-      # global binary installs are the one case npm links more reliably on a CI
-      # worker. Project dependencies still come from bun.
-      - name: Install argent and Claude Code
-        run: npm install --global @swmansion/argent@latest @anthropic-ai/claude-code@latest
+      # On PATH before the runner starts, which invokes `claude` directly. npm
+      # rather than bun here: global binary installs are the one case npm links
+      # more reliably on a CI worker. Project dependencies still come from bun.
+      - name: Install Claude Code
+        run: npm install --global @anthropic-ai/claude-code@latest
 
       # Comment bodies are user-written text and are never interpolated into
       # this file. The script fetches them through the API and filters them by
       # author_association, so only collaborators can instruct the agent.
-      - name: Run agent
+      - id: run
+        name: Run agent
         run: ./scripts/agent/run-agent-pr.sh
 
       - uses: eas/upload_artifact
@@ -75,3 +83,49 @@ jobs:
           name: agent-run
           path: |
             agent-out/**/*
+
+  # The device check, kept in its own job so a run shows at a glance whether
+  # the implementation or the verification failed. It is the same function
+  # agent-verify.yaml runs. `needs`, so it runs only when implementation, lint,
+  # and tests passed: verifying code that did not get that far learns nothing.
+  #
+  # A custom job, not the pre-packaged fingerprint/get-build/build jobs
+  # agent-verify.yaml uses. Those always use the commit that triggered the
+  # workflow, which is the commit before the agent pushed. This checkout takes
+  # the branch head, and build_if_missing builds a client from it when no
+  # existing build matches (for example, after the agent changed native code).
+  verify:
+    name: Verify independently
+    needs: [revise]
+    runs_on: linux-medium
+    environment: development
+    env:
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      PR_HEAD_REF: ${{ github.event.pull_request.head.ref || github.ref_name }}
+      GH_REPO: ${{ github.repository || 'keith-kurak/pancake-theory' }}
+      RUN_URL: ${{ workflow.url }}
+    steps:
+      - uses: eas/checkout
+        with:
+          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
+
+      # gate_ready: the agent job left the PR's draft state alone, so this
+      # verdict alone decides it. The PR is flipped once, not twice.
+      - uses: ./.eas/functions/agent-verify
+        with:
+          requests_since: ${{ needs.revise.outputs.requests_since }}
+          build_if_missing: true
+          gate_ready: true
+
+  # Last, and `after` rather than `needs`, so the label comes off whether the
+  # jobs above passed, failed, or were skipped. Adding the label again then
+  # starts a new run.
+  remove_label:
+    name: Remove the agent-revise label
+    after: [revise, verify]
+    environment: development # GH_TOKEN
+    steps:
+      - uses: eas/checkout
+      - uses: ./.eas/functions/remove-pr-label
+        with:
+          label: agent-revise

@@ -8,13 +8,15 @@ import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
 
+import CheckForUpdateOnceOnLaunch from "@/components/check-for-update-once-on-launch";
 import ExpoOtaUpdateMonitor from "@/components/OtaUpdateOverlay";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { registerBackgroundUpdateTask } from "@/utils/background-updates";
 import Sentry from "@/utils/sentry";
 import { setupWidgetObserver } from "@/utils/widget-updates";
 import { Observe, ObserveRoot, useObserve } from "expo-observe";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { Platform } from "react-native";
 import {
   KeyboardAvoidingView,
   KeyboardProvider,
@@ -59,6 +61,17 @@ SplashScreen.setOptions({
   fade: true,
 });
 
+// expo-updates only checks for updates on launch in release builds.
+const shouldCheckForUpdateOnLaunch =
+  !__DEV__ &&
+  Platform.OS !== "web" &&
+  process.env.EXPO_PUBLIC_UPDATES_DISABLED !== "1";
+
+if (shouldCheckForUpdateOnLaunch) {
+  // Keep the splash screen up while we wait to see if an update gets downloaded.
+  SplashScreen.preventAutoHideAsync();
+}
+
 let observeConfig: any = {
   integrations: {
     "expo-router": true,
@@ -66,7 +79,7 @@ let observeConfig: any = {
   dispatchInDebug: true /* a little loud, but helps us generate more test data */,
 };
 
-if (process.env.METRICS_ENV === "e2e") {
+if (process.env.EXPO_PUBLIC_METRICS_ENV === "e2e") {
   observeConfig = {
     ...observeConfig,
     environment: "e2e",
@@ -83,12 +96,30 @@ export default function RootLayout() {
 
   const { markInteractive } = useObserve();
 
+  const [launchUpdateCheckComplete, setLaunchUpdateCheckComplete] = useState(
+    !shouldCheckForUpdateOnLaunch,
+  );
+
   useEffect(() => {
+    if (!launchUpdateCheckComplete) {
+      return;
+    }
+    if (shouldCheckForUpdateOnLaunch) {
+      SplashScreen.hideAsync();
+    }
     markInteractive();
     setTimeout(() => {
       Observe.dispatchEvents();
     }, 1000);
-  }, [markInteractive]);
+  }, [launchUpdateCheckComplete, markInteractive]);
+
+  if (!launchUpdateCheckComplete) {
+    return (
+      <CheckForUpdateOnceOnLaunch
+        onComplete={() => setLaunchUpdateCheckComplete(true)}
+      />
+    );
+  }
 
   return (
     <ObserveRoot>

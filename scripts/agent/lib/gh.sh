@@ -56,6 +56,14 @@ gh_pr_json() {
   _gh_curl GET "/repos/$GH_REPO/pulls/$PR_NUMBER"
 }
 
+# gh_issue_json — the issue numbered PR_NUMBER. GitHub numbers issues and PRs
+# from one sequence and serves both from the issues endpoints, so gh_comment
+# and gh_collect_requests work on an issue unchanged. (The review-comment half
+# of gh_collect_requests gets a 404 for an issue and contributes nothing.)
+gh_issue_json() {
+  _gh_curl GET "/repos/$GH_REPO/issues/$PR_NUMBER"
+}
+
 # Until a machine user owns the token, every comment is authored by a real
 # person's account and looks hand-written. This marker is the only thing
 # distinguishing them, so it is applied here rather than at each call site,
@@ -92,18 +100,6 @@ gh_set_body() {
 # field. Only this GraphQL mutation works.
 gh_mark_ready() {
   _gh_graphql_pr_mutation markPullRequestReadyForReview "$1"
-}
-
-# gh_remove_label <label>
-#
-# GitHub only fires `labeled` when a label goes from absent to present, so a run
-# must take its own trigger label off. Without this, asking for a second run
-# means removing the label by hand first, and re-applying it silently does
-# nothing. A 404 just means it was already gone.
-gh_remove_label() {
-  local label="$1" encoded
-  encoded="$(python3 -c 'import sys,urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "$label")"
-  _gh_curl DELETE "/repos/$GH_REPO/issues/$PR_NUMBER/labels/$encoded" >/dev/null 2>&1 || true
 }
 
 # gh_convert_to_draft <pr_node_id>
@@ -208,49 +204,50 @@ gh_pr_diff() {
     "$GH_API/repos/$GH_REPO/pulls/$PR_NUMBER"
 }
 
-# gh_latest_request <marker>
+# The PR description is shared. A human (or the issue Action) writes the task;
+# agent runs own marked blocks inside it:
 #
-# The text of the most recent trusted comment starting with <marker>, with the
-# marker stripped. Used for one-shot guidance ("/verify check the slider"),
-# where only the newest instruction is meaningful — unlike gh_collect_requests,
-# which batches every outstanding request.
+#   <!-- agent-plan:start -->     the build run's implementation plan
+#   <!-- agent-results:start -->  the latest run's results
 #
-# Same author_association filter, and for the same reason: this repository is
-# public, so an untrusted comment must never become agent input.
-gh_latest_request() {
-  local marker="$1" json
-  json="$(_gh_curl GET "/repos/$GH_REPO/issues/$PR_NUMBER/comments?per_page=100" || echo '[]')"
-  printf '%s' "$json" | python3 -c '
-import json, sys
-marker = sys.argv[1]
-TRUSTED = {"OWNER", "MEMBER", "COLLABORATOR"}
-try:
-    comments = json.load(sys.stdin)
-except Exception:
-    comments = []
-hits = [c for c in comments
-        if c.get("author_association") in TRUSTED
-        and (c.get("body") or "").lstrip().startswith(marker)]
-if hits:
-    hits.sort(key=lambda c: c.get("created_at") or "")
-    print((hits[-1]["body"] or "").lstrip()[len(marker):].strip())
-' "$marker"
-}
+# Everything outside the blocks is the task, and no run ever edits it.
 
-# gh_merge_results_block <existing_body> <results_markdown>
+# gh_merge_block <existing_body> <name> <markdown>
 #
-# Replaces the region between the agent markers, or appends it when absent, so
+# Replaces the region between the <name> markers, or appends it when absent, so
 # repeated runs update one block instead of stacking copies.
-gh_merge_results_block() {
+gh_merge_block() {
   python3 -c '
 import re, sys
-body, results = sys.argv[1], sys.argv[2]
-start, end = "<!-- agent-results:start -->", "<!-- agent-results:end -->"
-block = f"{start}\n{results}\n{end}"
+body, name, content = sys.argv[1], sys.argv[2], sys.argv[3]
+start, end = f"<!-- agent-{name}:start -->", f"<!-- agent-{name}:end -->"
+block = f"{start}\n{content}\n{end}"
 pattern = re.compile(re.escape(start) + ".*?" + re.escape(end), re.DOTALL)
 if pattern.search(body):
     print(pattern.sub(lambda _: block, body, count=1))
 else:
     print((body.rstrip() + "\n\n" + block) if body.strip() else block)
-' "$1" "$2"
+' "$1" "$2" "$3"
+}
+
+# gh_task_from_body <body> — the description with every agent block removed.
+gh_task_from_body() {
+  python3 -c '
+import re, sys
+body = sys.argv[1]
+body = re.sub(r"<!-- agent-([a-z-]+):start -->.*?<!-- agent-\1:end -->", "", body, flags=re.DOTALL)
+task = re.sub(r"\n{3,}", "\n\n", body).strip()
+# Nothing at all when empty, so callers can test the file with [ -s ].
+sys.stdout.write(task + "\n" if task else "")
+' "$1"
+}
+
+# gh_agent_blocks_from_body <body> — only the agent blocks: what runs claimed.
+gh_agent_blocks_from_body() {
+  python3 -c '
+import re, sys
+blocks = re.findall(r"<!-- agent-([a-z-]+):start -->(.*?)<!-- agent-\1:end -->", sys.argv[1], flags=re.DOTALL)
+claims = "\n\n".join(content.strip() for _, content in blocks).strip()
+sys.stdout.write(claims + "\n" if claims else "")
+' "$1"
 }

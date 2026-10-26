@@ -105,6 +105,7 @@ export default function FeedbackScreen() {
             {[1, 2, 3, 4, 5].map((star) => (
               <Pressable
                 key={star}
+                testID={`rating-star-${star}`}
                 onPress={() => handleStarPress(star)}
                 style={styles.starButton}
               >
@@ -149,6 +150,7 @@ export default function FeedbackScreen() {
 
         <ThemedView style={styles.buttonsContainer}>
           <Pressable
+            testID="feedback-done-button"
             onPress={handleDone}
             style={[styles.doneButton, { backgroundColor: tintColor }]}
           >

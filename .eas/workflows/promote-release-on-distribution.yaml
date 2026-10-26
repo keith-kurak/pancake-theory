@@ -3,7 +3,7 @@ name: Promote release when App Store Connect distributes
 # Closes the loop on deploy-production-on-main.yaml.
 #
 # While a version is being assembled its GitHub release is flagged draft or
-# pre-release, and merges to main repack the store build and resubmit. Once
+# pre-release, and merges to main rebuild the store builds and resubmit. Once
 # App Store Connect reports the app version ready_for_distribution, the version
 # is live: replacing the binary is no longer an option, and merges should
 # publish an over-the-air update instead.
@@ -129,6 +129,6 @@ jobs:
 
         From here, `deploy-production-on-main.yaml` switches lanes: a merge to `main` that
         still matches the production fingerprint publishes an **over-the-air update** to the
-        `production` channel, rather than repacking and resubmitting the store build.
+        `production` channel, rather than rebuilding and resubmitting the store builds.
 
         Release: ${{ needs.promote_release.outputs.release_url }}

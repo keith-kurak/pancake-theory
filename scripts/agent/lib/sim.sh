@@ -9,13 +9,16 @@
 #
 # Session lifecycle is delegated to scripts/remote-sim.sh, the same script used
 # for local work. It resolves a runtime-matched build, starts the session with
-# the dev-server deep link, and runs `argent link` so every argent client here
+# the dev-server deep link, and connects agent-device so every client here
 # targets the remote device.
 
 : "${METRO_PORT:=8081}"
 : "${AGENT_OUT:=agent-out}"
 : "${SIM_IDLE_MINUTES:=5}"
 : "${SIM_MAX_DURATION_MINUTES:=25}"
+# The development build's bundle id: app.config.js appends the lowercased
+# APP_VARIANT ("DEV") to the base id in app.json.
+: "${SIM_APP_BUNDLE_ID:=com.keithkurak.pancaketheorydev}"
 
 METRO_PID=""
 METRO_URL=""
@@ -46,7 +49,7 @@ sim_require_token() {
   return 1
 }
 
-_argent() { npx --yes @swmansion/argent@latest "$@"; }
+_agent_device() { npx --yes agent-device@latest "$@"; }
 
 # --- metro ------------------------------------------------------------------
 
@@ -100,13 +103,17 @@ metro_start() {
 
 # sim_start — start the EAS Simulator session pointed at METRO_URL.
 #
-# remote-sim.sh does the build resolution, the deep link, and `argent link`.
+# remote-sim.sh does the build resolution, the deep link, and the connect.
+# SIM_BUILD_ID, when set, skips that resolution and uses the given build.
 # --max-duration is a billing backstop: a wedged session cannot outlive the run.
 sim_start() {
   [ -n "$METRO_URL" ] || { echo "sim: metro_start must run first" >&2; return 1; }
 
   SIM_STARTED=1
+  local build_args=()
+  [ -n "${SIM_BUILD_ID:-}" ] && build_args=(--build-id "$SIM_BUILD_ID")
   if ! ./scripts/remote-sim.sh start \
+      ${build_args[@]+"${build_args[@]}"} \
       --metro-url "$METRO_URL" \
       --idle "$SIM_IDLE_MINUTES" \
       --max-duration "$SIM_MAX_DURATION_MINUTES" \
@@ -117,72 +124,92 @@ sim_start() {
     return 1
   fi
 
-  echo "sim: remote session started and argent linked" >&2
+  # Kept for the evidence page, which needs the session id after teardown has
+  # stopped the session and cleared .env.eas-simulator.
+  EAS_SIMULATOR_SESSION_ID="$(sed -n 's/^EAS_SIMULATOR_SESSION_ID=//p' .env.eas-simulator 2>/dev/null \
+    | tr -d "\"'" | tail -n 1)"
+  export EAS_SIMULATOR_SESSION_ID
+
+  echo "sim: remote session started and agent-device connected" >&2
 }
 
 # sim_wait_for_device — set SIM_UDID from the linked session's booted iPhone.
 #
-# A remote argent session exposes one booted iOS device plus some Apple TV
+# A remote agent-device session exposes one booted iOS device plus some Apple TV
 # runtimes, so filter rather than taking the first entry.
 sim_wait_for_device() {
   local waited=0
   while [ "$waited" -lt 120 ]; do
-    SIM_UDID="$(_argent run list-devices --json 2>/dev/null | python3 -c '
+    SIM_UDID="$(_agent_device devices --json 2>/dev/null | python3 -c '
 import json, sys
 try:
-    devices = json.load(sys.stdin).get("devices", [])
+    devices = json.load(sys.stdin).get("data", {}).get("devices", [])
 except Exception:
     sys.exit(0)
 for d in devices:
     if (d.get("platform") == "ios"
-            and str(d.get("state", "")).lower() == "booted"
-            and d.get("runtimeKind") == "mobile"
-            and d.get("udid")):
-        print(d["udid"])
+            and d.get("booted") is True
+            and d.get("target") == "mobile"
+            and d.get("id")):
+        print(d["id"])
         break
 ')"
     if [ -n "$SIM_UDID" ]; then
-      echo "argent: booted device is $SIM_UDID" >&2
-      return 0
+      echo "agent-device: booted device is $SIM_UDID" >&2
+      sim_open_app
+      return
     fi
     sleep 5
     waited=$(( waited + 5 ))
   done
-  echo "argent: no booted iOS device appeared within ${waited}s" >&2
+  echo "agent-device: no booted iOS device appeared within ${waited}s" >&2
+  return 1
+}
+
+# sim_open_app — start an agent-device session on the running app.
+#
+# Every agent-device command except `devices` needs an open session; without
+# one, `click` and `snapshot` fail with SESSION_NOT_FOUND. That made the
+# startup-prompt pass tap nothing and the launch snapshot come back empty, so a
+# verify run reported "no UI" for an app that had loaded fine. No --relaunch:
+# the app is already running the update or dev server the launch URL chose.
+sim_open_app() {
+  local log="${AGENT_OUT:-.}/agent-device-open.log"
+  mkdir -p "$(dirname "$log")"
+  if _agent_device open "$SIM_APP_BUNDLE_ID" --platform ios --udid "$SIM_UDID" \
+      > "$log" 2>&1; then
+    echo "agent-device: session open on $SIM_APP_BUNDLE_ID" >&2
+    return 0
+  fi
+  echo "agent-device: could not open $SIM_APP_BUNDLE_ID. Last lines:" >&2
+  tail -n 10 "$log" >&2
   return 1
 }
 
 # --- startup dialogs --------------------------------------------------------
 
+# sim_visible_buttons — print the label of each button on screen, one a line.
+#
+# One snapshot per pass, instead of a blind click per known label. A click on a
+# button that is not there fails, and each failure shows as a red error in the
+# EAS session timeline, which made a healthy run look broken.
+sim_visible_buttons() {
+  _agent_device snapshot -i --udid "$SIM_UDID" 2>/dev/null \
+    | sed -n 's/^@e[0-9][^ ]* \[button\] "\([^"]*\)".*/\1/p'
+}
+
 # sim_tap_button <label>
 #
-# Tap an AXButton by its exact label. Coordinates come from Argent's
-# accessibility tree, never from a guess or a screenshot. Returns non-zero when
-# the button is not on screen.
+# Tap a button by its exact accessibility label. agent-device resolves the
+# selector itself, so no coordinate is guessed. Returns non-zero when the tap
+# fails.
 sim_tap_button() {
-  local label="$1" centre x y
-  centre="$(_argent run describe --udid "$SIM_UDID" 2>/dev/null \
-    | python3 -c '
-import json, re, sys
-try:
-    text = json.load(sys.stdin).get("description", "")
-except Exception:
-    sys.exit(0)
-# A describe line may carry attributes between the label and the frame, e.g.
-#   AXButton "Close" id="xmark"  (0.856, 0.459, 0.086, 0.040)
-# so allow anything that is not a newline or an opening paren in between.
-pattern = (r"AXButton \"" + re.escape(sys.argv[1]) + r"\"[^\n(]*"
-           r"\(([\d.]+), ([\d.]+), ([\d.]+), ([\d.]+)\)")
-m = re.search(pattern, text)
-if m:
-    fx, fy, fw, fh = (float(g) for g in m.groups())
-    print(f"{fx + fw / 2:.4f} {fy + fh / 2:.4f}")
-' "$label")"
-
-  [ -n "$centre" ] || return 1
-  read -r x y <<< "$centre"
-  _argent run gesture-tap --udid "$SIM_UDID" --x "$x" --y "$y" >/dev/null 2>&1
-  echo "sim: tapped \"$label\" at ($x, $y)" >&2
+  local label="$1"
+  if _agent_device click "role=button label=\"$label\"" --udid "$SIM_UDID" --settle >/dev/null 2>&1; then
+    echo "sim: tapped \"$label\"" >&2
+    return 0
+  fi
+  return 1
 }
 
 # Buttons that stand between a cold simulator and a usable app, in the order
@@ -198,53 +225,54 @@ SIM_STARTUP_BUTTONS=(Open Continue Close)
 
 # sim_clear_startup_prompts [limit_seconds]
 #
-# Drain the list until a full pass finds nothing, so a dialog that only appears
-# after the previous one is dismissed is still caught. Nothing here is fatal on
-# its own — a future iOS or dev-client may drop a prompt — and the caller still
-# fails honestly if the app never loads a bundle.
+# Drain the list until a pass finds none of the buttons, so a dialog that only
+# appears after the previous one is dismissed is still caught. Stops early once
+# a pass shows other buttons and none of these: the app is up and unobstructed.
+# The limit is wall-clock time, agent-device calls included. Nothing here is
+# fatal on its own; the caller still fails honestly if the app never loads.
 sim_clear_startup_prompts() {
-  local limit="${1:-90}" waited=0 tapped_any=0 tapped_this_pass label
+  local limit="${1:-90}" start=$SECONDS tapped_any=0 buttons label
 
-  while [ "$waited" -lt "$limit" ]; do
-    tapped_this_pass=0
+  while [ $(( SECONDS - start )) -lt "$limit" ]; do
+    buttons="$(sim_visible_buttons)"
+    local tapped_this_pass=0
     for label in "${SIM_STARTUP_BUTTONS[@]}"; do
-      if sim_tap_button "$label"; then
+      if printf '%s\n' "$buttons" | grep -qxF "$label" && sim_tap_button "$label"; then
         tapped_this_pass=1
         tapped_any=1
         sleep 2
       fi
     done
 
-    if [ "$tapped_this_pass" -eq 0 ] && [ "$tapped_any" -eq 1 ]; then
-      echo "sim: startup prompts cleared after ${waited}s" >&2
+    if [ "$tapped_this_pass" -eq 0 ] && [ -n "$buttons" ]; then
+      if [ "$tapped_any" -eq 1 ]; then
+        echo "sim: startup prompts cleared after $(( SECONDS - start ))s" >&2
+      else
+        echo "sim: no startup prompts; the app is showing its own buttons" >&2
+      fi
       return 0
     fi
 
     sleep 3
-    waited=$(( waited + 3 ))
   done
 
-  if [ "$tapped_any" -eq 1 ]; then
-    echo "sim: still seeing startup prompts after ${limit}s; continuing anyway" >&2
-  else
-    echo "sim: no startup prompts appeared within ${limit}s" >&2
-  fi
+  echo "sim: startup prompts not settled after ${limit}s; continuing anyway" >&2
 }
 
-# --- argent -----------------------------------------------------------------
+# --- agent-device -----------------------------------------------------------------
 
-# argent_mcp_config <path> — write the --mcp-config file Claude will load.
+# agent_device_mcp_config <path> — write the --mcp-config file Claude will load.
 #
-# The MCP server reads the global link written by `argent link` at startup, so
-# it targets the remote session without any extra wiring here.
-argent_mcp_config() {
+# The MCP server reads the connection stored by `agent-device connect` at
+# startup, so it targets the remote session without any extra wiring here.
+agent_device_mcp_config() {
   local path="$1"
   cat > "$path" <<'JSON'
 {
   "mcpServers": {
-    "argent": {
+    "agent-device": {
       "command": "npx",
-      "args": ["--yes", "@swmansion/argent@latest", "mcp"]
+      "args": ["--yes", "agent-device@latest", "mcp"]
     }
   }
 }

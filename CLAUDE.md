@@ -16,37 +16,69 @@ The app is configured for multi-platform deployment (iOS, Android, Web) with aut
 
 ## Development Commands
 
+Two tools divide the work, and they do not overlap:
+
+- **`@expo/agent-cli`** owns the project — dev server, installs, prebuild, lint,
+  typecheck, doctor, and the `status` report. Use `bunx` rather than `npx`: this repo has
+  a `bun.lock`. The generated block in **AGENTS.md** is the full reference, and
+  `bunx @expo/agent-cli help workflow` explains the order and the exit codes.
+- **`agent-device`** owns anything on a device — launching the app, reading the screen,
+  tapping, typing, screenshots. See `.claude/rules/agent-device.md`. Prefer it over
+  agent-cli's `runtime:*`, `navigate`, and `smoke` commands.
+
+Most agent-cli commands accept `--json`.
+
 ### Starting the Development Server
 ```bash
-npm start                    # Start Metro bundler with MCP server enabled
-npx expo start               # Alternative start command
-npx expo start --clear       # Clear cache and start fresh
+bunx @expo/agent-cli dev --ios        # Plan it, then get the app onto a device
+bunx @expo/agent-cli dev --ios --plan # Print the plan without running it
+bunx @expo/agent-cli start            # Just the dev server, no planning
+bunx @expo/agent-cli dev --detach     # Do not block the terminal
+bunx @expo/agent-cli dev:logs         # Read what a detached server printed
+bunx @expo/agent-cli dev:stop         # Stop it
 ```
+
+The `npm start` / `npm run ios` scripts in **package.json** still work and still set
+`APP_VARIANT` and the MCP flag. Reach for them when you want those exact env vars;
+otherwise prefer the commands above.
 
 ### Platform-Specific Development
 ```bash
-npm run ios                  # Start on iOS simulator
-npm run android              # Start on Android emulator
-npm run web                  # Start web version
-npx expo run:ios             # Build and run native iOS
-npx expo run:android         # Build and run native Android
+bunx @expo/agent-cli dev --android    # Android
+bunx @expo/agent-cli dev --web        # Web
+bunx @expo/agent-cli run:ios          # Build and run native iOS
+bunx @expo/agent-cli run:android      # Build and run native Android
+bunx @expo/agent-cli prebuild         # Generate the native projects
 ```
 
 ### Code Quality & Utilities
 ```bash
-npm run lint                 # Run ESLint checks (expo lint)
-npx expo install --check     # Check package compatibility
-npx expo install --fix       # Fix package version issues
-npx expo doctor              # Check project health
-npm run reset-project        # Move starter code to app-example/
+bunx @expo/agent-cli typecheck        # Type-check; exit 20 with diagnostics, 0 when clean
+bunx @expo/agent-cli lint             # ESLint
+bunx @expo/agent-cli doctor           # Dependency and config diagnosis
+bunx @expo/agent-cli install <pkg>    # Install with SDK-compatible resolution
+bunx @expo/agent-cli install --fix    # Repair incompatible versions
+npm run reset-project                 # Move starter code to app-example/
+```
+
+### Understanding a Change
+```bash
+bunx @expo/agent-cli status                    # Where the project is, and what happens next
+bunx @expo/agent-cli status --explain          # Which sources changed, whether it can ship
+                                               # over the air, whether EAS has a matching build
+bunx @expo/agent-cli status --assert js-only   # Gate: exit 20 when a change costs more than
+                                               # the class named, 22 when nothing was measured
 ```
 
 ### Production
 ```bash
 npx eas-cli@latest build --platform ios -s       # Build and submit to App Store
 npx eas-cli@latest build --platform android -s   # Build and submit to Play Store
-npx expo export -p web && npx eas-cli@latest deploy  # Deploy web to EAS Hosting
+bunx @expo/agent-cli export -p web && npx eas-cli@latest deploy  # Deploy web to EAS Hosting
 ```
+
+EAS builds, submissions, updates, and workflows stay on `eas-cli`; agent-cli does not
+cover them.
 
 ## Architecture
 
@@ -276,9 +308,10 @@ All routes are automatically deep-linkable via expo-router.
 
 The project has **expo-mcp** configured (v0.1.13) for Model Context Protocol support.
 
-The start script includes: `EXPO_UNSTABLE_MCP_SERVER=1 npx expo start`
+The `npm start` script includes: `EXPO_UNSTABLE_MCP_SERVER=1 APP_VARIANT=DEV npx expo start`
 
-This enables advanced tooling and AI-assisted development features.
+This enables advanced tooling and AI-assisted development features. For driving the app on
+a device, prefer the `agent-device` MCP server over expo-mcp's `automation_*` tools.
 
 ## Code Style
 
@@ -301,9 +334,12 @@ This enables advanced tooling and AI-assisted development features.
 ## Testing & Debugging
 
 ### Available Tools
-- **React Native DevTools** - Use MCP `open_devtools` command
-- **Expo Go** - Quick testing on physical devices
-- **expo-doctor** - Health checks for the project
+- **agent-device** - Drive the app on a simulator, emulator, or phone. The tool for any
+  on-device check. See `.claude/rules/agent-device.md`.
+- **`bunx @expo/agent-cli smoke --ios`** - Prove the app boots and nothing threw
+- **`bunx @expo/agent-cli runtime:errors`** - Collect runtime errors over a window
+- **`bunx @expo/agent-cli doctor`** - Health checks for the project
+- **Expo Go** - Not compatible with this project; it needs a development build
 
 ### Debugging Tips
 - Use `console.log` for development debugging
@@ -365,3 +401,5 @@ npx tsc --noEmit  # Check types without building
 - **EAS Project ID**: 1de013cf-b8b2-4ac3-9e4d-dd70bfd4892e
 - **Owner**: expo-production
 - **Custom URL Scheme**: pancaketheory://
+
+@AGENTS.md

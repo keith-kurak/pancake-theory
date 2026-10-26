@@ -1,0 +1,101 @@
+name: Mint a pre-release for the runtime version
+
+# Manual only. Starts a new version's release cycle: creates the GitHub release
+# tagged with the project's runtime version, flagged pre-release, on the
+# commit the run checks out. See RELEASE.md for where this fits.
+#
+# The runtime version comes from the project (major.minor.0 of the app version,
+# per app.config.js), so bump the app version first. With a pre-release in
+# place, deploy-production-on-main.yaml builds and submits both platforms on
+# each merge, until promote-release-on-distribution.yaml makes it a full
+# release.
+#
+# Run it on main, so the release is tagged on a commit that is on main:
+#
+#   npx eas-cli@latest workflow:run .eas/workflows/mint-prerelease.yaml --ref main
+#
+# It refuses to touch an existing release for the runtime version, draft,
+# pre-release, or full. Needs the production environment's GH_TOKEN with WRITE
+# access to releases.
+
+on:
+  workflow_dispatch: {}
+
+concurrency:
+  cancel_in_progress: false
+  group: ${{ workflow.filename }}
+
+defaults:
+  tools:
+    bun: 1.3.10
+
+jobs:
+  mint:
+    name: Mint the pre-release
+    environment: production
+    outputs:
+      runtime_version: ${{ steps.resolve.outputs.runtime_version }}
+      sha: ${{ steps.check.outputs.sha }}
+      url: ${{ steps.create.outputs.url }}
+    steps:
+      - uses: eas/checkout
+      - uses: eas/install_node_modules
+
+      - id: resolve
+        uses: ./.eas/functions/resolve-runtime-version
+
+      - id: release
+        uses: ./.eas/functions/find-github-release
+        with:
+          runtime_version: ${{ steps.resolve.outputs.runtime_version }}
+
+      - id: check
+        name: Check that the runtime version has no release yet
+        run: |
+          set -euo pipefail
+          RV='${{ steps.resolve.outputs.runtime_version }}'
+          STATE='${{ steps.release.outputs.state }}'
+          if [ "$STATE" != "none" ]; then
+            echo "Runtime version $RV already has a release ($STATE):"
+            echo "${{ steps.release.outputs.url }}"
+            echo "To start a new version, bump the app version's major or minor in"
+            echo "app.json, merge it, and run this workflow again."
+            exit 1
+          fi
+          SHA=$(git rev-parse HEAD 2>/dev/null || true)
+          if [ -z "$SHA" ]; then
+            echo "This run has no git commit to tag. Run it with --ref main."
+            exit 1
+          fi
+          echo "Minting $RV as a pre-release on $SHA."
+          set-output sha "$SHA"
+
+      - id: create
+        uses: ./.eas/functions/create-github-release
+        with:
+          tag: ${{ steps.resolve.outputs.runtime_version }}
+          target_commitish: ${{ steps.check.outputs.sha }}
+          prerelease: true
+          body: |
+            Pre-release for runtime version ${{ steps.resolve.outputs.runtime_version }}.
+            While this release is a pre-release, each merge to `main` builds the store binaries and submits them. It becomes a full release when App Store Connect reports the version ready for distribution. See RELEASE.md.
+
+  summary:
+    name: Summary
+    needs: [mint]
+    type: doc
+    params:
+      md: |
+        # Minted ${{ needs.mint.outputs.runtime_version }} as a pre-release
+
+        The release is tagged `${{ needs.mint.outputs.runtime_version }}` on
+        `${{ needs.mint.outputs.sha }}`.
+
+        The next push to `main` builds iOS and Android and submits them. To build now
+        without a push, run:
+
+        ```
+        npx eas-cli@latest workflow:run .eas/workflows/deploy-production-on-main.yaml --ref main
+        ```
+
+        Release: ${{ needs.mint.outputs.url }}

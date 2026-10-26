@@ -59,6 +59,7 @@ export function IngredientsTab({
             return (
               <IngredientItem
                 key={index}
+                testID={`ingredient-${index}`}
                 name={ingredient.name}
                 amount={formattedAmount}
                 unit={ingredient.unit}

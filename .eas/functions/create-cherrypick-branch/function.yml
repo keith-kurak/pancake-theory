@@ -1,0 +1,146 @@
+name: Create cherry-pick branch
+description: >-
+  Creates a branch on a base commit, plus one commit that makes its .eas folder
+  match the checked-out project's. Needs GH_TOKEN in the calling job's
+  environment, with WRITE access to repository contents. Run it from a checkout
+  of main.
+
+# Why the extra commit: a push runs the workflow files of the pushed commit. A
+# release commit can predate deploy-cherrypick.yaml and the functions it calls,
+# and then a push to the branch would start nothing. Syncing .eas from main
+# fixes that without touching any app code, so the fingerprint is unchanged.
+#
+# The commit message carries "[eas skip]", so creating the branch does not
+# start a run on it. The next push does.
+
+inputs:
+  - name: branch
+    type: string
+    required: true
+  - name: base_sha
+    type: string
+    required: true
+  - name: repository
+    type: string
+    default_value: keith-kurak/pancake-theory
+
+outputs:
+  sha:
+    value: ${{ steps.create.outputs.sha }}
+    description: The head of the new branch, the .eas sync commit.
+  url:
+    value: ${{ steps.create.outputs.url }}
+    description: The branch on GitHub.
+
+runs:
+  steps:
+    - id: create
+      name: Create the branch
+      run: |
+        set -euo pipefail
+        if [ -z "${GH_TOKEN:-}" ]; then
+          echo "GH_TOKEN is not set. It should come from the calling job's EAS"
+          echo "environment, and needs repository contents write access."
+          exit 1
+        fi
+        REPO='${{ inputs.repository }}'
+        BRANCH='${{ inputs.branch }}'
+        BASE_SHA='${{ inputs.base_sha }}'
+        SOURCE_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "this checkout")
+        export REPO BRANCH BASE_SHA SOURCE_SHA
+
+        cat > /tmp/create-cherrypick-branch.js <<'NODE_EOF'
+        const fs = require('fs');
+        const path = require('path');
+        const env = process.env;
+        const api = `https://api.github.com/repos/${env.REPO}`;
+        const headers = {
+          authorization: `Bearer ${env.GH_TOKEN}`,
+          accept: 'application/vnd.github+json',
+          'x-github-api-version': '2022-11-28',
+          'content-type': 'application/json',
+          'user-agent': 'eas-workflow-create-cherrypick-branch',
+        };
+
+        async function gh(method, p, body) {
+          const res = await fetch(`${api}${p}`, {
+            method,
+            headers,
+            body: body && JSON.stringify(body),
+          });
+          const text = await res.text();
+          return { status: res.status, body: text ? JSON.parse(text) : null };
+        }
+
+        async function must(method, p, body) {
+          const res = await gh(method, p, body);
+          if (res.status >= 300) {
+            throw new Error(`${method} ${p}: GitHub API ${res.status}: ${JSON.stringify(res.body)}`);
+          }
+          return res.body;
+        }
+
+        function walk(dir) {
+          return fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+            const full = path.join(dir, e.name);
+            if (e.isDirectory()) return walk(full);
+            return e.isFile() ? [full] : [];
+          });
+        }
+
+        async function main() {
+          // Never move an existing branch: it may already hold cherry-picks.
+          const existing = await gh('GET', `/git/ref/heads/${encodeURIComponent(env.BRANCH)}`);
+          if (existing.status === 200) {
+            throw new Error(
+              `Branch ${env.BRANCH} already exists, on ${existing.body.object.sha}. ` +
+                'Push to it, or delete it first to start over.'
+            );
+          }
+
+          const base = await must('GET', `/git/commits/${env.BASE_SHA}`);
+          const baseTree = await must('GET', `/git/trees/${base.tree.sha}?recursive=1`);
+          if (baseTree.truncated) throw new Error('The base tree is too large to list.');
+
+          const local = walk('.eas');
+          const localSet = new Set(local);
+          const entries = [];
+          for (const file of local) {
+            const blob = await must('POST', '/git/blobs', {
+              content: fs.readFileSync(file).toString('base64'),
+              encoding: 'base64',
+            });
+            const mode = fs.statSync(file).mode & 0o111 ? '100755' : '100644';
+            entries.push({ path: file, mode, type: 'blob', sha: blob.sha });
+          }
+          // Files the release had under .eas that main no longer has.
+          for (const e of baseTree.tree) {
+            if (e.type === 'blob' && e.path.startsWith('.eas/') && !localSet.has(e.path)) {
+              entries.push({ path: e.path, mode: e.mode, type: 'blob', sha: null });
+            }
+          }
+
+          const tree = await must('POST', '/git/trees', { base_tree: base.tree.sha, tree: entries });
+          const commit = await must('POST', '/git/commits', {
+            message:
+              `Sync .eas from main (${env.SOURCE_SHA}) for the cherry-pick branch [eas skip]\n\n` +
+              `Lets pushes to ${env.BRANCH} run the current workflows. App code is ` +
+              `unchanged from ${env.BASE_SHA}.`,
+            tree: tree.sha,
+            parents: [env.BASE_SHA],
+          });
+          await must('POST', '/git/refs', { ref: `refs/heads/${env.BRANCH}`, sha: commit.sha });
+          console.log(`${commit.sha} https://github.com/${env.REPO}/tree/${encodeURIComponent(env.BRANCH)}`);
+        }
+
+        main().catch((e) => {
+          console.error(e.message);
+          process.exit(1);
+        });
+        NODE_EOF
+
+        OUT=$(node /tmp/create-cherrypick-branch.js)
+        set -- $OUT
+        echo "Created $BRANCH at $1 (base $BASE_SHA)."
+        set-output sha "$1"
+        set-output url "$2"

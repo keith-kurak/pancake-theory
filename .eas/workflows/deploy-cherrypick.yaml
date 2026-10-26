@@ -1,0 +1,184 @@
+name: Deploy a cherry-pick branch
+
+# Publishes a push to a "<runtime version>-cherrypick" branch as an OTA update
+# to production. start-cherrypick.yaml creates these branches. See RELEASE.md.
+#
+# Same check as an update from main (deploy-production-on-main.yaml), through
+# the same decide-deploy function. The difference: this lane never builds.
+# allow_build is false, so a pre-release is an error, not build.
+#
+#   full release, both platforms match -> publish an EAS Update to production,
+#                                         then tag it "<rv>-ota-<group id>"
+#   anything else                      -> explain the problem and fail
+#
+# The branch must be named for the project's runtime version. A branch whose
+# app version was bumped to a new major or minor fails, because its updates
+# could not reach the binaries the branch was cut for.
+#
+# Uses the production environment's GH_TOKEN: read access to releases for the
+# lookup, contents write access for the update's tag and release.
+
+on:
+  push:
+    branches: ["*-cherrypick"]
+    # Same exclusions as main: docs and dot-folders cannot change what ships.
+    # This is also what keeps the branch's .eas sync commit from starting a run.
+    paths:
+      - "**"
+      - "!**/*.md"
+      - "!.*/**"
+      - "!**/.*/**"
+
+# A newer push supersedes a run still going on the same branch.
+concurrency:
+  cancel_in_progress: true
+  group: ${{ workflow.filename }}-${{ github.ref }}
+
+defaults:
+  tools:
+    bun: 1.3.10
+
+jobs:
+  release_state:
+    name: Resolve runtime version and release state
+    environment: production
+    outputs:
+      runtime_version: ${{ steps.resolve.outputs.runtime_version }}
+      release_state: ${{ steps.release.outputs.state }}
+      release_url: ${{ steps.release.outputs.url }}
+    steps:
+      - uses: eas/checkout
+      - uses: eas/install_node_modules
+
+      - id: resolve
+        uses: ./.eas/functions/resolve-runtime-version
+
+      - name: Check the branch matches the runtime version
+        run: |
+          RV='${{ steps.resolve.outputs.runtime_version }}'
+          BRANCH='${{ github.ref_name }}'
+          if [ "$BRANCH" != "$RV-cherrypick" ]; then
+            echo "Branch $BRANCH resolves to runtime version $RV. Expected $RV-cherrypick."
+            echo "A cherry-pick must keep the app version's major and minor."
+            exit 1
+          fi
+
+      - id: release
+        uses: ./.eas/functions/find-github-release
+        with:
+          runtime_version: ${{ steps.resolve.outputs.runtime_version }}
+
+  fingerprint:
+    name: Fingerprint the branch
+    environment: production
+    type: fingerprint
+
+  ios_get_build:
+    name: Find matching iOS store build
+    needs: [fingerprint, release_state]
+    type: get-build
+    params:
+      platform: ios
+      profile: production
+      distribution: store
+      fingerprint_hash: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
+      runtime_version: ${{ needs.release_state.outputs.runtime_version }}
+
+  android_get_build:
+    name: Find matching Android store build
+    needs: [fingerprint, release_state]
+    type: get-build
+    params:
+      platform: android
+      profile: production
+      distribution: store
+      fingerprint_hash: ${{ needs.fingerprint.outputs.android_fingerprint_hash }}
+      runtime_version: ${{ needs.release_state.outputs.runtime_version }}
+
+  decide:
+    name: Decide what this push does
+    needs: [release_state, ios_get_build, android_get_build]
+    outputs:
+      action: ${{ steps.decide.outputs.action }}
+      reason: ${{ steps.decide.outputs.reason }}
+      fix: ${{ steps.decide.outputs.fix }}
+      runtime_version: ${{ steps.decide.outputs.runtime_version }}
+      release_state: ${{ steps.decide.outputs.release_state }}
+      release_url: ${{ steps.decide.outputs.release_url }}
+      ios_build_id: ${{ steps.decide.outputs.ios_build_id }}
+      android_build_id: ${{ steps.decide.outputs.android_build_id }}
+    steps:
+      - uses: eas/checkout
+      - id: decide
+        uses: ./.eas/functions/decide-deploy
+        with:
+          runtime_version: ${{ needs.release_state.outputs.runtime_version }}
+          release_state: ${{ needs.release_state.outputs.release_state }}
+          release_url: ${{ needs.release_state.outputs.release_url }}
+          ios_build_id: ${{ needs.ios_get_build.outputs.build_id }}
+          android_build_id: ${{ needs.android_get_build.outputs.build_id }}
+          allow_build: false
+
+  # --- update: publish and tag, exactly as main does. -------------------------
+
+  publish_update:
+    name: Publish update to production
+    needs: [decide]
+    if: ${{ needs.decide.outputs.action == 'update' }}
+    environment: production
+    type: update
+    params:
+      platform: all
+      channel: production
+      message: ${{ github.commit_message || github.sha }}
+
+  tag_update_release:
+    name: Tag update as GitHub release
+    needs: [publish_update, decide]
+    environment: production
+    steps:
+      - uses: eas/checkout
+      - uses: ./.eas/functions/tag-ota-release
+        with:
+          runtime_version: ${{ needs.decide.outputs.runtime_version }}
+          update_group_id: ${{ needs.publish_update.outputs.first_update_group_id }}
+          updates_json: ${{ needs.publish_update.outputs.updates_json }}
+
+  # --- error: nothing can ship. Say why, then fail. ---------------------------
+
+  doc_error:
+    name: Explain why nothing can ship
+    needs: [decide]
+    if: ${{ needs.decide.outputs.action == 'error' }}
+    type: doc
+    params:
+      md: |
+        # Nothing can ship from this cherry-pick
+
+        ${{ needs.decide.outputs.reason }}
+
+        **What to do:** ${{ needs.decide.outputs.fix }}
+
+        | | |
+        | --- | --- |
+        | Branch | `${{ github.ref_name }}` |
+        | Commit | `${{ github.sha }}` |
+        | Runtime version | `${{ needs.decide.outputs.runtime_version }}` |
+        | Release state | `${{ needs.decide.outputs.release_state }}` |
+        | Matching iOS store build | `${{ needs.decide.outputs.ios_build_id || 'none' }}` |
+        | Matching Android store build | `${{ needs.decide.outputs.android_build_id || 'none' }}` |
+        | Release | ${{ needs.decide.outputs.release_url }} |
+
+        If a store build does not match, a cherry-picked commit changed the native layer.
+        Revert it on this branch.
+
+  fail_workflow:
+    name: Fail
+    needs: [decide]
+    after: [doc_error]
+    if: ${{ needs.decide.outputs.action == 'error' }}
+    steps:
+      - name: Fail the run
+        run: |
+          echo "Nothing can ship from this cherry-pick. See the note above."
+          exit 1

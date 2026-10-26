@@ -2,6 +2,8 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { PressableWithOpacity } from "@/components/ui/PressableWithOpacity";
 import { useThemeColor } from "@/hooks/use-theme-color";
+import { showConfirmDialog } from "@/utils/confirm-dialog";
+import Sentry from "@/utils/sentry";
 import { getCriticalIndex } from "@/utils/update-utils";
 import Constants from "expo-constants";
 import * as Application from "expo-application";
@@ -27,6 +29,13 @@ function InfoRow({
 
 const TAP_THRESHOLD = 5;
 
+/** YYYY-MM-DD in the device's time zone. */
+function formatDate(date: Date) {
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
 export default function InfoScreen() {
   const { currentlyRunning } = useUpdates();
   const [devVisible, setDevVisible] = useState(false);
@@ -45,10 +54,12 @@ export default function InfoScreen() {
   // a createdAt, but that is the build's date, not an update's, so it is left off.
   const updatedAt =
     !currentlyRunning.isEmbeddedLaunch && currentlyRunning.createdAt
-      ? currentlyRunning.createdAt.toLocaleString(undefined, {
-          dateStyle: "medium",
-          timeStyle: "short",
-        })
+      ? formatDate(currentlyRunning.createdAt)
+      : undefined;
+
+  const shortUpdateId =
+    !currentlyRunning.isEmbeddedLaunch && currentlyRunning.updateId
+      ? currentlyRunning.updateId.slice(0, 6)
       : undefined;
 
   const handleVersionTap = useCallback(() => {
@@ -62,6 +73,20 @@ export default function InfoScreen() {
     if (tapCountRef.current >= TAP_THRESHOLD) {
       setDevVisible((prev) => !prev);
       tapCountRef.current = 0;
+    }
+  }, []);
+
+  const handleCrash = useCallback(async () => {
+    const confirmed = await showConfirmDialog({
+      title: "Trigger Crash",
+      message:
+        "The app will crash immediately. On TestFlight, iOS will offer to send a crash report.",
+      confirmText: "Crash",
+    });
+    if (confirmed) {
+      // A native crash (not a JS error) is what iOS records and TestFlight reports
+      // to App Store Connect, which fires the beta_feedback crash workflow.
+      Sentry.nativeCrash();
     }
   }, []);
 
@@ -79,7 +104,10 @@ export default function InfoScreen() {
             v.{Constants.expoConfig?.version ?? "—"}
           </ThemedText>
           {updatedAt ? (
-            <ThemedText style={styles.updatedAt}>Updated {updatedAt}</ThemedText>
+            <ThemedText style={styles.updatedAt}>
+              {updatedAt}
+              {shortUpdateId ? ` (${shortUpdateId})` : null}
+            </ThemedText>
           ) : null}
         </PressableWithOpacity>
       </ThemedView>
@@ -109,6 +137,14 @@ export default function InfoScreen() {
             onPress={() => router.push("/channel-surf")}
           >
             <ThemedText style={styles.buttonText}>Channel Surfing</ThemedText>
+          </PressableWithOpacity>
+
+          <PressableWithOpacity
+            style={[styles.button, styles.crashButton]}
+            onPress={handleCrash}
+            accessibilityLabel="Trigger Crash"
+          >
+            <ThemedText style={styles.buttonText}>Trigger Crash</ThemedText>
           </PressableWithOpacity>
         </>
       )}
@@ -175,6 +211,9 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 10,
     marginTop: 8,
+  },
+  crashButton: {
+    backgroundColor: "#d32f2f",
   },
   buttonText: {
     color: "#fff",
