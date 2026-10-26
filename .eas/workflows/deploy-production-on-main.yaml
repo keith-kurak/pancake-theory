@@ -199,7 +199,7 @@ jobs:
       MAESTRO_APP_ID: com.keithkurak.pancaketheory
     params:
       build_id: ${{ after.ios_test_repack.outputs.build_id || after.ios_test_build.outputs.build_id }}
-      device_identifier: iPhone 17 Pro Max
+      device_identifier: iPhone 18 Pro Max
       flow_path: .maestro/make-fluffy-pancakes.yaml
       record_screen: true
 
