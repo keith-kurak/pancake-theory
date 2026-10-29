@@ -2,6 +2,7 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { PressableWithOpacity } from "@/components/ui/PressableWithOpacity";
 import { useThemeColor } from "@/hooks/use-theme-color";
+import { settingsActions, settingsStore$ } from "@/store/settings-store";
 import { showConfirmDialog } from "@/utils/confirm-dialog";
 import Sentry from "@/utils/sentry";
 import { getCriticalIndex } from "@/utils/update-utils";
@@ -9,8 +10,9 @@ import Constants from "expo-constants";
 import * as Application from "expo-application";
 import { router } from "expo-router";
 import { useUpdates } from "expo-updates";
+import { useValue } from "@legendapp/state/react";
 import { useCallback, useRef, useState } from "react";
-import { ScrollView, StyleSheet } from "react-native";
+import { ScrollView, StyleSheet, Switch } from "react-native";
 
 function InfoRow({
   label,
@@ -42,6 +44,7 @@ export default function InfoScreen() {
   const tapCountRef = useRef(0);
   const lastTapRef = useRef(0);
   const tintColor = useThemeColor({}, "tint");
+  const useMetric = useValue(settingsStore$.useMetric);
 
   const runtimeVersion =
     typeof currentlyRunning.runtimeVersion === "string"
@@ -110,6 +113,27 @@ export default function InfoScreen() {
             </ThemedText>
           ) : null}
         </PressableWithOpacity>
+      </ThemedView>
+
+      <ThemedView style={styles.section}>
+        <ThemedText type="subtitle" style={styles.sectionTitle}>
+          Settings
+        </ThemedText>
+        <ThemedView style={[styles.row, styles.settingRow]}>
+          <ThemedView style={styles.settingText}>
+            <ThemedText style={styles.settingLabel}>Metric units</ThemedText>
+            <ThemedText style={styles.settingHint}>
+              Show ingredients in grams and millilitres
+            </ThemedText>
+          </ThemedView>
+          <Switch
+            testID="metric-switch"
+            accessibilityLabel="Metric units"
+            value={useMetric}
+            onValueChange={settingsActions.setUseMetric}
+            trackColor={{ true: tintColor }}
+          />
+        </ThemedView>
       </ThemedView>
 
       {devVisible && (
@@ -198,6 +222,21 @@ const styles = StyleSheet.create({
   label: {
     opacity: 0.6,
     fontSize: 15,
+  },
+  settingRow: {
+    alignItems: "center",
+  },
+  settingText: {
+    flex: 1,
+    marginRight: 12,
+    backgroundColor: "transparent",
+  },
+  settingLabel: {
+    fontSize: 15,
+  },
+  settingHint: {
+    fontSize: 13,
+    opacity: 0.6,
   },
   value: {
     fontSize: 15,
