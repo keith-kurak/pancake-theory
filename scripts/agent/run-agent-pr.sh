@@ -11,6 +11,8 @@
 #   2. Gate        — recompute the fingerprint; a native change skips phase 3.
 #   3. Validate    — publish Metro over a tunnel, start a remote EAS Simulator
 #                    session pointed at it, and let Claude drive the real app.
+#                    Skipped when a verify job follows (AGENT_VERIFY_FOLLOWS):
+#                    the device check then belongs to that job alone.
 #   4. Publish     — commit, push, rewrite the PR description, and either flip
 #                    the PR to ready or leave it in draft with the blockers.
 #
@@ -21,10 +23,11 @@
 # will not open a PR with no diff; the first commit with real changes deletes
 # it, so no task file ever reaches main.
 #
-# With AGENT_VERIFY_FOLLOWS=1 (set by both workflows), a pass does not flip the
-# PR to ready. The next job runs the shared verify function against the pushed
-# commit, and its verdict decides draft state. That keeps "ready for review"
-# meaning "independently verified", and the PR changes state once per run.
+# With AGENT_VERIFY_FOLLOWS=1 (set by both workflows), this job only implements:
+# no simulator, and a pass does not flip the PR to ready. The next job runs the
+# shared verify function against the pushed commit, exactly as the standalone
+# agent-verify workflow does, and its verdict decides draft state. A failed
+# implement job and a failed verify job are then two different jobs in the run.
 #
 # The whole run is capped at AGENT_TOTAL_BUDGET_SECONDS (default 1800). EAS
 # Workflows has no job timeout, so the cap is enforced here by run_with_budget.
@@ -73,6 +76,9 @@ mkdir -p "$AGENT_OUT"
 PLACEHOLDER=".agent-placeholder"
 # 1 when a verify job runs after this one and owns the ready/draft decision.
 : "${AGENT_VERIFY_FOLLOWS:=}"
+# A development-simulator build for phase 3 to use as-is. Empty means resolve
+# one here. Only local runs reach phase 3.
+: "${AGENT_BUILD_ID:=}"
 
 # Phase results, read by finish().
 STATUS_IMPLEMENT="not reached"
@@ -389,8 +395,13 @@ validate() {
 
   # Fail fast on a missing build. remote-sim.sh would resolve it again anyway,
   # but checking here turns a session-start failure into a clear explanation.
+  # The workflow's get-build/build jobs normally supply the id; resolving is
+  # the fallback for local runs and for a failed build job.
   BUILD_PROFILE=development-simulator
-  if ! resolve_build_id >/dev/null; then
+  if [ -n "$AGENT_BUILD_ID" ]; then
+    log "Using the workflow's development-simulator build: $AGENT_BUILD_ID"
+    SIM_BUILD_ID="$AGENT_BUILD_ID"
+  elif ! SIM_BUILD_ID="$(resolve_build_id)"; then
     STATUS_VALIDATE="skipped — no usable development-simulator build"
     note_blocker "No unexpired \`development-simulator\` build matches the current runtime, so the change was not exercised on a device. Build one with \`npx eas-cli@latest build --platform ios --profile development-simulator\`."
     return 1
@@ -411,8 +422,8 @@ validate() {
   fi
 
   if ! sim_wait_for_device; then
-    STATUS_VALIDATE="skipped — Argent never saw the simulator"
-    note_blocker "Argent could not reach the remote simulator, so the app was not driven."
+    STATUS_VALIDATE="skipped — agent-device could not attach to the app"
+    note_blocker "agent-device could not find the remote simulator or open a session on the app, so the app was not driven. See the job log."
     return 1
   fi
 
@@ -434,8 +445,8 @@ validate() {
   done
   log "The app loaded a bundle from Metro after ${bundle_waited}s"
 
-  local mcp_config="$AGENT_OUT/argent-mcp.json"
-  argent_mcp_config "$mcp_config" >/dev/null
+  local mcp_config="$AGENT_OUT/agent-device-mcp.json"
+  agent_device_mcp_config "$mcp_config" >/dev/null
 
   local slice
   slice="$(budget_for "$VALIDATE_BUDGET_SECONDS" "$PUBLISH_RESERVE_SECONDS")"
@@ -529,7 +540,7 @@ EOF
 results_markdown() {
   local icon source
   if [ "$VERDICT" = pass ] && [ -n "$AGENT_VERIFY_FOLLOWS" ]; then
-    icon="🔎 Validated — sent to independent verification"
+    icon="🔎 Implemented — sent to independent verification"
   elif [ "$VERDICT" = pass ]; then
     icon="✅ Ready for review"
   elif [ "$AGENT_MODE" = revise ]; then
@@ -593,9 +604,8 @@ if errors:
     printf '🖼️ **[Screenshots from the run](%s)**\n\n' "$EVIDENCE_URL"
   fi
 
-  # The validation above ran against a dev bundle over Metro, judged by an agent
-  # that had just read its own implementation notes. The verify job re-tests the
-  # published update, from the task alone, and tries to break it.
+  # The verify job tests the published update from the task alone, and tries
+  # to break it.
   if [ "$VERDICT" = pass ] && [ -n "$AGENT_VERIFY_FOLLOWS" ]; then
     printf 'An independent verifier runs next and posts its verdict as a comment. This PR is marked ready for review only if it passes.\n\n'
   elif [ "$VERDICT" = pass ]; then
@@ -618,8 +628,18 @@ publish() {
   # alone they are only reachable by downloading the run's tarball, so publish
   # them the same way the verify workflow does. Non-fatal: losing the pictures
   # must not lose the verdict.
+  # The page wants "KEYWORD: sentence" on line 1. STATUS_VALIDATE reads
+  # "pass — ...", "fail — ...", or "skipped — ...".
+  local verdict_file="$AGENT_OUT/verdict-page.md" keyword
+  case "$STATUS_VALIDATE" in
+    pass*) keyword=PASS ;;
+    fail*) keyword=FAIL ;;
+    *)     keyword=INCONCLUSIVE ;;
+  esac
+  printf '%s: %s\n' "$keyword" "$(printf '%s' "$STATUS_VALIDATE" | sed 's/^[a-z]* — //')" > "$verdict_file"
+  [ -f "$AGENT_OUT/implement-summary.md" ] && cat "$AGENT_OUT/implement-summary.md" >> "$verdict_file"
   EVIDENCE_URL="$(publish_evidence "$AGENT_OUT" "PR #${PR_NUMBER}" \
-    "$STATUS_VALIDATE" "pr-${PR_NUMBER}-agent")"
+    "$verdict_file" "pr-${PR_NUMBER}-agent" "${SIM_BUILD_ID:-}")"
   [ -n "$EVIDENCE_URL" ] && log "Evidence: $EVIDENCE_URL"
 
   results="$(results_markdown)"
@@ -697,6 +717,18 @@ main() {
   fi
 
   run_checks || true   # a failing check is a blocker, not a reason to stop
+
+  # The verify job finds or builds a client for the pushed commit, so neither
+  # the simulator nor a native change is this job's concern.
+  if [ -n "$AGENT_VERIFY_FOLLOWS" ]; then
+    if native_changed; then
+      STATUS_VALIDATE="left to the verify job, which builds a new client (native change)"
+    else
+      STATUS_VALIDATE="left to the verify job"
+    fi
+    [ -z "$BLOCKERS" ] && VERDICT="pass"
+    return
+  fi
 
   if native_changed; then
     STATUS_VALIDATE="skipped — the change alters the native fingerprint"

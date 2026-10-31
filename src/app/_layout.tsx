@@ -79,7 +79,7 @@ let observeConfig: any = {
   dispatchInDebug: true /* a little loud, but helps us generate more test data */,
 };
 
-if (process.env.METRICS_ENV === "e2e") {
+if (process.env.EXPO_PUBLIC_METRICS_ENV === "e2e") {
   observeConfig = {
     ...observeConfig,
     environment: "e2e",

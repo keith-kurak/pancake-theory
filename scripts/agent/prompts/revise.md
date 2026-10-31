@@ -36,8 +36,8 @@ services, or work outside this repository.
 - TypeScript is strict. Type everything you add.
 - Add a `testID` to anything new a user interacts with, so the next phase can find it.
 - Prefer a JavaScript-only change. Adding a native module, a config plugin, or a native
-  key in `app.json` changes the fingerprint, which makes the run skip simulator
-  validation. If a request genuinely needs one, do it and say so plainly.
+  key in `app.json` changes the fingerprint, so verification must wait for a new
+  native build. If a request genuinely needs one, do it and say so plainly.
 
 ## When you are done
 

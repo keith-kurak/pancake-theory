@@ -36,12 +36,40 @@
       "channel": "production",
       "environment": "production"
     },
+    "production-apk": {
+      "extends": "production",
+      "android": {
+        "buildType": "apk"
+      }
+    },
     "production-simulator": {
       "autoIncrement": true,
       "channel": "production",
       "environment": "production",
       "ios": {
         "simulator": true
+      }
+    },
+    "e2e": {
+      "extends": "production",
+      "autoIncrement": false,
+      "distribution": "internal",
+      "channel": "e2e",
+      "env": {
+        "METRICS_ENV": "e2e",
+        "EXPO_PUBLIC_METRICS_ENV": "e2e"
+      }
+    },
+    "e2e-simulator": {
+      "extends": "e2e",
+      "ios": {
+        "simulator": true
+      }
+    },
+    "e2e-apk": {
+      "extends": "e2e",
+      "android": {
+        "buildType": "apk"
       }
     }
   },

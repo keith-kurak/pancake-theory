@@ -20,13 +20,15 @@ name: Weekly store rollup
 # builds on both platforms. A new binary on the same runtime version is only
 # safe when an update would be.
 #
-#   update           -> iOS: repack with the new version
-#                       Android: build with the new version (repack cannot
-#                       process an .aab; the match proves it is compatible)
-#                       submit both, then tag the release
-#   build-or-repack  -> skip: the release is still pre-release, and every merge
-#                       already replaces and resubmits the store builds
-#   error            -> explain and fail, exactly as the deploy would
+#   update  -> build iOS and Android in full with the new version (the
+#              match proves it is compatible), submit both, then tag the
+#              release
+#   build   -> skip: the release is still pre-release, and every merge
+#              already replaces and resubmits the store builds
+#   error   -> explain and fail, exactly as the deploy would
+#
+# Nothing here is repacked. A repacked iOS build carries CFBundleVersion "1",
+# which App Store Connect rejects, and repack cannot process an Android .aab.
 #
 # It also skips a week with no new commits on main, before any of that runs.
 #
@@ -129,29 +131,28 @@ jobs:
 
   # --- update: the release is live and both platforms match, so roll up. ------
 
-  # APP_VERSION overrides the version in app.config.js. A repack rewrites the
-  # app metadata, so the repacked binary carries the new patch version.
-  ios_repack:
-    name: Repack iOS store build
-    needs: [decide, ios_get_build, plan]
+  # APP_VERSION overrides the version in app.config.js, so the build carries
+  # the new patch version.
+  ios_build:
+    name: Build iOS
+    needs: [decide, plan]
     if: ${{ needs.decide.outputs.action == 'update' }}
-    type: repack
+    type: build
     env:
       APP_VERSION: ${{ needs.plan.outputs.version }}
     params:
-      build_id: ${{ needs.ios_get_build.outputs.build_id }}
+      platform: ios
       profile: production
       message: Rollup ${{ needs.plan.outputs.version }} (${{ needs.plan.outputs.sha }})
 
   submit_ios:
     name: Submit iOS
-    needs: [ios_repack]
+    needs: [ios_build]
     type: submit
     params:
-      build_id: ${{ needs.ios_repack.outputs.build_id }}
+      build_id: ${{ needs.ios_build.outputs.build_id }}
       profile: production
 
-  # Repack cannot process an .aab, so Android builds in full.
   android_build:
     name: Build Android
     needs: [decide, plan]
@@ -259,7 +260,7 @@ jobs:
   skipped_prerelease:
     name: Explain why there is no rollup
     needs: [decide, plan]
-    if: ${{ needs.decide.outputs.action == 'build-or-repack' }}
+    if: ${{ needs.decide.outputs.action == 'build' }}
     type: doc
     params:
       md: |

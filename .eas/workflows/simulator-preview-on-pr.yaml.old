@@ -1,0 +1,145 @@
+name: Simulator preview on PR
+
+# Gives a reviewer a running app in a browser tab, one click from the pull
+# request — no local build, no simulator, no Xcode.
+#
+# Reuses the preview build lineage: when the PR changes no native code the
+# existing build is repacked with this PR's JavaScript, which takes about a
+# minute. Only a native change pays for a full build.
+#
+# The sessions are `web-preview-only`: a screen and nothing else. The automation
+# session types cost more and no human needs them.
+#
+# Needs EXPO_TOKEN_SIMULATOR in the preview environment. Simulator sessions are
+# actor-gated, so the restricted EXPO_TOKEN that EAS injects cannot create one.
+
+on:
+  pull_request:
+    branches: ["*"]
+    types: [opened, reopened, synchronize, ready_for_review]
+    # A docs-only PR has nothing to preview.
+    paths:
+      - "**"
+      - "!**/*.md"
+      - "!.*/**"
+      - "!**/.*/**"
+
+concurrency:
+  # A new push replaces the preview; the old session idles out on its own.
+  cancel_in_progress: true
+  group: ${{ workflow.filename }}-${{ github.ref }}
+
+defaults:
+  tools:
+    bun: 1.3.10
+
+jobs:
+  # Drafts get no preview. Guarding the root job is enough: everything else
+  # reaches it through `needs`.
+  fingerprint:
+    if: ${{ !github.event.pull_request.draft }}
+    environment: preview
+    type: fingerprint
+
+  ios_get_build:
+    needs: [fingerprint]
+    type: get-build
+    params:
+      platform: ios
+      profile: preview-simulator
+      fingerprint_hash: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
+
+  ios_repack:
+    needs: [ios_get_build]
+    if: ${{ needs.ios_get_build.outputs.build_id }}
+    type: repack
+    params:
+      build_id: ${{ needs.ios_get_build.outputs.build_id }}
+
+  ios_build:
+    needs: [ios_get_build]
+    if: ${{ !needs.ios_get_build.outputs.build_id }}
+    type: build
+    params:
+      platform: ios
+      profile: preview-simulator
+
+  android_get_build:
+    needs: [fingerprint]
+    type: get-build
+    params:
+      platform: android
+      profile: preview
+      fingerprint_hash: ${{ needs.fingerprint.outputs.android_fingerprint_hash }}
+
+  android_repack:
+    needs: [android_get_build]
+    if: ${{ needs.android_get_build.outputs.build_id }}
+    type: repack
+    params:
+      build_id: ${{ needs.android_get_build.outputs.build_id }}
+
+  android_build:
+    needs: [android_get_build]
+    if: ${{ !needs.android_get_build.outputs.build_id }}
+    type: build
+    params:
+      platform: android
+      profile: preview
+
+  # `after` on the four lanes, because exactly one per platform runs. `needs` on
+  # the lookups as well, so a draft PR — where those were skipped — skips this
+  # too rather than running with no build.
+  previews:
+    name: Start simulator previews
+    needs: [ios_get_build, android_get_build]
+    after: [ios_repack, ios_build, android_repack, android_build]
+    environment: preview
+    outputs:
+      ios_preview: ${{ steps.ios.outputs.preview_url }}
+      ios_session: ${{ steps.ios.outputs.session_url }}
+      android_preview: ${{ steps.android.outputs.preview_url }}
+      android_session: ${{ steps.android.outputs.session_url }}
+    steps:
+      - uses: eas/checkout
+
+      # `eas simulator:start` reads the app config, and that resolves the
+      # config plugins (expo-router, ...) from node_modules.
+      - uses: eas/install_node_modules
+
+      - id: ios
+        name: iOS preview
+        run: |
+          set -euo pipefail
+          out="$(PREVIEW_NAME="PR #${{ github.event.pull_request.number }} iOS preview" \
+            ./scripts/simulator-preview.sh ios '${{ after.ios_repack.outputs.build_id || after.ios_build.outputs.build_id }}')"
+          set-output preview_url "$(printf '%s\n' "$out" | sed -n 's/^preview_url=//p')"
+          set-output session_url "$(printf '%s\n' "$out" | sed -n 's/^session_url=//p')"
+
+      - id: android
+        name: Android preview
+        run: |
+          set -euo pipefail
+          out="$(PREVIEW_NAME="PR #${{ github.event.pull_request.number }} Android preview" \
+            ./scripts/simulator-preview.sh android '${{ after.android_repack.outputs.build_id || after.android_build.outputs.build_id }}')"
+          set-output preview_url "$(printf '%s\n' "$out" | sed -n 's/^preview_url=//p')"
+          set-output session_url "$(printf '%s\n' "$out" | sed -n 's/^session_url=//p')"
+
+  comment:
+    name: Post the previews to the PR
+    needs: [previews]
+    type: github-comment
+    params:
+      payload: |
+        ### 📱 Simulator previews
+
+        This PR's JavaScript, running on a real simulator in your browser. No install.
+
+        | Platform | Open | Session |
+        | --- | --- | --- |
+        | iOS | [Open iOS preview](${{ needs.previews.outputs.ios_preview }}) | [session](${{ needs.previews.outputs.ios_session }}) |
+        | Android | [Open Android preview](${{ needs.previews.outputs.android_preview }}) | [session](${{ needs.previews.outputs.android_session }}) |
+
+        The simulators shut down after 30 minutes idle, and 2 hours at the outside.
+        Once they have, push again or run `npm run sim` locally for a fresh one. The
+        session links keep working afterwards and hold the recording and logs.

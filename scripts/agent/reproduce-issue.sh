@@ -262,9 +262,12 @@ run_reproducer() {
   # This is the pipeline's failure, not evidence about the bug.
   log "Snapshotting the launch state"
   local snapshot
-  snapshot="$(npx --yes @swmansion/argent@latest run describe --udid "$SIM_UDID" 2>/dev/null || true)"
+  snapshot="$(npx --yes agent-device@latest snapshot -i --udid "$SIM_UDID" 2>"$EVIDENCE_DIR/launch-snapshot.log" || true)"
   printf '%s\n' "$snapshot" > "$EVIDENCE_DIR/launch-snapshot.txt"
-  if [ -z "$snapshot" ] || ! printf '%s' "$snapshot" | grep -q 'ROOT'; then
+  # An element line starts with a ref such as "@e1". Older agent-device output
+  # had a ROOT node instead; checking for that word failed every run once the
+  # format changed, even when the app had rendered.
+  if [ -z "$snapshot" ] || ! printf '%s' "$snapshot" | grep -q '^@e[0-9]'; then
     inconclusive "the app produced no UI after launch — the update may not have loaded."
     return 0
   fi
@@ -274,7 +277,7 @@ run_reproducer() {
   {
     printf '\n---\n\n## This run\n\n'
     printf -- '- The issue is #%s.\n' "$ISSUE_NUMBER"
-    printf -- '- Pass `udid: %s` to every argent tool.\n' "$SIM_UDID"
+    printf -- '- Pass `udid: %s` to every agent-device tool.\n' "$SIM_UDID"
     printf -- '- The app is built from commit `%s` of the default branch.\n' \
       "$(git rev-parse --short HEAD 2>/dev/null || echo '?')"
     printf '\nFiles:\n\n'
@@ -287,8 +290,8 @@ run_reproducer() {
     fi
   } >> "$prompt"
 
-  local mcp_config="$EVIDENCE_DIR/argent-mcp.json"
-  argent_mcp_config "$mcp_config" >/dev/null
+  local mcp_config="$EVIDENCE_DIR/agent-device-mcp.json"
+  agent_device_mcp_config "$mcp_config" >/dev/null
 
   log "Running the reproducer (timeout $CLAUDE_TIMEOUT)"
   # The verdict file is the contract, not Claude's exit code. timeout is the
@@ -322,7 +325,12 @@ session_stop
 # ---------------------------------------------------------------------------
 
 log "Publishing the evidence site"
-EVIDENCE_URL="$(publish_evidence "$EVIDENCE_DIR" "Issue #${ISSUE_NUMBER}" "$VERDICT_LINE" "issue-${ISSUE_NUMBER}-repro" "reproduction")"
+# The page colours REPLICATED and NOT-REPLICATED; it reads REPRODUCED and
+# NOT_REPRODUCED as an unknown keyword. Translate a copy, not the original.
+sed -e '1s/^NOT_REPRODUCED\([^A-Za-z_]\)/NOT-REPLICATED\1/' \
+    -e '1s/^REPRODUCED\([^A-Za-z_]\)/REPLICATED\1/' \
+  "$VERDICT_FILE" > "$EVIDENCE_DIR/verdict-page.md"
+EVIDENCE_URL="$(publish_evidence "$EVIDENCE_DIR" "Issue #${ISSUE_NUMBER}" "$EVIDENCE_DIR/verdict-page.md" "issue-${ISSUE_NUMBER}-repro" "$REPRO_BUILD_ID")"
 if [ -n "$EVIDENCE_URL" ]; then
   log "Evidence: $EVIDENCE_URL"
 else
@@ -335,7 +343,7 @@ REPORT="$(tail -n +2 "$VERDICT_FILE")"
 # Built before the heredoc, not inside it: bash 3.2 on macOS mis-parses a
 # command substitution nested in a heredoc inside a command substitution.
 LINKS=""
-[ -n "$EVIDENCE_URL" ] && LINKS="🖼️ **[Evidence](${EVIDENCE_URL})** — screenshots from the run"
+[ -n "$EVIDENCE_URL" ] && LINKS="🖼️ **[Evidence](${EVIDENCE_URL})** — screenshots, every tap, performance, and the recording"
 if [ -n "$SESSION_URL" ]; then
   [ -n "$LINKS" ] && LINKS="$LINKS · "
   LINKS="${LINKS}📱 **[Simulator session](${SESSION_URL})** — recording and logs on expo.dev"

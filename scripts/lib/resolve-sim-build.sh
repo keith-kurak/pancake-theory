@@ -42,9 +42,17 @@ resolve_build_id() {
   # dev server with a different runtime version fails at startup (for example
   # "ReferenceError: Property 'MessageQueue' doesn't exist"). Newest-by-date is
   # NOT enough — an old-SDK branch build can finish after a current one.
+  #
+  # runtimeversion:resolve, not `expo config`: a dev build's runtime version is
+  # a { policy: "fingerprint" } object in the config, and only expo-updates
+  # turns it into the hash EAS records on the build.
   local local_runtime
-  local_runtime="$(APP_VARIANT=DEV npx expo config --type public --json 2>/dev/null \
-    | python3 -c 'import json,sys; print(json.load(sys.stdin).get("runtimeVersion") or "")' 2>/dev/null || true)"
+  local_runtime="$(APP_VARIANT=DEV npx expo-updates runtimeversion:resolve --platform "$SIM_PLATFORM" 2>/dev/null \
+    | python3 -c '
+import json, sys
+value = json.load(sys.stdin).get("runtimeVersion")
+print(value if isinstance(value, str) else "")
+' 2>/dev/null || true)"
   if [ -n "$local_runtime" ]; then
     info "Local runtime version: $local_runtime" >&2
   else

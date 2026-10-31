@@ -21,10 +21,16 @@
 # Required: PR_NUMBER, GH_REPO, GITHUB_TOKEN, EXPO_TOKEN_SIMULATOR,
 #           CLAUDE_CODE_OAUTH_TOKEN
 # Optional: VERIFY_BUILD_ID   build to use; resolved by runtime when empty
+#           VERIFY_BUILD_IF_MISSING  true to run `eas build` for this checkout
+#                             when no build matches, instead of INCONCLUSIVE
 #           UPDATE_GROUP_ID   update to load; published from the checkout when empty
 #           VERIFY_SINCE      `/agent` comments newer than this are the focus;
 #                             defaults to the branch's last commit time
 #           VERIFY_GATE_READY true to let the verdict set draft state
+#           VERIFY_DEVICE     simulator to boot, e.g. "iPad (A16)". Defaults to
+#                             an iPad when the task or a request mentions one,
+#                             and otherwise to the runner's choice of iPhone
+#           VERIFY_IPAD_DEVICE  which iPad that is; defaults to "iPad (A16)"
 #           PR_HEAD_REF       the branch; looked up from the PR when unset
 #
 # Local dry run:
@@ -54,6 +60,7 @@ VERDICT_FILE="$PROJECT_ROOT/evidence/verdict.md"
 : "${UPDATE_GROUP_ID:=}"
 : "${VERIFY_SINCE:=}"
 : "${VERIFY_GATE_READY:=false}"
+: "${VERIFY_BUILD_IF_MISSING:=false}"
 : "${CLAUDE_TIMEOUT:=20m}"
 : "${SESSION_MAX_MINUTES:=30}"
 : "${RUN_URL:=}"
@@ -206,6 +213,47 @@ if [ -s "$EVIDENCE_DIR/requests.md" ]; then
   sed 's/^/    /' "$EVIDENCE_DIR/requests.md" | head -n 20
 fi
 
+# ---------------------------------------------------------------------------
+# Pick the device
+# ---------------------------------------------------------------------------
+
+# A tablet layout cannot be judged on a phone. When the task or a reviewer's
+# request is about iPads, boot one; otherwise keep the runner's default, which
+# is an iPhone. VERIFY_DEVICE overrides both.
+: "${VERIFY_DEVICE:=}"
+: "${VERIFY_IPAD_DEVICE:=iPad (A16)}"
+
+# Intent only — the PR title, the task, and the reviewer's requests. The diff is
+# deliberately excluded: a stray "iPad" in a comment or a renamed asset should
+# not change which device the verdict is about.
+intent_text() {
+  printf '%s\n' "$PR_TITLE"
+  cat "$EVIDENCE_DIR/task.md" "$EVIDENCE_DIR/requests.md" 2>/dev/null || true
+}
+
+if [ -z "$VERIFY_DEVICE" ] && intent_text | grep -qiE '(^|[^a-z])(ipad|tablet)'; then
+  VERIFY_DEVICE="$VERIFY_IPAD_DEVICE"
+  log "  device: $VERIFY_DEVICE (the task or a request mentions iPad)"
+elif [ -n "$VERIFY_DEVICE" ]; then
+  log "  device: $VERIFY_DEVICE (VERIFY_DEVICE)"
+else
+  log "  device: the runner's default iPhone"
+fi
+export SESSION_DEVICE="$VERIFY_DEVICE"
+
+# app.json sets ios.supportsTablet false, so on an iPad this app runs in iPhone
+# compatibility mode: a scaled phone window, not a native iPad layout. Without
+# saying so, a verdict about "the iPad layout" would be about something that
+# does not exist yet.
+TABLET_NOTE=""
+if [ -n "$VERIFY_DEVICE" ] \
+  && ! node -e "process.exit(require('./app.json').expo.ios.supportsTablet ? 0 : 1)" 2>/dev/null; then
+  # Backticks here are Markdown for the brief, not command substitution.
+  # shellcheck disable=SC2016
+  TABLET_NOTE='This app sets `ios.supportsTablet: false`, so on an iPad it runs in iPhone compatibility mode — a scaled phone window, not a native iPad layout. Judge what is actually on screen, and say so if the request assumed otherwise.'
+  log "  note: supportsTablet is false — the iPad shows iPhone compatibility mode"
+fi
+
 # The diff is context for the verifier: it should test what changed, not the
 # whole app. Capped so a large PR cannot blow the prompt budget.
 gh_pr_diff > "$EVIDENCE_DIR/pr.diff" 2>/dev/null || : > "$EVIDENCE_DIR/pr.diff"
@@ -226,12 +274,43 @@ publish_update() {
   session_publish_update "$PR_HEAD_REF" "Verify PR #$PR_NUMBER" "$EVIDENCE_DIR/update.log"
 }
 
+# build_for_checkout — build a development-simulator client from this checkout
+# and set VERIFY_BUILD_ID. The pre-packaged `build` job always builds the commit
+# that triggered the workflow; after an agent pushes, that is the wrong commit,
+# so the chained verify job builds the branch head itself. Slow (a native
+# build), but only when no existing build matches.
+build_for_checkout() {
+  log "No matching build; building development-simulator from this checkout"
+  local out
+  out="$(npx --yes eas-cli@latest build \
+    --platform ios \
+    --profile development-simulator \
+    --non-interactive --wait --json 2>>"$EVIDENCE_DIR/build.log")" || {
+      warn "eas build failed; see build.log in the run artifacts"
+      return 1
+    }
+  VERIFY_BUILD_ID="$(printf '%s' "$out" | python3 -c '
+import json, sys
+raw = sys.stdin.read()
+start = raw.find("[")
+try:
+    builds = json.loads(raw[start:]) if start >= 0 else []
+except Exception:
+    builds = []
+print(next((b.get("id") for b in builds if b.get("status") == "FINISHED"), ""))
+' 2>/dev/null || echo "")"
+  [ -n "$VERIFY_BUILD_ID" ]
+}
+
 resolve_inputs() {
   if [ -z "$VERIFY_BUILD_ID" ]; then
     # The same resolver the agent's validate phase uses, so a chained verify
     # runs on the binary the agent validated against.
     BUILD_PROFILE=development-simulator
     VERIFY_BUILD_ID="$(resolve_build_id 2>>"$EVIDENCE_DIR/build-resolve.log")" || VERIFY_BUILD_ID=""
+    if [ -z "$VERIFY_BUILD_ID" ] && [ "$VERIFY_BUILD_IF_MISSING" = true ]; then
+      build_for_checkout
+    fi
     if [ -z "$VERIFY_BUILD_ID" ]; then
       inconclusive "no unexpired development-simulator build matches this runtime, so nothing could run."
       return 1
@@ -276,9 +355,12 @@ run_verifier() {
   # at all. If this is empty, no verdict from Claude would be worth reading.
   log "Snapshotting the launch state"
   local snapshot
-  snapshot="$(npx --yes @swmansion/argent@latest run describe --udid "$SIM_UDID" 2>/dev/null || true)"
+  snapshot="$(npx --yes agent-device@latest snapshot -i --udid "$SIM_UDID" 2>"$EVIDENCE_DIR/launch-snapshot.log" || true)"
   printf '%s\n' "$snapshot" > "$EVIDENCE_DIR/launch-snapshot.txt"
-  if [ -z "$snapshot" ] || ! printf '%s' "$snapshot" | grep -q 'ROOT'; then
+  # An element line starts with a ref such as "@e1". Older agent-device output
+  # had a ROOT node instead; checking for that word failed every run once the
+  # format changed, even when the app had rendered.
+  if [ -z "$snapshot" ] || ! printf '%s' "$snapshot" | grep -q '^@e[0-9]'; then
     printf 'FAIL: the app produced no UI after launch — the update may not have loaded.\n' > "$VERDICT_FILE"
     fail "empty UI snapshot after launch"
     return 0
@@ -289,7 +371,9 @@ run_verifier() {
   {
     printf '\n---\n\n## This run\n\n'
     printf -- '- The PR under test is #%s: "%s".\n' "$PR_NUMBER" "$PR_TITLE"
-    printf -- '- Pass `udid: %s` to every argent tool.\n' "$SIM_UDID"
+    printf -- '- Pass `udid: %s` to every agent-device tool.\n' "$SIM_UDID"
+    printf -- '- The simulator is %s.\n' "${VERIFY_DEVICE:-an iPhone chosen by the runner}"
+    [ -n "$TABLET_NOTE" ] && printf -- '- %s\n' "$TABLET_NOTE"
     if gate_enabled; then
       printf -- '- An agent wrote this change and has already judged its own work as passing. Your verdict alone decides whether the PR is marked ready for review. Look for what the author missed.\n'
     fi
@@ -308,8 +392,8 @@ run_verifier() {
     fi
   } >> "$prompt"
 
-  local mcp_config="$EVIDENCE_DIR/argent-mcp.json"
-  argent_mcp_config "$mcp_config" >/dev/null
+  local mcp_config="$EVIDENCE_DIR/agent-device-mcp.json"
+  agent_device_mcp_config "$mcp_config" >/dev/null
 
   log "Running the verifier (timeout $CLAUDE_TIMEOUT)"
   # The verdict file is the contract, not Claude's exit code. timeout is the
@@ -342,7 +426,7 @@ session_stop
 # ---------------------------------------------------------------------------
 
 log "Publishing the evidence site"
-EVIDENCE_URL="$(publish_evidence "$EVIDENCE_DIR" "PR #${PR_NUMBER}" "$VERDICT_LINE" "pr-${PR_NUMBER}-verify")"
+EVIDENCE_URL="$(publish_evidence "$EVIDENCE_DIR" "PR #${PR_NUMBER}" "$VERDICT_FILE" "pr-${PR_NUMBER}-verify" "$VERIFY_BUILD_ID")"
 if [ -n "$EVIDENCE_URL" ]; then
   log "Evidence: $EVIDENCE_URL"
 else
@@ -363,7 +447,7 @@ REPORT="$(tail -n +2 "$VERDICT_FILE")"
 # on the Linux worker handles it, so this only broke local runs.
 EVIDENCE_LINE=""
 if [ -n "$EVIDENCE_URL" ]; then
-  EVIDENCE_LINE="$(printf '\n🖼️ **[Evidence](%s)** — screenshots from the run\n' "$EVIDENCE_URL")"
+  EVIDENCE_LINE="$(printf '\n🖼️ **[Evidence](%s)** — screenshots, every tap, performance, and the recording\n' "$EVIDENCE_URL")"
 fi
 UPDATE_NOTE="${UPDATE_GROUP_ID:+ · JS from update group \`${UPDATE_GROUP_ID}\`}"
 
@@ -386,7 +470,11 @@ EOF
 )" && COMMENT_POSTED=1 || warn "could not post the comment"
 
 if command -v set-output >/dev/null 2>&1; then
-  set-output evidence_url "$EVIDENCE_URL"
+  # set-output rejects an empty VALUE with "Usage: set-output NAME VALUE".
+  # The evidence site is allowed not to publish — a run with no screenshots has
+  # no site — so only set it when there is one. An unset output reads as empty
+  # downstream, which is what the function already documents.
+  [ -n "$EVIDENCE_URL" ] && set-output evidence_url "$EVIDENCE_URL"
   set-output verdict "$VERDICT_LINE"
 fi
 

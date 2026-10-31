@@ -1,4 +1,4 @@
-appId: com.keithkurak.pancaketheorypreview
+appId: com.keithkurak.pancaketheory
 ---
 - launchApp
 - takeScreenshot: '.maestro/screenshots/preview-smoke-1'

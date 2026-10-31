@@ -20,8 +20,15 @@ name: Remove PR label
 inputs:
   - name: label
     required: true
+  # A number, not a string. `github.event.pull_request.number` and the
+  # `issue_number` workflow input are both numbers, and an input declared as a
+  # string rejects them with:
+  #   Input parameter "pr_number" ... must be of type "string".
+  # `|| 0` keeps the no-pull-request case type-correct instead of undefined;
+  # the step below treats 0 as "nothing to remove".
   - name: pr_number
-    default_value: '${{ github.event.pull_request.number }}'
+    type: number
+    default_value: ${{ github.event.pull_request.number || 0 }}
   # github.repository is empty for pull_request_labeled, so fall back to the
   # same fixed value the agent workflows use.
   - name: repository
@@ -33,7 +40,7 @@ runs:
         LABEL='${{ inputs.label }}'
         PR='${{ inputs.pr_number }}'
         REPO='${{ inputs.repository }}'
-        if [ -z "$PR" ] || [ -z "$REPO" ]; then
+        if [ -z "$PR" ] || [ "$PR" = "0" ] || [ -z "$REPO" ]; then
           echo "No pull request for this run. Nothing to remove."
           exit 0
         fi

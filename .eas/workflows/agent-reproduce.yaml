@@ -72,7 +72,7 @@ jobs:
   reproduce:
     name: Reproduce on a cloud simulator
     after: [get_build, build]
-    # The simulator runs on EAS, so this job only needs the eas CLI, argent,
+    # The simulator runs on EAS, so this job only needs the eas CLI, agent-device,
     # and Claude.
     runs_on: linux-medium
     environment: development
@@ -94,8 +94,8 @@ jobs:
       # Both must be on PATH before the script starts. npm rather than bun:
       # global binary installs are the one case npm links more reliably on a
       # CI worker. Project dependencies still come from bun.
-      - name: Install argent and Claude Code
-        run: npm install --global @swmansion/argent@latest @anthropic-ai/claude-code@latest
+      - name: Install agent-device and Claude Code
+        run: npm install --global agent-device@latest @anthropic-ai/claude-code@latest
 
       # Only a build id reaches this command line. The issue text is fetched by
       # the script through the API and handed to Claude as a file.

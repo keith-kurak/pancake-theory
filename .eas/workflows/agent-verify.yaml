@@ -58,7 +58,7 @@ jobs:
   verify:
     name: Verify on a cloud simulator
     after: [get_build, build]
-    # The simulator runs on EAS, so this job only needs the eas CLI, argent,
+    # The simulator runs on EAS, so this job only needs the eas CLI, agent-device,
     # and Claude.
     runs_on: linux-medium
     environment: development

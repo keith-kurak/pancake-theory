@@ -1,9 +1,9 @@
 ---
-name: argent-environment-inspector
+name: agent-device-environment-inspector
 description: >
   Inspects a mobile app project's environment and returns structured JSON covering
   project type, platform support, build and startup commands, bundler config, env
-  resolution, key packages, QA/feedback-loop tooling, and Argent-specific workflow
+  resolution, key packages, QA/feedback-loop tooling, and agent-device-specific workflow
   commands. Works on any project — determines whether it is React Native, Expo,
   Flutter, native iOS/Android, or another stack, and provides environment context
   regardless. Has deeper React Native introspection via gather-workspace-data but
@@ -87,7 +87,7 @@ Return a JSON object with these top-level fields:
 | `is_native_ios` / `is_native_android` | bool         | Native without cross-platform framework                                                       |
 | `startup_commands`                    | array        | `[{ command, context }]` — concrete dev server start commands                                 |
 | `build_commands`                      | array        | `[{ command, platform, context }]` — build commands per platform                              |
-| `argent_workflow`                     | object       | `{ start_dev_server, build_ios, build_android, notes }` — exact commands for Argent           |
+| `agent_device_workflow`                     | object       | `{ start_dev_server, build_ios, build_android, notes }` — exact commands for agent-device           |
 | `ios_has_podfile`                     | bool         | True when `ios/Podfile` exists                                                                |
 | `android_has_gradle`                  | bool         | True when `android/gradlew` exists                                                            |
 | `configs`                             | object       | Paths to metro, babel, app, tsconfig, pubspec, xcode, gradle configs (`null` if absent)       |

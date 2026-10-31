@@ -45,8 +45,8 @@ Then implement. If you change course, update the plan so it matches what you did
   phase drives the real app through a simulator and needs stable targets.
 - Prefer a JavaScript-only change. Adding a native module, a config plugin, or a
   native key in `app.json` changes the fingerprint, which makes the existing
-  development build unusable and forces the run to skip simulator validation
-  entirely. If the task genuinely needs one, do it and say so plainly in your
+  development build unusable: verification must then wait for a new native
+  build, which takes many minutes. If the task genuinely needs one, do it and say so plainly in your
   summary — do not fake a JS workaround.
 
 ## When you are done
