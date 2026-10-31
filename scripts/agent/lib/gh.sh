@@ -5,7 +5,7 @@
 # EAS workers do not ship the `gh` CLI and installing it costs minutes of a
 # 30-minute budget, so this uses the REST and GraphQL APIs directly.
 #
-# Requires: GH_TOKEN, GH_REPO (owner/name), PR_NUMBER.
+# Requires: GITHUB_TOKEN, GH_REPO (owner/name), PR_NUMBER.
 
 GH_API="https://api.github.com"
 
@@ -14,7 +14,7 @@ _gh_curl() {
   local args=(
     --silent --show-error --fail-with-body
     --request "$method"
-    --header "Authorization: Bearer $GH_TOKEN"
+    --header "Authorization: Bearer $GITHUB_TOKEN"
     --header "Accept: application/vnd.github+json"
     --header "X-GitHub-Api-Version: 2022-11-28"
   )
@@ -120,7 +120,7 @@ print(json.dumps({"query": sys.argv[1], "variables": {"id": sys.argv[2]}}))
 
   response="$(curl --silent --show-error --fail-with-body \
     --request POST \
-    --header "Authorization: Bearer $GH_TOKEN" \
+    --header "Authorization: Bearer $GITHUB_TOKEN" \
     --header "Content-Type: application/json" \
     --data "$payload" \
     "$GH_API/graphql")"
@@ -198,7 +198,7 @@ for created, user, path, line, body, url in items:
 # gh_pr_diff — the PR's unified diff, for prompts that need to see the change.
 gh_pr_diff() {
   curl --silent --show-error --fail-with-body \
-    --header "Authorization: Bearer $GH_TOKEN" \
+    --header "Authorization: Bearer $GITHUB_TOKEN" \
     --header "Accept: application/vnd.github.v3.diff" \
     --header "X-GitHub-Api-Version: 2022-11-28" \
     "$GH_API/repos/$GH_REPO/pulls/$PR_NUMBER"

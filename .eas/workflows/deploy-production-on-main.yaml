@@ -30,7 +30,7 @@ name: Continuous deploy to production on main
 # Android production builds are app bundles (.aab), which repack cannot
 # process. So on a pre-release, Android always gets a full build.
 #
-# Uses the existing GH_TOKEN secret in the "production" EAS environment, which
+# Uses the existing GITHUB_TOKEN secret in the "production" EAS environment, which
 # needs read access to this repository's releases, plus contents write access so
 # tag_update_release can create the update's tag and release. The lookup itself
 # lives in .eas/functions/find-github-release, shared with

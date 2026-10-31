@@ -1,0 +1,133 @@
+name: Bump app version
+description: >-
+  Sets expo.version in app.json on the head of a branch, as one commit made
+  through the GitHub API. Does nothing when the branch already has that
+  version. Needs GITHUB_TOKEN in the calling job's environment, with WRITE access
+  to repository contents.
+
+# The commit message carries "[eas skip]", so the bump does not start
+# deploy-production-on-main.yaml. That run would fail anyway: the calling
+# workflow has not created the release for the new runtime version yet.
+#
+# Only the version line changes. Re-serializing app.json would reformat it.
+
+inputs:
+  - name: version
+    type: string
+    required: true
+  - name: branch
+    type: string
+    default_value: main
+  - name: repository
+    type: string
+    default_value: keith-kurak/pancake-theory
+
+outputs:
+  sha:
+    value: ${{ steps.bump.outputs.sha }}
+    description: The head of the branch after the bump, the commit to tag.
+  previous_version:
+    value: ${{ steps.bump.outputs.previous_version }}
+    description: The version app.json had before the bump.
+
+runs:
+  steps:
+    - id: bump
+      name: Bump the app version
+      run: |
+        set -euo pipefail
+        if [ -z "${GITHUB_TOKEN:-}" ]; then
+          echo "GITHUB_TOKEN is not set. It should come from the calling job's EAS"
+          echo "environment, and needs repository contents write access."
+          exit 1
+        fi
+        REPO='${{ inputs.repository }}'
+        BRANCH='${{ inputs.branch }}'
+        VERSION='${{ inputs.version }}'
+        export REPO BRANCH VERSION
+
+        cat > /tmp/bump-app-version.js <<'NODE_EOF'
+        const env = process.env;
+        const api = `https://api.github.com/repos/${env.REPO}`;
+        const headers = {
+          authorization: `Bearer ${env.GITHUB_TOKEN}`,
+          accept: 'application/vnd.github+json',
+          'x-github-api-version': '2022-11-28',
+          'content-type': 'application/json',
+          'user-agent': 'eas-workflow-bump-app-version',
+        };
+
+        async function must(method, p, body) {
+          const res = await fetch(`${api}${p}`, {
+            method,
+            headers,
+            body: body && JSON.stringify(body),
+          });
+          const text = await res.text();
+          if (res.status >= 300) {
+            throw new Error(`${method} ${p}: GitHub API ${res.status}: ${text}`);
+          }
+          return text ? JSON.parse(text) : null;
+        }
+
+        function parse(v) {
+          return v.split('.').map((n) => parseInt(n, 10));
+        }
+
+        function compare(a, b) {
+          const [x, y] = [parse(a), parse(b)];
+          for (let i = 0; i < 3; i++) {
+            if (x[i] !== y[i]) return x[i] - y[i];
+          }
+          return 0;
+        }
+
+        async function main() {
+          const ref = await must('GET', `/git/ref/heads/${encodeURIComponent(env.BRANCH)}`);
+          const headSha = ref.object.sha;
+          const file = await must(
+            'GET',
+            `/contents/app.json?ref=${encodeURIComponent(headSha)}`
+          );
+          const text = Buffer.from(file.content, 'base64').toString('utf8');
+          const current = JSON.parse(text).expo.version;
+
+          if (current === env.VERSION) {
+            console.error(`app.json on ${env.BRANCH} is already ${current}. No commit needed.`);
+            console.log(`${headSha} ${current}`);
+            return;
+          }
+          if (compare(env.VERSION, current) < 0) {
+            throw new Error(`${env.VERSION} is older than ${current}, the version on ${env.BRANCH}.`);
+          }
+
+          // expo.version is the only "version" key at that depth in app.json.
+          const pattern = /^(    "version": ")[^"]*(")/m;
+          const updated = text.replace(pattern, `$1${env.VERSION}$2`);
+          if (updated === text || JSON.parse(updated).expo.version !== env.VERSION) {
+            throw new Error('Could not find the expo.version line in app.json.');
+          }
+
+          const commit = await must('PUT', '/contents/app.json', {
+            message:
+              `Bump app version to ${env.VERSION} [eas skip]\n\n` +
+              `Starts runtime version ${env.VERSION.split('.').slice(0, 2).join('.')}.0. ` +
+              'Made by mint-prerelease.yaml.',
+            content: Buffer.from(updated, 'utf8').toString('base64'),
+            sha: file.sha,
+            branch: env.BRANCH,
+          });
+          console.log(`${commit.commit.sha} ${current}`);
+        }
+
+        main().catch((e) => {
+          console.error(e.message);
+          process.exit(1);
+        });
+        NODE_EOF
+
+        OUT=$(node /tmp/bump-app-version.js)
+        set -- $OUT
+        echo "$BRANCH is at $1 with app version $VERSION (was $2)."
+        set-output sha "$1"
+        set-output previous_version "$2"

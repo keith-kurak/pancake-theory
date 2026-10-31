@@ -18,7 +18,7 @@
 # No Metro and no tunnel: the JS under test arrives as a published EAS Update,
 # not from a dev server.
 #
-# Required: PR_NUMBER, GH_REPO, GH_TOKEN, EXPO_TOKEN_SIMULATOR,
+# Required: PR_NUMBER, GH_REPO, GITHUB_TOKEN, EXPO_TOKEN_SIMULATOR,
 #           CLAUDE_CODE_OAUTH_TOKEN
 # Optional: VERIFY_BUILD_ID   build to use; resolved by runtime when empty
 #           UPDATE_GROUP_ID   update to load; published from the checkout when empty
@@ -28,7 +28,7 @@
 #           PR_HEAD_REF       the branch; looked up from the PR when unset
 #
 # Local dry run:
-#   GH_TOKEN=... GH_REPO=owner/name PR_NUMBER=123 EXPO_TOKEN_SIMULATOR=... \
+#   GITHUB_TOKEN=... GH_REPO=owner/name PR_NUMBER=123 EXPO_TOKEN_SIMULATOR=... \
 #     CLAUDE_CODE_OAUTH_TOKEN=... ./scripts/agent/verify-pr.sh
 
 set -uo pipefail
@@ -155,7 +155,7 @@ cleanup() {
 # ---------------------------------------------------------------------------
 
 missing=""
-for var in PR_NUMBER GH_REPO GH_TOKEN EXPO_TOKEN_SIMULATOR CLAUDE_CODE_OAUTH_TOKEN; do
+for var in PR_NUMBER GH_REPO GITHUB_TOKEN EXPO_TOKEN_SIMULATOR CLAUDE_CODE_OAUTH_TOKEN; do
   [ -n "${!var:-}" ] || missing="$missing $var"
 done
 if [ -n "$missing" ]; then

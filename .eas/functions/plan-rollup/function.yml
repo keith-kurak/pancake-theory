@@ -4,7 +4,7 @@ description: >-
   since the last one. Whether the rollup is allowed to ship at all is the
   decide-deploy function's call, not this one's. A rollup keeps the runtime version's major.minor and takes the next patch, so
   the new store binary can still receive every update published to that
-  runtime. Needs GH_TOKEN in the calling job's environment, with read access to
+  runtime. Needs GITHUB_TOKEN in the calling job's environment, with read access to
   the repository's releases. The project must already be checked out.
 
 inputs:
@@ -44,8 +44,8 @@ runs:
       name: Plan the rollup
       run: |
         set -euo pipefail
-        if [ -z "${GH_TOKEN:-}" ]; then
-          echo "GH_TOKEN is not set. It should come from the calling job's EAS"
+        if [ -z "${GITHUB_TOKEN:-}" ]; then
+          echo "GITHUB_TOKEN is not set. It should come from the calling job's EAS"
           echo "environment, and needs repository release read access."
           exit 1
         fi
@@ -56,7 +56,7 @@ runs:
         set-output sha "$SHA"
 
         cat > "/tmp/plan-rollup.js" <<'NODE_EOF'
-        const { REPO: repo, RUNTIME_VERSION: rv, SHA: sha, GH_TOKEN: token } =
+        const { REPO: repo, RUNTIME_VERSION: rv, SHA: sha, GITHUB_TOKEN: token } =
           process.env;
         const [major, minor] = rv.split('.');
         const rollupTag = new RegExp(`^${major}\\.${minor}\\.(\\d+)-rollup$`);

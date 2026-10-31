@@ -126,7 +126,7 @@ Three details in that Action are load-bearing:
 - **The label is applied after the PR is created**, never at creation time. A PR opened
   with labels already attached emits `opened` with the labels set and *no* separate
   `labeled` event, so EAS would never see the trigger it listens for.
-- **It pushes with a PAT, not `GITHUB_TOKEN`.** Events made by `GITHUB_TOKEN` are
+- **It pushes with a PAT, not Actions' `secrets.GITHUB_TOKEN`.** Events made by that token are
   documented not to start new *Actions workflow runs*; GitHub Apps such as EAS are not
   covered by that wording, so it would probably work. "Probably" is a poor foundation for
   the whole chain, and GitHub recommends a PAT for exactly this case.
@@ -675,7 +675,7 @@ label.
 
 Worth knowing if that changes: **Triage can label but cannot push.** Granting someone
 triage would hand them an indirect write path, because the run pushes on their behalf
-using `GH_TOKEN`.
+using `GITHUB_TOKEN`.
 
 The two entry points are not gated identically, which matters only once a triage-only
 collaborator exists:

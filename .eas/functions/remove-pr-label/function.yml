@@ -8,12 +8,12 @@ name: Remove PR label
 # runs whether the jobs before it succeeded, failed, or were skipped, so a job
 # that crashes or times out still frees the label.
 #
-# Needs GH_TOKEN (an EAS secret) with permission to edit the repo's issues
+# Needs GITHUB_TOKEN (an EAS secret) with permission to edit the repo's issues
 # and pull requests. Does nothing when the run has no pull request (for
 # example, a manual run). Never fails the job: a label that is already gone,
 # or a GitHub error, only prints a warning.
 #
-# Usage, in a custom job with an environment that has GH_TOKEN:
+# Usage, in a custom job with an environment that has GITHUB_TOKEN:
 #   - uses: ./.eas/functions/remove-pr-label
 #     with:
 #       label: agent-verify
@@ -37,13 +37,13 @@ runs:
           echo "No pull request for this run. Nothing to remove."
           exit 0
         fi
-        if [ -z "${GH_TOKEN:-}" ]; then
-          echo "warning: GH_TOKEN is not set. Could not remove the label \"$LABEL\"." >&2
+        if [ -z "${GITHUB_TOKEN:-}" ]; then
+          echo "warning: GITHUB_TOKEN is not set. Could not remove the label \"$LABEL\"." >&2
           exit 0
         fi
         ENCODED=$(python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "$LABEL")
         STATUS=$(curl -s -o /tmp/remove-label.json -w '%{http_code}' -X DELETE \
-          -H "Authorization: Bearer $GH_TOKEN" \
+          -H "Authorization: Bearer $GITHUB_TOKEN" \
           -H "Accept: application/vnd.github+json" \
           -H "X-GitHub-Api-Version: 2022-11-28" \
           "https://api.github.com/repos/$REPO/issues/$PR/labels/$ENCODED")

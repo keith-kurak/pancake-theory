@@ -15,7 +15,7 @@ name: Deploy a cherry-pick branch
 # app version was bumped to a new major or minor fails, because its updates
 # could not reach the binaries the branch was cut for.
 #
-# Uses the production environment's GH_TOKEN: read access to releases for the
+# Uses the production environment's GITHUB_TOKEN: read access to releases for the
 # lookup, contents write access for the update's tag and release.
 
 on:

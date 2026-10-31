@@ -1,7 +1,7 @@
 name: Create cherry-pick branch
 description: >-
   Creates a branch on a base commit, plus one commit that makes its .eas folder
-  match the checked-out project's. Needs GH_TOKEN in the calling job's
+  match the checked-out project's. Needs GITHUB_TOKEN in the calling job's
   environment, with WRITE access to repository contents. Run it from a checkout
   of main.
 
@@ -38,8 +38,8 @@ runs:
       name: Create the branch
       run: |
         set -euo pipefail
-        if [ -z "${GH_TOKEN:-}" ]; then
-          echo "GH_TOKEN is not set. It should come from the calling job's EAS"
+        if [ -z "${GITHUB_TOKEN:-}" ]; then
+          echo "GITHUB_TOKEN is not set. It should come from the calling job's EAS"
           echo "environment, and needs repository contents write access."
           exit 1
         fi
@@ -55,7 +55,7 @@ runs:
         const env = process.env;
         const api = `https://api.github.com/repos/${env.REPO}`;
         const headers = {
-          authorization: `Bearer ${env.GH_TOKEN}`,
+          authorization: `Bearer ${env.GITHUB_TOKEN}`,
           accept: 'application/vnd.github+json',
           'x-github-api-version': '2022-11-28',
           'content-type': 'application/json',

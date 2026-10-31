@@ -12,7 +12,7 @@ name: Promote release when App Store Connect distributes
 # clears them — draft and prerelease both to false — the moment Apple says the
 # version is out.
 #
-# Needs the production environment's GH_TOKEN to have WRITE access to releases
+# Needs the production environment's GITHUB_TOKEN to have WRITE access to releases
 # (contents: write). The read-only access the deploy workflow uses is not
 # enough here.
 
@@ -74,7 +74,7 @@ jobs:
 
           export RELEASE_ID REPO
           cat > "/tmp/promote-release.js" <<'NODE_EOF'
-          const { REPO: repo, RELEASE_ID: id, GH_TOKEN: token } = process.env;
+          const { REPO: repo, RELEASE_ID: id, GITHUB_TOKEN: token } = process.env;
 
           async function main() {
             const res = await fetch(

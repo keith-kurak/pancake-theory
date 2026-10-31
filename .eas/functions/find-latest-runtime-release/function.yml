@@ -2,7 +2,7 @@ name: Find latest runtime release
 description: >-
   Finds the newest GitHub release for a runtime version, and the commit it is
   tagged on. That is what production runs right now: the binary release, a
-  weekly rollup, or an OTA update, whichever came last. Needs GH_TOKEN in the
+  weekly rollup, or an OTA update, whichever came last. Needs GITHUB_TOKEN in the
   calling job's environment, with read access to the repository's releases.
 
 # A release counts when its tag is one of the three forms RELEASE.md lists for
@@ -37,8 +37,8 @@ runs:
       name: Find the newest release for this runtime version
       run: |
         set -euo pipefail
-        if [ -z "${GH_TOKEN:-}" ]; then
-          echo "GH_TOKEN is not set. It should come from the calling job's EAS"
+        if [ -z "${GITHUB_TOKEN:-}" ]; then
+          echo "GITHUB_TOKEN is not set. It should come from the calling job's EAS"
           echo "environment, and needs repository release read access."
           exit 1
         fi
@@ -47,7 +47,7 @@ runs:
         export REPO RUNTIME_VERSION
 
         cat > /tmp/find-latest-runtime-release.js <<'NODE_EOF'
-        const { REPO: repo, RUNTIME_VERSION: rv, GH_TOKEN: token } = process.env;
+        const { REPO: repo, RUNTIME_VERSION: rv, GITHUB_TOKEN: token } = process.env;
 
         async function gh(path) {
           const res = await fetch(`https://api.github.com/repos/${repo}${path}`, {
