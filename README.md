@@ -24,7 +24,7 @@ matching what the scripts in `scripts/` do.
 `bun run start` runs Metro with the Expo MCP server enabled and `APP_VARIANT=DEV`.
 Press `i` or `a` to open a simulator, or scan the QR code with a development build.
 
-This app uses native modules — widgets, SQLite, background tasks, Sentry — so **Expo Go
+This app uses native modules — widgets, SQLite, Sentry — so **Expo Go
 will not run it**. You need a development build:
 
 ```bash
