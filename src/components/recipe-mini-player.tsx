@@ -3,15 +3,22 @@ import type { PendingRecipe } from "@/types/breakfast";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
-import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 interface RecipeMiniPlayerProps {
   recipe: PendingRecipe;
+  /**
+   * Current time, owned by the tab layout. Both placements of a bottom
+   * accessory render at the same time and share no state, so a clock kept in
+   * here would tick twice and the two copies could disagree.
+   */
+  now: number;
 }
 
 function formatElapsed(startTime: number, now: number) {
-  const elapsed = now - startTime;
+  // The clock above us only ticks once a minute, so it can still read from
+  // before a cook that just started. Elapsed is zero then either way.
+  const elapsed = Math.max(0, now - startTime);
   const minutes = Math.floor(elapsed / 60000);
   if (minutes < 60) return `${minutes}m`;
   const hours = Math.floor(minutes / 60);
@@ -19,16 +26,9 @@ function formatElapsed(startTime: number, now: number) {
   return `${hours}h ${mins}m`;
 }
 
-export function RecipeMiniPlayer({ recipe }: RecipeMiniPlayerProps) {
+export function RecipeMiniPlayer({ recipe, now }: RecipeMiniPlayerProps) {
   const placement = NativeTabs.BottomAccessory.usePlacement();
   const isInline = placement === "inline";
-
-  const [now, setNow] = useState(() => Date.now());
-
-  useEffect(() => {
-    const interval = setInterval(() => setNow(Date.now()), 60000);
-    return () => clearInterval(interval);
-  }, []);
 
   const breakfastInfo = BREAKFAST_TYPES[recipe.recipeType];
   const elapsed = formatElapsed(recipe.startTime, now);
