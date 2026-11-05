@@ -3,14 +3,14 @@
   "type": "waffles",
   "name": "Fluffy and Crispy Waffles",
   "ingredients": [
-    { "name": "All-purpose flour", "amount": 2, "unit": "cups", "category": "flour" },
-    { "name": "Baking powder", "amount": 2, "unit": "tsp", "category": "other" },
-    { "name": "Salt", "amount": 0.5, "unit": "tsp", "category": "other" },
-    { "name": "Eggs (separated)", "amount": 4, "unit": "large", "category": "eggs" },
-    { "name": "Sugar", "amount": 2, "unit": "tbsp", "category": "other" },
-    { "name": "Whole milk", "amount": 2, "unit": "cups", "category": "liquid" },
-    { "name": "Unsalted butter (melted)", "amount": 4, "unit": "tbsp", "category": "other" },
-    { "name": "Vanilla extract", "amount": 0.5, "unit": "tsp", "category": "other" },
+    { "name": "All-purpose flour", "amount": 2, "unit": "cups", "metricAmount": 250, "metricUnit": "g", "category": "flour" },
+    { "name": "Baking powder", "amount": 2, "unit": "tsp", "metricAmount": 8, "metricUnit": "g", "category": "other" },
+    { "name": "Salt", "amount": 0.5, "unit": "tsp", "metricAmount": 3, "metricUnit": "g", "category": "other" },
+    { "name": "Eggs (separated)", "amount": 4, "unit": "large", "metricAmount": 200, "metricUnit": "g", "category": "eggs" },
+    { "name": "Sugar", "amount": 2, "unit": "tbsp", "metricAmount": 25, "metricUnit": "g", "category": "other" },
+    { "name": "Whole milk", "amount": 2, "unit": "cups", "metricAmount": 480, "metricUnit": "ml", "category": "liquid" },
+    { "name": "Unsalted butter (melted)", "amount": 4, "unit": "tbsp", "metricAmount": 57, "metricUnit": "g", "category": "other" },
+    { "name": "Vanilla extract", "amount": 0.5, "unit": "tsp", "metricAmount": 2.5, "metricUnit": "ml", "category": "other" },
     { "name": "Nonstick cooking spray", "amount": null, "unit": null, "category": "other" }
   ],
   "directions": [
