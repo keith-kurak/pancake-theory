@@ -2,8 +2,10 @@ import { IngredientItem } from "@/components/ingredient-item";
 import { RecipeTimer } from "@/components/recipe-timer";
 import { ScaleSlider } from "@/components/scale-slider";
 import { ThemedView } from "@/components/themed-view";
+import { settingsStore$ } from "@/store/settings-store";
 import { Recipe } from "@/types/breakfast";
-import { formatAmount, scaleIngredient } from "@/utils/recipe-scaler";
+import { getDisplayAmount } from "@/utils/recipe-scaler";
+import { useValue } from "@legendapp/state/react";
 import { ScrollView, StyleSheet } from "react-native";
 
 interface IngredientsTabProps {
@@ -33,6 +35,8 @@ export function IngredientsTab({
   onSwitchToPrep,
   backgroundColor,
 }: IngredientsTabProps) {
+  const useMetric = useValue(settingsStore$.useMetric);
+
   return (
     <ScrollView style={styles.content}>
       <ThemedView style={{ backgroundColor }}>
@@ -49,20 +53,19 @@ export function IngredientsTab({
 
         <ThemedView style={styles.ingredientsList}>
           {recipe.ingredients.map((ingredient, index) => {
-            const scaledAmount = scaleIngredient(
-              ingredient.amount,
+            const { amount, unit } = getDisplayAmount(
+              ingredient,
               scaleFactor,
-              ingredient.category,
+              useMetric,
             );
-            const formattedAmount = formatAmount(scaledAmount);
 
             return (
               <IngredientItem
                 key={index}
                 testID={`ingredient-${index}`}
                 name={ingredient.name}
-                amount={formattedAmount}
-                unit={ingredient.unit}
+                amount={amount}
+                unit={unit}
                 checked={checkedIngredients.has(index)}
                 onToggle={() => onToggleIngredient(index)}
               />
