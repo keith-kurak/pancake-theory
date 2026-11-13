@@ -1,0 +1,39 @@
+mode: agent
+app:
+  name: Pancake Theory
+  platform: ios
+  bundleId: com.keithkurak.pancaketheory
+  easProfile: explore
+  scheme: pancaketheory
+navigation:
+  provider: expo-router
+device:
+  name: iPhone 17
+exploration:
+  scope: changes
+  # /home is the web landing page; on native it renders nothing.
+  exclude:
+    - /home
+capture:
+  maxMinutes: 30
+  maxActions: 500
+  appearance: auto
+  launch: screenshot
+  reset: root-link
+  unattributed: publish
+agent:
+  provider: anthropic
+  model: claude-sonnet-5-5
+  instructions: .expo-explore/instructions.md
+# Bundled recipe data (src/data/recipes.ts, src/constants/breakfast-ratios.ts).
+# History entry ids are random UUIDs, so the history screens are reached in the
+# app after the agent completes a recipe (see instructions.md).
+parameters:
+  /recipes/[food]:
+    food: crepes
+  /recipes/detail/[id]:
+    id: crepes-basic
+    # The default scale; the history screen links here with the scale it was made at.
+    scale: "1"
+  /recipes/feedback/[id]:
+    id: crepes-basic

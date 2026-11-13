@@ -1,0 +1,63 @@
+name: Expo Explore review
+
+# Captures the screens a pull request changes, before and after, on an EAS
+# Simulator, and posts a link to the Explore report on the PR.
+#
+# Explore runs in agent mode with Claude. It authenticates with the Claude
+# subscription token CLAUDE_CODE_OAUTH_TOKEN from the job's EAS environment,
+# not with an API key. That is why this is an EAS workflow and not the GitHub
+# Actions workflows `expo-explore setup --workflows` generates: those call
+# `capture:review`, which requires ANTHROPIC_API_KEY.
+#
+# Capture configuration: .expo-explore/config.yaml and instructions.md.
+# The app is built with the `explore` profile in eas.json.
+
+on:
+  pull_request:
+    branches: ["*"]
+    # ready_for_review: a PR opened as a draft is reviewed when it is marked
+    # ready. See check-fingerprint-on-pr.yaml.
+    types: [opened, reopened, synchronize, ready_for_review]
+
+concurrency:
+  cancel_in_progress: true
+  group: ${{ workflow.filename }}-${{ github.ref }}
+
+defaults:
+  tools:
+    # @expo/explore requires Node.js 24.12 or newer.
+    node: 24.13.0
+    bun: 1.3.10
+
+jobs:
+  explore:
+    name: Explore review
+    # Drafts are work in progress; each review uses EAS builds, simulator time
+    # and Claude usage. EAS does not run pull_request workflows from forks.
+    if: ${{ !github.event.pull_request.draft }}
+    runs_on: linux-medium
+    # Provides CLAUDE_CODE_OAUTH_TOKEN, EXPO_TOKEN_SIMULATOR and GITHUB_TOKEN.
+    environment: development
+    env:
+      EXPLORE_VERSION: 0.23.0
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      BASE_REF: ${{ github.event.pull_request.base.ref || 'main' }}
+      GH_REPO: ${{ github.repository || 'keith-kurak/pancake-theory' }}
+      RUN_URL: ${{ workflow.url }}
+    steps:
+      - uses: eas/checkout
+
+      # Explore drives the `claude` CLI with the subscription token.
+      - name: Install Claude Code
+        run: npm install --global @anthropic-ai/claude-code@latest
+
+      - name: Run Explore and comment on the PR
+        run: ./scripts/explore/review-pr.sh
+
+      - uses: eas/upload_artifact
+        if: ${{ always() }}
+        with:
+          type: other
+          name: explore-review
+          path: |
+            explore-out/**/*
