@@ -66,6 +66,18 @@
         "simulator": true
       }
     },
+    "explore": {
+      "distribution": "internal",
+      "channel": "explore",
+      "environment": "explore",
+      "env": {
+        "METRICS_ENV": "e2e",
+        "EXPO_PUBLIC_METRICS_ENV": "e2e"
+      },
+      "ios": {
+        "simulator": true
+      }
+    },
     "e2e-apk": {
       "extends": "e2e",
       "android": {
