@@ -3,13 +3,13 @@
   "type": "pancakes",
   "name": "Scrambled Pancakes",
   "ingredients": [
-    { "name": "All-purpose flour", "amount": 1, "unit": "cup", "category": "flour" },
-    { "name": "Baking powder", "amount": 2, "unit": "tsp", "category": "other" },
-    { "name": "Sugar", "amount": 1, "unit": "tbsp", "category": "other" },
-    { "name": "Milk", "amount": 1, "unit": "cup", "category": "liquid" },
-    { "name": "Eggs", "amount": 2, "unit": "large", "category": "eggs" },
-    { "name": "Vanilla extract", "amount": 1, "unit": "tsp", "category": "other" },
-    { "name": "Butter (melted)", "amount": 2, "unit": "tbsp", "category": "other" }
+    { "name": "All-purpose flour", "amount": 1, "unit": "cup", "metricAmount": 125, "metricUnit": "g", "category": "flour" },
+    { "name": "Baking powder", "amount": 2, "unit": "tsp", "metricAmount": 8, "metricUnit": "g", "category": "other" },
+    { "name": "Sugar", "amount": 1, "unit": "tbsp", "metricAmount": 13, "metricUnit": "g", "category": "other" },
+    { "name": "Milk", "amount": 1, "unit": "cup", "metricAmount": 240, "metricUnit": "ml", "category": "liquid" },
+    { "name": "Eggs", "amount": 2, "unit": "large", "metricAmount": 100, "metricUnit": "g", "category": "eggs" },
+    { "name": "Vanilla extract", "amount": 1, "unit": "tsp", "metricAmount": 5, "metricUnit": "ml", "category": "other" },
+    { "name": "Butter (melted)", "amount": 2, "unit": "tbsp", "metricAmount": 28, "metricUnit": "g", "category": "other" }
   ],
   "directions": [
     "Whisk eggs in a bowl, then add milk, vanilla, and melted butter.",
