@@ -32,7 +32,7 @@ name: Weekly store rollup
 #
 # It also skips a week with no new commits on main, before any of that runs.
 #
-# Uses the production environment's GH_TOKEN, which needs WRITE access to
+# Uses the production environment's GITHUB_TOKEN, which needs WRITE access to
 # releases (the same access promote-release-on-distribution.yaml needs).
 
 on:

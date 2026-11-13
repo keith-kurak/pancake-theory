@@ -18,14 +18,14 @@
 # Usage:    reproduce-issue.sh             run the reproduction
 #           reproduce-issue.sh --announce  only comment that a run started
 #
-# Required: ISSUE_NUMBER, GH_REPO, GH_TOKEN, EXPO_TOKEN_SIMULATOR,
+# Required: ISSUE_NUMBER, GH_REPO, GITHUB_TOKEN, EXPO_TOKEN_SIMULATOR,
 #           CLAUDE_CODE_OAUTH_TOKEN (only the first three for --announce)
 # Optional: REPRO_BUILD_ID   build to use; resolved by runtime when empty
 #           UPDATE_GROUP_ID  update to load; published from the checkout when empty
 #           RUN_URL          the EAS workflow run, linked from the comment
 #
 # Local dry run (comments on the issue for real — point it at a throwaway):
-#   GH_TOKEN=... GH_REPO=owner/name ISSUE_NUMBER=123 EXPO_TOKEN_SIMULATOR=... \
+#   GITHUB_TOKEN=... GH_REPO=owner/name ISSUE_NUMBER=123 EXPO_TOKEN_SIMULATOR=... \
 #     CLAUDE_CODE_OAUTH_TOKEN=... ./scripts/agent/reproduce-issue.sh
 
 set -uo pipefail
@@ -43,7 +43,7 @@ PR_NUMBER="${ISSUE_NUMBER:-}"
 # --announce: post the "started" comment and exit. The workflow's first job
 # runs this, so the issue hears about the run before any build starts.
 if [ "${1:-}" = "--announce" ]; then
-  for var in ISSUE_NUMBER GH_REPO GH_TOKEN; do
+  for var in ISSUE_NUMBER GH_REPO GITHUB_TOKEN; do
     [ -n "${!var:-}" ] || { echo "error: $var is not set" >&2; exit 1; }
   done
   gh_comment "Started a reproduction attempt on an iOS cloud simulator, against the default branch. The verdict will be posted here, usually within 30 minutes."
@@ -118,7 +118,7 @@ cleanup() {
 # ---------------------------------------------------------------------------
 
 missing=""
-for var in ISSUE_NUMBER GH_REPO GH_TOKEN EXPO_TOKEN_SIMULATOR CLAUDE_CODE_OAUTH_TOKEN; do
+for var in ISSUE_NUMBER GH_REPO GITHUB_TOKEN EXPO_TOKEN_SIMULATOR CLAUDE_CODE_OAUTH_TOKEN; do
   [ -n "${!var:-}" ] || missing="$missing $var"
 done
 if [ -n "$missing" ]; then

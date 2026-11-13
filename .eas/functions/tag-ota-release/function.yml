@@ -2,7 +2,7 @@ name: Tag OTA release
 description: >-
   Records a published EAS Update as a GitHub release, tagged
   "<runtime version>-ota-<first 6 characters of the update group id>" on the
-  commit that EAS Update recorded for it. Needs GH_TOKEN in the calling job's
+  commit that EAS Update recorded for it. Needs GITHUB_TOKEN in the calling job's
   environment, with write access to the repository's contents (tags and
   releases).
 
@@ -49,8 +49,8 @@ runs:
       name: Tag the update's commit and create a GitHub release
       run: |
         set -euo pipefail
-        if [ -z "${GH_TOKEN:-}" ]; then
-          echo "GH_TOKEN is not set. It should come from the calling job's EAS"
+        if [ -z "${GITHUB_TOKEN:-}" ]; then
+          echo "GITHUB_TOKEN is not set. It should come from the calling job's EAS"
           echo "environment, and needs repository contents write access."
           exit 1
         fi
@@ -74,7 +74,7 @@ runs:
         const repo = process.env.REPO;
         const rv = process.env.RUNTIME_VERSION;
         const groupId = process.env.GROUP_ID;
-        const token = process.env.GH_TOKEN;
+        const token = process.env.GITHUB_TOKEN;
 
         const headers = {
           authorization: `Bearer ${token}`,

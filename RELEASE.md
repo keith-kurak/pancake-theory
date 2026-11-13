@@ -68,22 +68,25 @@ workflows can replace them.
 
 ### Start a new version
 
-1. **Bump the app version** in `app.json`, for example from `1.5.3` to `1.6.0`. This
-   starts runtime version `1.6.0`.
-2. **Label the PR `store-next`.** No production build exists for the new runtime
-   version yet, so `check-fingerprint-on-pr.yaml` would fail the PR. With the label,
-   `store-next-preview.yaml` makes preview builds of the PR in its place.
-3. **Merge the PR.** The deploy on `main` fails, because no release is tagged `1.6.0`
-   yet. This is expected.
-4. **Mint the pre-release:**
+1. **Merge the work for the new version.** If it changes the native layer, label the
+   PR `store-next`. No production build exists for the new runtime version yet, so
+   `check-fingerprint-on-pr.yaml` would fail the PR. With the label,
+   `store-next-preview.yaml` makes preview builds of the PR in its place. The deploy
+   on `main` then fails, because the native layer no longer matches the live
+   version's store builds. This is expected.
+2. **Mint the pre-release** with the new app version:
 
    ```bash
-   npx eas-cli@latest workflow:run .eas/workflows/mint-prerelease.yaml --ref main
+   npx eas-cli@latest workflow:run .eas/workflows/mint-prerelease.yaml --ref main -F version=1.6.0
    ```
 
-   This creates the release `1.6.0`, flagged pre-release, on the head of `main`. It
-   stops if the runtime version already has a release.
-5. **Run the deploy again**, or push to `main`:
+   This sets the version in `app.json` on `main`, for example from `1.5.3` to `1.6.0`,
+   which starts runtime version `1.6.0`. The commit carries `[eas skip]`, so it does
+   not start a deploy. Then it creates the release `1.6.0`, flagged pre-release, on
+   that commit. It stops if the runtime version already has a release, or if the
+   version is older than the one on `main`. If `main` already has the version, it
+   makes no commit and tags the head of `main`.
+3. **Run the deploy**, or push to `main`:
 
    ```bash
    npx eas-cli@latest workflow:run .eas/workflows/deploy-production-on-main.yaml --ref main
@@ -220,7 +223,7 @@ changed.
 
 ## Setup
 
-- **`GH_TOKEN`** in the EAS `production` environment, with **write** access to
+- **`GITHUB_TOKEN`** in the EAS `production` environment, with **write** access to
   repository contents. The release lookup only reads. Minting, OTA tags, rollups,
   promotion, and cherry-pick branches all write.
 - **Store submission credentials** for both platforms. `eas.json` has no Android submit

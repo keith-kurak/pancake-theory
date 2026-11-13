@@ -17,7 +17,7 @@ name: Start a cherry-pick branch for a runtime version
 # released. It refuses to run while main is still on the requested runtime
 # version (fix it on main instead), and to move a branch that already exists.
 #
-# Needs the production environment's GH_TOKEN with WRITE access to contents.
+# Needs the production environment's GITHUB_TOKEN with WRITE access to contents.
 
 on:
   workflow_dispatch:

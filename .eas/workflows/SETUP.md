@@ -26,7 +26,7 @@ environment is used because the agent jobs build and run the *development* clien
 | Name | What it is for | Where to get it |
 |---|---|---|
 | `CLAUDE_CODE_OAUTH_TOKEN` | Runs Claude on the worker | `claude setup-token` |
-| `GH_TOKEN` | Push commits, edit PRs, change draft state, comment | Fine-grained PAT — see below |
+| `GITHUB_TOKEN` | Push commits, edit PRs, change draft state, comment | Fine-grained PAT — see below |
 | `EXPO_TOKEN_SIMULATOR` | `eas simulator:start`, `build:list`, `build:download` | expo.dev → Account → Access tokens. Must be a **personal** token — see below |
 
 ```bash
@@ -35,7 +35,7 @@ claude setup-token   # copy the output
 npx eas-cli@latest env:create --environment development --visibility secret \
   --name CLAUDE_CODE_OAUTH_TOKEN --value '<paste>'
 npx eas-cli@latest env:create --environment development --visibility secret \
-  --name GH_TOKEN --value 'github_pat_...'
+  --name GITHUB_TOKEN --value 'github_pat_...'
 npx eas-cli@latest env:create --environment development --visibility secret \
   --name EXPO_TOKEN_SIMULATOR --value '<personal access token>'
 ```
@@ -88,7 +88,7 @@ gh secret set AGENT_GH_TOKEN --body 'github_pat_...'
 ```
 
 Only `.github/workflows/agent-start-from-issue.yml` uses it. The EAS workflows keep
-reading `GH_TOKEN` from EAS.
+reading `GITHUB_TOKEN` from EAS.
 
 `.github/workflows/agent-reproduce-from-issue.yml` starts its EAS workflow with
 `eas workflow:run`, so it needs an Expo access token with access to this project. A robot
@@ -103,7 +103,8 @@ That Action uses `--ref <default branch>`, so EAS runs the workflow file as it i
 GitHub. **`agent-reproduce.yaml` must be merged to the default branch before the label
 does anything.**
 
-> **Why not the built-in `GITHUB_TOKEN`?** Events it creates are documented not to start
+> **Why not GitHub Actions' built-in `secrets.GITHUB_TOKEN`?** (Not the EAS
+> `GITHUB_TOKEN` above, which is the PAT.) Events it creates are documented not to start
 > new *Actions workflow runs*. GitHub Apps such as EAS are not covered by that wording, so
 > it would probably still work — but "probably" is a poor foundation for the whole chain,
 > and GitHub recommends a PAT for exactly this case.
@@ -137,7 +138,7 @@ not a bug.
 > **This is the authorisation boundary.** Applying a label needs **Triage** permission or
 > higher, so read-only collaborators cannot start a run. Note that triage can label but
 > cannot push — granting it hands someone an indirect write path, since runs push using
-> `GH_TOKEN`. The issue path is stricter and requires write access outright.
+> `GITHUB_TOKEN`. The issue path is stricter and requires write access outright.
 
 ## 4. EAS Hosting
 
@@ -218,7 +219,7 @@ The runner works outside EAS against a real PR, which is the fastest way to exer
 budget and draft paths without waiting on CI:
 
 ```bash
-GH_TOKEN=ghp_... \
+GITHUB_TOKEN=ghp_... \
 GH_REPO=keith-kurak/pancake-theory \
 PR_NUMBER=123 \
 PR_HEAD_REF=my-branch \
@@ -237,7 +238,7 @@ there is no verify job after it. To run the verifier locally against the checked
 branch:
 
 ```bash
-GH_TOKEN=ghp_... \
+GITHUB_TOKEN=ghp_... \
 GH_REPO=keith-kurak/pancake-theory \
 PR_NUMBER=123 \
 EXPO_TOKEN_SIMULATOR=... \

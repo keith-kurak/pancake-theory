@@ -57,7 +57,6 @@ module.exports = ({ config }) => {
       addGeneratedScheme: process.env.APP_VARIANT === "DEV",
     },
   ]);
-  plugins.push("expo-background-task");
   plugins.push("expo-status-bar");
 
   let name = config.name;

@@ -36,7 +36,7 @@ jobs:
   # a native build that can take twenty minutes.
   announce:
     name: Comment that the run started
-    environment: development # GH_TOKEN
+    environment: development # GITHUB_TOKEN
     env:
       ISSUE_NUMBER: ${{ inputs.issue_number }}
       GH_REPO: ${{ github.repository || 'keith-kurak/pancake-theory' }}
@@ -131,7 +131,7 @@ jobs:
   remove_label:
     name: Remove the agent-reproduce label
     after: [reproduce]
-    environment: development # GH_TOKEN
+    environment: development # GITHUB_TOKEN
     steps:
       - uses: eas/checkout
       - uses: ./.eas/functions/remove-pr-label

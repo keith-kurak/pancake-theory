@@ -35,7 +35,7 @@
 # still reports and still tears down the simulator.
 #
 # Local dry run:
-#   GH_TOKEN=... GH_REPO=owner/name PR_NUMBER=123 \
+#   GITHUB_TOKEN=... GH_REPO=owner/name PR_NUMBER=123 \
 #     AGENT_TOTAL_BUDGET_SECONDS=600 ./scripts/agent/run-agent-pr.sh
 
 set -uo pipefail
@@ -107,7 +107,7 @@ preflight() {
   # populate them for every event, so anything derivable is derived rather than
   # trusted.
   local missing=""
-  for var in CLAUDE_CODE_OAUTH_TOKEN GH_TOKEN GH_REPO PR_NUMBER; do
+  for var in CLAUDE_CODE_OAUTH_TOKEN GITHUB_TOKEN GH_REPO PR_NUMBER; do
     [ -n "${!var:-}" ] || missing="$missing $var"
   done
   if [ -n "$missing" ]; then
@@ -533,7 +533,7 @@ Validation: $STATUS_VALIDATE
 EOF
 )" >/dev/null
 
-  git push "https://x-access-token:${GH_TOKEN}@github.com/${GH_REPO}.git" \
+  git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GH_REPO}.git" \
     "HEAD:refs/heads/${PR_HEAD_REF}"
 }
 

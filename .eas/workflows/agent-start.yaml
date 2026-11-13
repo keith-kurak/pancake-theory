@@ -127,7 +127,7 @@ jobs:
   remove_label:
     name: Remove the agent-start label
     after: [agent, verify]
-    environment: development # GH_TOKEN
+    environment: development # GITHUB_TOKEN
     steps:
       - uses: eas/checkout
       - uses: ./.eas/functions/remove-pr-label

@@ -1,7 +1,7 @@
 name: Create GitHub release
 description: >-
   Creates a GitHub release, full or pre-release (never draft), with a tag on
-  the given commit and GitHub's generated notes. Needs GH_TOKEN in the calling
+  the given commit and GitHub's generated notes. Needs GITHUB_TOKEN in the calling
   job's environment, with WRITE access to releases (contents: write).
 
 inputs:
@@ -43,8 +43,8 @@ runs:
       name: Create the GitHub release
       run: |
         set -euo pipefail
-        if [ -z "${GH_TOKEN:-}" ]; then
-          echo "GH_TOKEN is not set. It should come from the calling job's EAS"
+        if [ -z "${GITHUB_TOKEN:-}" ]; then
+          echo "GITHUB_TOKEN is not set. It should come from the calling job's EAS"
           echo "environment, and needs repository release write access."
           exit 1
         fi
@@ -63,7 +63,7 @@ runs:
         cat > "/tmp/create-release.js" <<'NODE_EOF'
         const env = process.env;
         const headers = {
-          authorization: `Bearer ${env.GH_TOKEN}`,
+          authorization: `Bearer ${env.GITHUB_TOKEN}`,
           accept: 'application/vnd.github+json',
           'x-github-api-version': '2022-11-28',
           'content-type': 'application/json',

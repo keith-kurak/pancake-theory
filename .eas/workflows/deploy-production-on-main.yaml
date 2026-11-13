@@ -32,7 +32,7 @@ name: Continuous deploy to production on main
 # test builds are repacked, and those use the e2e profiles, which are
 # fingerprint-identical to production so they share its build lineage.
 #
-# Uses the existing GH_TOKEN secret in the "production" EAS environment, which
+# Uses the existing GITHUB_TOKEN secret in the "production" EAS environment, which
 # needs read access to this repository's releases, plus contents write access so
 # tag_update_release can create the update's tag and release. The lookup itself
 # lives in .eas/functions/find-github-release, shared with
